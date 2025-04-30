@@ -1,3 +1,5 @@
+import { DnaPaymentsError } from './models/DnaPaymentsError'
+import errors from './errors'
 import { logError } from './log'
 
 export async function createHostedFields({
@@ -5,7 +7,8 @@ export async function createHostedFields({
     accessToken,
     threeDSModal,
     domElements: { number, name, expDate, cvv, cvvToken },
-    sendCallbackEveryFailedAttempt = 0
+    sendCallbackEveryFailedAttempt = 0,
+    showPlaceholderOnlyOnFocus = false,
 }) {
     const fields = {
         cardholderName: {
@@ -30,21 +33,36 @@ export async function createHostedFields({
         },
     }
 
-    const options = {
-        isTestMode,
-        accessToken,
-        styles: {
-            input: {
-                'font-size': '16px',
-                'font-family': 'Open Sans',
-            },
+    let styles = {
+        input: {
+            'font-size': '16px',
+            'font-family': 'Open Sans',
+        },
+    }
+
+    if (showPlaceholderOnlyOnFocus) {
+        styles = {
+            ...styles,
             '::placeholder': {
                 opacity: '0',
             },
             'input:focus::placeholder': {
                 opacity: '0.5',
             },
-        },
+        }
+    } else {
+        styles = {
+            ...styles,
+            '::placeholder': {
+                opacity: '0.5',
+            },
+        }
+    }
+
+    const options = {
+        isTestMode,
+        accessToken,
+        styles,
         styleConfig: {
             containerClasses: {
                 FOCUSED: 'focused',
@@ -71,6 +89,15 @@ export async function createHostedFields({
             }
         })
 
+        hostedFieldsInstance.on('clear', function () {
+            const containers = [number, name, expDate, cvv, cvvToken]
+            containers.forEach((fieldContainer) => {
+                if (fieldContainer) {
+                    fieldContainer.classList.toggle('empty', true)
+                }
+            })
+        })
+
         hostedFieldsInstance.on('dna-payments-three-d-secure-show', (data) => {
             if (threeDSModal) {
                 threeDSModal.show()
@@ -86,6 +113,6 @@ export async function createHostedFields({
         return hostedFieldsInstance
     } catch (err) {
         logError(err)
-        throw new Error('Your card has not been authorised, please check the details and retry or contact your bank.')
+        throw new DnaPaymentsError(errors.HOSTED_FIELDS_INIT_FAIL)
     }
 }

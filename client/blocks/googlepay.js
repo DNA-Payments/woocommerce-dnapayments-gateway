@@ -10,6 +10,7 @@ import { RawHTML } from '@wordpress/element'
 /**
  * Internal dependencies
  */
+import errors from '../common/errors'
 import { CONTAINER_IDS, GATEWAY_ID_GOOGLE_PAY, TEXT_DOMAIN } from './constants'
 import { PaymentComponent } from './components/payment-component'
 
@@ -20,10 +21,12 @@ const icon = settings?.icon
 
 const Label = (props) => {
     const { PaymentMethodLabel } = props.components
-    return <span style={{ width: '100%' }}>
-        <PaymentMethodLabel text={label} />
-        {icon && <img src={icon} style={{ float: 'right', marginRight: 20 }} />}
-    </span>
+    return (
+        <span style={{ width: '100%' }}>
+            <PaymentMethodLabel text={label} />
+            {icon && <img src={icon} style={{ float: 'right', marginRight: 20 }} />}
+        </span>
+    )
 }
 
 /**
@@ -42,7 +45,7 @@ const GooglePayButton = (props) => {
             componentInstance={window.DNAPayments.GooglePayComponent}
             gatewayId={GATEWAY_ID_GOOGLE_PAY}
             containerId={CONTAINER_IDS.googlepay}
-            errorMessage={__('Google Pay payments are not supported in your current browser.', TEXT_DOMAIN)}
+            errorMessage={__(errors.GOOGLE_PAY_INIT_FAIL.message, TEXT_DOMAIN)}
             props={props}
         />
     )

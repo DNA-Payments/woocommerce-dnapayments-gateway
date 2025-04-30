@@ -170,7 +170,7 @@ class WC_DNA_Payments_Order_Client_Helpers {
             $image_url = $image_id ? wp_get_attachment_image_url( $image_id, 'full' ) : '';
             
             $orderLines[] = array(
-                'reference' => strval($item->get_id()),
+                'reference' => strval($product->get_id()),
                 'name' => html_entity_decode( wc_trim_string( $item->get_name() ? wp_strip_all_tags( $item->get_name() ) : __( 'Item', 'woocommerce' ), 127 ), ENT_NOQUOTES, 'UTF-8' ),
                 'quantity' => $item->get_quantity(),
                 'unitPrice' => self::numberFormat(($item->get_total()/$item->get_quantity())),

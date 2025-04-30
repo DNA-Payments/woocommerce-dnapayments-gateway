@@ -8,12 +8,13 @@ import { ValidationInputError } from '@woocommerce/blocks-checkout'
 /**
  * Internal dependencies
  */
+import { createHostedFields } from '../../common/create-hosted-fields'
+import { createModal } from '../../common/create-modal'
+import { logData } from '../../common/log'
+
 import { HOSTED_FIELD_IDS, TEXT_DOMAIN } from '../constants'
-import { getDnaPaymentsSettingsData } from '../utils/get_settings'
-import { createHostedFields } from '../utils/create-hosted-fields'
-import { createModal } from '../utils/create-modal'
+import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { setPlaceOrderButtonDisabled } from '../utils/place-order-button'
-import { logData } from '../utils/log'
 
 /**
  * Render the credit card fields.
@@ -31,7 +32,7 @@ export const DnapaymentsCreditCardFields = ({
         token = null,
     } = props
 
-    const { cardSchemeIconPath } = getDnaPaymentsSettingsData()
+    const { cardSchemeIconPath } = dnaPaymentsSettingsData
 
     const mounted = useRef(false)
     const threeDSRef = useRef()
@@ -46,7 +47,7 @@ export const DnapaymentsCreditCardFields = ({
     })
 
     const setupIntegration = async () => {
-        const { isTestMode, tempToken, cards, sendCallbackEveryFailedAttempt } = getDnaPaymentsSettingsData()
+        const { isTestMode, tempToken, cards, sendCallbackEveryFailedAttempt } = dnaPaymentsSettingsData
         const selectedCard = cards.find((c) => String(c.id) === String(token))
 
         setPlaceOrderButtonDisabled(true)
@@ -63,7 +64,8 @@ export const DnapaymentsCreditCardFields = ({
                 cvv: document.getElementById(HOSTED_FIELD_IDS.cvv),
                 cvvToken: document.getElementById(HOSTED_FIELD_IDS.cvvToken),
             },
-            sendCallbackEveryFailedAttempt
+            sendCallbackEveryFailedAttempt,
+            showPlaceholderOnlyOnFocus: true,
         })
 
         hostedFieldsInstance.on('change', () => {
@@ -84,13 +86,15 @@ export const DnapaymentsCreditCardFields = ({
     }
 
     useEffect(() => {
-        const { cards } = getDnaPaymentsSettingsData()
-        if (token && hostedFieldsInstance) {
-            const selectedCard = cards.find((c) => String(c.id) === String(token))
+        const { cards } = dnaPaymentsSettingsData
+        if (hostedFieldsInstance) {
+            const selectedCard = token && cards.find((c) => String(c.id) === String(token))
             if (selectedCard) {
                 const cvvState = hostedFieldsInstance.getTokenizedCardCvvState(selectedCard)
                 setIsCvvTokenVisible(cvvState === 'required')
                 hostedFieldsInstance.selectCard(selectedCard)
+            } else {
+                hostedFieldsInstance.selectCard(null)
             }
         }
     }, [token])
@@ -123,7 +127,10 @@ export const DnapaymentsCreditCardFields = ({
                 <div className='wc-block-gateway-container'>
                     <div id={HOSTED_FIELD_IDS.number} className={`wc-block-gateway-input empty`} />
                     <label htmlFor={HOSTED_FIELD_IDS.number}>{__('Card number', TEXT_DOMAIN)}</label>
-                    <img className='wc-dnapayments-card-selected' src={`${cardSchemeIconPath}/${cardScheme || 'none'}.png`} />            
+                    <img
+                        className='wc-dnapayments-card-selected'
+                        src={`${cardSchemeIconPath}/${cardScheme || 'none'}.png`}
+                    />
                     <ValidationInputError errorMessage={error.number} />
                 </div>
 

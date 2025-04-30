@@ -1,5 +1,13 @@
-export function setPlaceOrderButtonDisabled(isDisabled) {
-    const placeOrderButton = getPlaceOrderButton()
+import { useEffect, useRef } from '@wordpress/element'
+import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY } from '../constants'
+import { useCheckoutUpdate } from '../hooks/use-checkout-update'
+
+export function isPlaceOrderButtonDisabled(activePaymentMethod) {
+    return [GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY].includes(activePaymentMethod)
+}
+
+export function setPlaceOrderButtonDisabled(isDisabled, button) {
+    const placeOrderButton = button || getPlaceOrderButton()
 
     if (!placeOrderButton) {
         return
@@ -23,4 +31,21 @@ export function triggerPlaceOrderButtonClick() {
 
 export function getPlaceOrderButton() {
     return document.querySelector('button.wc-block-components-checkout-place-order-button')
+}
+
+export function useTogglePlaceOrderButtonDisabled(activePaymentMethod) {
+    const refActivePaymentMethod = useRef(activePaymentMethod)
+    const update = () => {
+        const isDisabled = isPlaceOrderButtonDisabled(refActivePaymentMethod.current)
+        const button = getPlaceOrderButton()
+        setTimeout(() => setPlaceOrderButtonDisabled(isDisabled, button), 100)
+    }
+
+    useEffect(() => {
+        refActivePaymentMethod.current = activePaymentMethod
+    }, [activePaymentMethod])
+
+    useCheckoutUpdate(update)
+
+    update()
 }

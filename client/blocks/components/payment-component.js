@@ -1,121 +1,187 @@
-import { useEffect, useRef, useState } from '@wordpress/element'
+import { useEffect, useRef, useState, useMemo, useCallback } from '@wordpress/element'
 import { __ } from '@wordpress/i18n'
 
-import { TEXT_DOMAIN } from '../constants'
-import { ErrorMessage } from './error-message'
-import { fetchPaymentAndAuthData } from '../utils/fetch_payment_and_auth_data'
-import { logData, logError } from '../utils/log'
-import { setPlaceOrderButtonDisabled, triggerPlaceOrderButtonClick } from '../utils/place-order-button'
+import errors from '../../common/errors'
+import { logData, logError } from '../../common/log'
+import { tryParse } from '../../common/try-parse'
+import { validatePaymentData } from '../../common/validater'
+import { completePayment } from '../../common/complete-payment'
+import { debounce } from '../../common/debounce'
+import { getPaymentComponentErrorMessage, isProcessFailed } from '../../common/payment-component-helper'
 
-export const PaymentComponent = ({ containerId, componentInstance, gatewayId, errorMessage, props }) => {
+import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
+import { dnaPaymentsSettingsData } from '../utils/get-settings'
+import { getPaymentData } from '../utils/get-payment-data'
+
+import { ErrorMessage } from './error-message'
+
+export const PaymentComponent = ({ containerId, componentInstance, errorMessage, props }) => {
     const {
+        activePaymentMethod,
+        emitResponse: { responseTypes, noticeContexts },
         components: { LoadingMask },
+        eventRegistration: { onCheckoutSuccess, onCheckoutFail },
     } = props
 
     const [loadingState, setLoadingState] = useState('idle')
-    const [messages, setMessages] = useState([])
+    const [errorMessages, setErrors] = useState([])
 
     // pay button container
     const containerRef = useRef(null)
-    // process payment result
-    const paymentResultRef = useRef()
+    // full payment data
+    const paymentDataRef = useRef()
+    // preliminary payment data
+    const draftPaymentDataRef = useRef()
+    // resolve and reject of onBeforeProcessPayment
+    const processPromiseRef = useRef()
+    // resolve and reject of onCheckoutSuccess
+    const checkoutPromiseRef = useRef()
 
-    const {
-        emitResponse,
-        eventRegistration: { onPaymentSetup },
-    } = props
+    const { tempToken } = dnaPaymentsSettingsData
 
-    useEffect(() => {
-        const handler = async () => {
-            if (paymentResultRef.current?.success) {
-                return {
-                    type: emitResponse.responseTypes.SUCCESS,
-                    meta: {
-                        paymentMethodData: {
-                            [`wc-${gatewayId}-result`]: JSON.stringify(paymentResultRef.current),
-                        },
-                    },
-                }
-            }
-
-            return {
-                type: emitResponse.responseTypes.ERROR,
-                message: __('Your payment proccess has been failed.', TEXT_DOMAIN),
-                messageContext: emitResponse.noticeContexts.PAYMENTS,
-            }
+    const paymentDataJSON = useMemo(() => {
+        try {
+            return JSON.stringify(getPaymentData(props))
+        } catch (err) {
+            logError(err)
+            return '{}'
         }
+    }, [props])
 
-        return onPaymentSetup(handler)
-    }, [onPaymentSetup, emitResponse])
+    const rejectCheckoutPromise = useCallback(() => {
+        if (checkoutPromiseRef.current) {
+            checkoutPromiseRef.current.resolve({
+                type: responseTypes.ERROR,
+                message: errors.CARD_PAYMENT_FAIL.message,
+                messageContext: noticeContexts.PAYMENTS,
+            })
+            checkoutPromiseRef.current.hasRejected = true
+        }
+    }, [responseTypes, noticeContexts])
 
-    useEffect(() => {
-        const setupIntegration = async () => {
+    const setupIntegration = useCallback(
+        debounce(async () => {
             setLoadingState('loading')
-            const { paymentData, auth } = await fetchPaymentAndAuthData(props)
-
-            paymentResultRef.current = null
 
             containerRef.current.innerHTML = ''
 
             componentInstance.create(
                 containerRef.current,
-                paymentData,
+                draftPaymentDataRef.current,
                 {
                     onClick: () => {
                         setLoadingState('loading')
+                        const messages = validatePaymentData(draftPaymentDataRef.current)
+                        if (messages.length > 0) {
+                            return { error: { message: messages } }
+                        } else {
+                            return { paymentData: draftPaymentDataRef.current }
+                        }
                     },
-                    onPaymentSuccess: (result) => {
+                    onBeforeProcessPayment: () =>
+                        new Promise((resolve, reject) => {
+                            processPromiseRef.current = { resolve, reject }
+                            triggerPlaceOrderButtonClick()
+                        }),
+                    onPaymentSuccess: async (paymentResult) => {
+                        logData('onPaymentSuccess', paymentResult)
+                        const redirect = paymentDataRef.current?.paymentSettings?.returnUrl
+                        await completePayment({
+                            paymentResult,
+                            redirect,
+                            setErrors,
+                        })
                         setLoadingState('done')
-                        logData('onPaymentSuccess', result)
-                        paymentResultRef.current = result
-                        triggerPlaceOrderButtonClick()
+                        checkoutPromiseRef.current?.resolve({
+                            type: responseTypes.SUCCESS,
+                            messageContext: noticeContexts.PAYMENTS,
+                            redirectUrl: redirect,
+                        })
                     },
                     onCancel: () => {
                         setLoadingState('done')
                     },
                     onError: (err) => {
-                        logError('onError', err)
-
-                        let message =
-                            err.message ||
-                            __(
-                                'Your card has not been authorised, please check the details and retry or contact your bank.',
-                                TEXT_DOMAIN,
-                            )
-
-                        if (
-                            errorMessage &&
-                            (err.code === 1002 || // Failed to initialize the Google / Apple Pay button
-                                err.code === 1003) // Failed to validate the Google / Apple Pay button
-                        ) {
-                            message = errorMessage
-                        }
-
+                        const message = getPaymentComponentErrorMessage(err, errorMessage)
                         setLoadingState('failed')
-                        setMessages([message])
+                        setErrors(Array.isArray(message) ? message : [message])
+                        if (isProcessFailed(err)) {
+                            rejectCheckoutPromise()
+                        }
                     },
                     onLoad: () => {
                         setLoadingState('done')
                     },
                 },
-                auth.access_token,
+                tempToken,
             )
+        }),
+        [componentInstance, rejectCheckoutPromise],
+    )
+
+    useEffect(() => {
+        const handler = ({ processingResponse: { paymentDetails } }) =>
+            new Promise((resolve, reject) => {
+                checkoutPromiseRef.current = { resolve, reject }
+
+                const paymentData = tryParse(paymentDetails.paymentData)
+                const auth = tryParse(paymentDetails.auth)
+
+                if (paymentData && auth) {
+                    paymentDataRef.current = paymentData
+                    processPromiseRef.current?.resolve({ paymentData, auth, token: auth.access_token })
+                } else {
+                    processPromiseRef.current?.reject(errors.CARD_PAYMENT_FAIL.message)
+                    rejectCheckoutPromise()
+                }
+            })
+
+        return onCheckoutSuccess(handler)
+    }, [onCheckoutSuccess, rejectCheckoutPromise])
+
+    useEffect(() => {
+        const handler = async (params) => {
+            logData('onCheckoutFail', params)
+
+            const {
+                processingResponse: {
+                    message,
+                    paymentDetails: { messages },
+                },
+            } = params
+
+            const errorMessage = message || messages || errors.CARD_PAYMENT_FAIL.message
+
+            if (!checkoutPromiseRef.current?.hasRejected) {
+                processPromiseRef.current?.reject(errorMessage)
+
+                return {
+                    type: responseTypes.FAIL,
+                    message: errorMessage,
+                    messageContext: noticeContexts.CHECKOUT,
+                }
+            }
         }
 
+        return onCheckoutFail(handler)
+    }, [onCheckoutFail, responseTypes, noticeContexts])
+
+    useEffect(() => {
+        draftPaymentDataRef.current = JSON.parse(paymentDataJSON)
+    }, [paymentDataJSON])
+
+    useEffect(() => {
         if (containerRef.current && componentInstance) {
             setupIntegration()
         }
-    }, [componentInstance, containerRef, props.billing.cartTotal.value])
+    }, [setupIntegration, props.billing?.cartTotal?.value])
 
     // if payment gateway selected, disable place order button
-    useEffect(() => {
-        setPlaceOrderButtonDisabled(true)
-        return () => setPlaceOrderButtonDisabled(false)
-    }, [])
+    useTogglePlaceOrderButtonDisabled(activePaymentMethod)
 
     return (
         <>
-            <ErrorMessage messages={messages} />
+            <ErrorMessage messages={errorMessages} />
             <LoadingMask isLoading={loadingState === 'loading'} showSpinner={true}>
                 <div ref={containerRef} id={containerId}></div>
             </LoadingMask>

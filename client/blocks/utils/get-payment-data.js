@@ -1,14 +1,31 @@
 import { select } from '@wordpress/data'
 
-import { getDnaPaymentsSettingsData } from './get_settings'
+import { dnaPaymentsSettingsData } from './get-settings'
 
 export function getPaymentData(props) {
     const { billing, shippingData } = props
-    const { terminalId } = getDnaPaymentsSettingsData()
+    const { terminalId } = dnaPaymentsSettingsData
+
+    const orderLines = props.cartData.cartItems.map((product) => {
+        const total = getAmount(parseFloat(product.totals.line_subtotal), props)
+        const quantity = product.quantity
+
+        return {
+            reference: String(product.id),
+            name: product.name,
+            imageUrl: product.images?.[0]?.src ?? '',
+            productUrl: product.permalink,
+            quantity,
+            unitPrice: Math.round(total / quantity),
+            totalAmount: total,
+        }
+    })
+
+    const getValueByKey = (key) => getAmount(billing.cartTotalItems.find((item) => item.key === key)?.value ?? 0, props)
 
     return {
-        invoiceId: getOrderId(),
         amount: getAmount(billing.cartTotal.value, props),
+        currency: billing.currency.code,
         customerDetails: {
             email: billing.billingAddress.email,
             accountDetails: {
@@ -19,16 +36,17 @@ export function getPaymentData(props) {
                 deliveryAddress: getAddress(shippingData.shippingAddress),
             },
         },
+        amountBreakdown: {
+            itemTotal: { totalAmount: getValueByKey('total_items') },
+            shipping: { totalAmount: getValueByKey('total_shipping') },
+            taxTotal: { totalAmount: getValueByKey('total_tax') },
+            discount: { totalAmount: getValueByKey('total_discount') },
+        },
+        orderLines,
         paymentSettings: {
             terminalId,
         },
     }
-}
-
-export function isRequiredFieldsAreFilled(props) {
-    const { billing: { billingAddress } } = props
-    const requiredFieldNames = ['email', 'first_name', 'last_name', 'address_1', 'country', 'city', 'postcode']
-    return requiredFieldNames.every((field) => billingAddress[field]?.trim());
 }
 
 export function getAmount(amount, { billing }) {

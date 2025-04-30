@@ -7,73 +7,93 @@ import { useEffect } from '@wordpress/element'
 /**
  * Internal dependencies
  */
+import { tryParse } from '../../common/try-parse'
+import { payHostedFields } from '../../common/pay-hosted-fields'
+import errors from '../../common/errors'
+
 import { TEXT_DOMAIN } from '../constants'
-import { getDnaPaymentsSettingsData } from '../utils/get_settings'
-import { logError } from '../utils/log'
-import { tryParse } from '../utils/try-parse'
+import { dnaPaymentsSettingsData } from '../utils/get-settings'
+import { completePayment } from '../../common/complete-payment'
+import { shouldHideOrderLines } from '../../common/validater'
 
 export const usePaymentForm = ({ props, hostedFieldsInstance }) => {
     const {
-        emitResponse,
-        eventRegistration: { onCheckoutSuccess },
+        emitResponse: { responseTypes, noticeContexts },
+        eventRegistration: { onCheckoutSuccess, onPaymentSetup },
         shouldSavePayment,
     } = props
-    const { isTestMode, integrationType, allowSavingCards, cards: _cards } = getDnaPaymentsSettingsData()
+    const { isTestMode, integrationType, allowSavingCards, cards: _cards, terminalConfig } = dnaPaymentsSettingsData
     const cards = allowSavingCards ? _cards : []
+
+    useEffect(() => {
+        const handler = async () => {
+            if (integrationType === 'seamless') {
+                const { isValid } = await hostedFieldsInstance.validate()
+                if (!isValid) {
+                    return {
+                        type: responseTypes.ERROR,
+                        message: errors.CARD_DETAILS_INVALID.message,
+                        messageContext: noticeContexts.PAYMENTS,
+                    }
+                }
+            }
+            return true
+        }
+
+        return onPaymentSetup(handler)
+    }, [onPaymentSetup, hostedFieldsInstance, responseTypes, noticeContexts])
 
     useEffect(() => {
         const handler = ({ processingResponse: { paymentDetails } }) =>
             new Promise((resolve) => {
                 const paymentData = tryParse(paymentDetails.paymentData)
                 const auth = tryParse(paymentDetails.auth)
-                const merchantCustomData = tryParse(paymentData.merchantCustomData) || {}
-                const { returnUrl, failureReturnUrl } = paymentData.paymentSettings
+
+                if (shouldHideOrderLines(terminalConfig) && paymentData?.orderLines) {
+                    delete paymentData.orderLines
+                }
+
+                const successResponse = {
+                    type: responseTypes.SUCCESS,
+                    messageContext: noticeContexts.PAYMENTS,
+                }
+                const failedResponse = {
+                    type: responseTypes.ERROR,
+                    messageContext: noticeContexts.PAYMENTS,
+                }
 
                 switch (integrationType) {
-                    case 'hosted-fields': {
+                    case 'seamless': {
                         window.DNAPayments.configure({ isTestMode, cards, allowSavingCards })
 
-                        hostedFieldsInstance
-                            .submit({
-                                paymentData: {
-                                    ...paymentData,
-                                    merchantCustomData: JSON.stringify({
-                                        ...merchantCustomData,
-                                        storeCardOnFile: shouldSavePayment,
-                                    }),
-                                },
-                                token: auth.access_token,
-                            })
-                            .then(() => {
-                                resolve({
-                                    type: emitResponse.responseTypes.SUCCESS,
-                                    messageContext: emitResponse.noticeContexts.PAYMENTS,
-                                })
-
-                                window.location.href = returnUrl
-                            })
-                            .catch((err) => {
-                                logError(err)
-                                let message = err.message
-
-                                if (err.code !== 'INVALID_CARD_DATA') {
-                                    hostedFieldsInstance.clear()
-                                    message = __(
-                                        'Your card has not been authorised, please check the details and retry or contact your bank.',
-                                        TEXT_DOMAIN,
-                                    )
-                                }
-
-                                resolve({
-                                    type: emitResponse.responseTypes.ERROR,
-                                    message,
-                                    messageContext: emitResponse.noticeContexts.PAYMENTS,
-                                })
-
-                                if (String(err.code).includes('CLOSE_TRANSACTION')) {
-                                    window.location.href = failureReturnUrl
+                        payHostedFields(
+                            hostedFieldsInstance,
+                            {
+                                ...paymentData,
+                                merchantCustomData: JSON.stringify({
+                                    ...(tryParse(paymentData.merchantCustomData) || {}),
+                                    storeCardOnFile: shouldSavePayment,
+                                }),
+                            },
+                            auth,
+                        ).then((result) => {
+                            completePayment({
+                                paymentResult: result.data,
+                                redirect: result.redirect,
+                            }).finally(() => {
+                                resolve(
+                                    !result.error
+                                        ? successResponse
+                                        : {
+                                              ...failedResponse,
+                                              message: result.error,
+                                          },
+                                )
+                                if (result.redirect) {
+                                    window.location.href = result.redirect
                                 }
                             })
+                        })
                         break
                     }
                     case 'embedded': {
@@ -84,23 +104,14 @@ export const usePaymentForm = ({ props, hostedFieldsInstance }) => {
                             events: {
                                 cancelled: () =>
                                     resolve({
-                                        type: emitResponse.responseTypes.ERROR,
-                                        message: __(
-                                            'You have cancelled the payment process. Please try again if you wish to complete the order.',
-                                            TEXT_DOMAIN,
-                                        ),
-                                        messageContext: emitResponse.noticeContexts.PAYMENTS,
+                                        ...failedResponse,
+                                        message: __(errors.CARD_PAYMENT_CANCEL.message, TEXT_DOMAIN),
                                     }),
-                                paid: () =>
-                                    resolve({
-                                        type: emitResponse.responseTypes.SUCCESS,
-                                        messageContext: emitResponse.noticeContexts.PAYMENTS,
-                                    }),
+                                paid: () => resolve(successResponse),
                                 declined: () =>
                                     resolve({
-                                        type: emitResponse.responseTypes.ERROR,
-                                        message: __('Your payment proccess has been failed.', TEXT_DOMAIN),
-                                        messageContext: emitResponse.noticeContexts.PAYMENTS,
+                                        ...failedResponse,
+                                        message: __(errors.CARD_PAYMENT_FAIL.message, TEXT_DOMAIN),
                                     }),
                             },
                         })
@@ -116,5 +127,5 @@ export const usePaymentForm = ({ props, hostedFieldsInstance }) => {
             })
 
         return onCheckoutSuccess(handler)
-    }, [onCheckoutSuccess, hostedFieldsInstance])
+    }, [onCheckoutSuccess, hostedFieldsInstance, responseTypes, noticeContexts])
 }

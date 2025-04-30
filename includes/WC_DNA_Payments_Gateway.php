@@ -10,6 +10,7 @@ if ( is_readable( WC_DNA_PLUGIN_PATH . '/vendor/autoload.php' ) ) {
 
 require_once WC_DNA_PLUGIN_PATH . '/includes/admin/fields.php';
 
+use WCPG_DNA_Payments\Utils\Helper;
 
 class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
 
@@ -48,6 +49,51 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
      */
     public $dnaPayment;
 
+    /**
+     * @var \WCPG_DNA_Payments\Utils\Logger
+     */
+    public $logger;
+
+    /**
+     * @var \WCPG_DNA_Payments\Utils\CheckoutValidation
+     */
+    public $checkoutValidation;
+
+    /**
+     * @var \WCPG_DNA_Payments\Utils\PaymentDataHelper
+     */
+    public $paymentDataHelper;
+
+    /**
+     * @var \WCPG_DNA_Payments\Utils\AuthDataHelper
+     */
+    public $authDataHelper;
+
+    /**
+     * @var \WCPG_DNA_Payments\Utils\OrderHelper
+     */
+    public $orderHelper;
+
+    /**
+     * @var \WCPG_DNA_Payments\Utils\AjaxInit
+     */
+    public $ajaxInit;
+
+    /**
+     * @var \WCPG_DNA_Payments\Utils\WebhooksInit
+     */
+    public $webhooksInit;
+
+	/**
+	 * @var \WCPG_DNA_Payments\Utils\AnalyticsHelper
+	 */
+    public $analyticsHelper;
+
+    /**
+	 * @var \WCPG_DNA_Payments\Utils\RequestHelper
+	 */
+    public $requestHelper;
+
     public function __construct() {
 
         $this->id = 'dnapayments';
@@ -61,8 +107,9 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
         $this->description = $this->get_option( 'description' );
         $this->enabled = $this->get_option( 'enabled' );
         $this->is_test_mode = 'yes' === $this->get_option( 'is_test_mode' );
-        $this->integration_type = $this->get_option( 'integration_type' );
-        $this->has_fields = $this->integration_type == 'hosted-fields';
+        $integration_type = $this->get_option( 'integration_type' );
+        $this->integration_type = $integration_type === 'hosted-fields' ? 'seamless' : $integration_type;
+        $this->has_fields = $this->integration_type == 'seamless';
         $this->enabled_saved_cards = 'yes' === $this->get_option( 'enabled_saved_cards' );
         $this->client_id = $this->is_test_mode ? $this->get_option( 'test_client_id' ) : $this->get_option( 'client_id' );
         $this->client_secret = $this->is_test_mode ? $this->get_option( 'test_client_secret' ) : $this->get_option( 'client_secret' );
@@ -72,17 +119,21 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'payment_scripts') );
 
-        add_action( 'rest_api_init', array( $this, 'register_routes' ));
-        add_action('wp_ajax_add_card_payment_data', array($this, 'add_card_payment_data'));
-        add_action('wp_ajax_get_payment_and_auth_data', array($this, 'get_payment_and_auth_data'));
-        add_action('wp_ajax_nopriv_get_payment_and_auth_data', array($this, 'get_payment_and_auth_data'));
-
         $this->dnaPayment = new DNAPayments\DNAPayments($this->get_config());
+        $this->logger = new WCPG_DNA_Payments\Utils\Logger( $this );
+        $this->checkoutValidation = new WCPG_DNA_Payments\Utils\CheckoutValidation();
+        $this->paymentDataHelper = new WCPG_DNA_Payments\Utils\PaymentDataHelper( $this );
+        $this->authDataHelper = new WCPG_DNA_Payments\Utils\AuthDataHelper( $this );
+        $this->orderHelper = new WCPG_DNA_Payments\Utils\OrderHelper( $this );
+        $this->ajaxInit = new WCPG_DNA_Payments\Utils\AjaxInit( $this );
+        $this->webhooksInit = new WCPG_DNA_Payments\Utils\WebhooksInit( $this );
+        $this->analyticsHelper = new WCPG_DNA_Payments\Utils\AnalyticsHelper($this);
+        $this->requestHelper = new WCPG_DNA_Payments\Utils\RequestHelper($this);
 
         $this->supports = array( 'products', 'refunds' );
         if ( $this->enabled_saved_cards ) {
             array_push($this->supports, 'tokenization' );
-        }        
+        }
     }
 
     public function get_config() {
@@ -90,8 +141,8 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
             'isTestMode' => $this->is_test_mode,
             'scopes' => [
                 'allowHosted' => true,
-                'allowEmbedded' => in_array($this->integration_type, ['embedded', 'hosted-fields']),
-                'allowSeamless' => $this->integration_type == 'hosted-fields'
+                'allowEmbedded' => in_array($this->integration_type, ['embedded', 'seamless']),
+                'allowSeamless' => $this->integration_type == 'seamless'
             ]
         ];
     }
@@ -109,7 +160,6 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
      * @return bool
      */
     public function process_cancel($order) {
-        $logger = wc_get_logger();
         try {
             $result = $this->dnaPayment->cancel([
                 'client_id' => $this->client_id,
@@ -123,7 +173,7 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
 
             return !empty($result) && $result['success'];
         } catch (Exception $e) {
-            $logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage(), [ 'source' => $this->id ]);
+            $this->logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
             return false;
         }
 
@@ -145,14 +195,17 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
     }
 
     /**
-     * Refund a charge.
-     *
-     * @param  int $order_id
-     * @param  float $amount
-     * @return bool
-     */
+	 * Process refund.
+	 *
+	 * If the gateway declares 'refunds' support, this will allow it to refund.
+	 * a passed in amount.
+	 *
+	 * @param  int        $order_id Order ID.
+	 * @param  float|null $amount Refund amount.
+	 * @param  string     $reason Refund reason.
+	 * @return bool|\WP_Error True or false based on success, or a WP_Error object.
+	 */
     public function process_refund( $order_id, $amount = null, $reason = '') {
-        $logger = wc_get_logger();
         $order = wc_get_order($order_id);
 
         if ( ! $order ) {
@@ -185,341 +238,11 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
 
             return !empty($result) && $result['success'];
         } catch (Exception $e) {
-            $logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage(), [ 'source' => $this->id ]);
+            $this->logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
             return false;
         }
 
         return false;
-    }
-
-    public function register_routes() {
-        register_rest_route( 'dnapayments', 'success', array(
-            'methods'  => WP_REST_Server::CREATABLE,
-            'callback' => array( $this, 'success_webhook'),
-            'permission_callback' => '__return_true'
-        ) );
-
-        register_rest_route( 'dnapayments', 'success-add-card', array(
-            'methods'  => WP_REST_Server::CREATABLE,
-            'callback' => array( $this, 'success_webhook_add_card'),
-            'permission_callback' => '__return_true'
-        ) );
-
-        register_rest_route( 'dnapayments', 'failure', array(
-            'methods'  => WP_REST_Server::CREATABLE,
-            'callback' => array( $this, 'fail_webhook'),
-            'permission_callback' => '__return_true'
-        ) );
-
-    }
-
-    private function savePayPalOrderDetail(WC_Order $order, $input, $isAddOrderNode) {
-        $status = $input['paypalOrderStatus'];
-        $capture_status = $input['paypalCaptureStatus'];
-        $reason = isset($input['paypalCaptureStatusReason']) ? $input['paypalCaptureStatusReason'] : null;
-
-        if ($isAddOrderNode) {
-            $errorText = '';
-
-            if($order->get_meta('paypal_status', true) !== $input['paypalOrderStatus']) {
-                $errorText .= sprintf(__( 'DNA Payments paypal status was changed from "%s" to "%s". ', 'woocommerce-gateway-dna'), $order->get_meta('paypal_status', true));
-            }
-
-            if($order->get_meta('paypal_capture_status', true) !== $input['paypalCaptureStatus']) {
-                if($errorText === '') {
-                    $errorText .= sprintf(__( 'DNA Payments paypal capture status was changed from "%s" to "%s". ', 'woocommerce-gateway-dna'), $order->get_meta('paypal_capture_status', true), $input['paypalCaptureStatus']);
-                } else {
-                    $errorText .= sprintf(__( 'Capture status was changed from "%s" to "%s". ', 'woocommerce-gateway-dna'), $order->get_meta('paypal_capture_status', true), $input['paypalCaptureStatus']);
-                }
-            }
-
-            if($order->get_meta('paypal_capture_status_reason', true) !== $input['paypalCaptureStatusReason']) {
-                if($errorText === '') {
-                    $errorText .= ($reason ? __( 'DNA Payments paypal capture status reason was changed: ', 'woocommerce-gateway-dna'). $reason . '.' : '');
-                } else {
-                    $errorText .= ($reason ? __( 'Reason:  ', 'woocommerce-gateway-dna'). $reason . '.' : '');
-                }
-            }
-
-            if(strlen($errorText) > 0) {
-                $order->add_order_note($errorText);
-            }
-        }
-
-        $order->update_meta_data( 'paypal_status',  $status);
-        $order->update_meta_data( 'paypal_capture_status',  $capture_status);
-
-        if ($reason) {
-            $order->update_meta_data( 'paypal_capture_status_reason',  $input['paypalCaptureStatusReason']);
-        }
-        $order->save();
-    }
-
-    public function success_webhook($input) {
-        $data = $input->get_params();
-        $logger = wc_get_logger();
-        $log_source = $this->id;
-
-        try {
-            // Validate input
-            if (empty($input) || empty($input['invoiceId'])) {
-                throw new Exception('Invoice ID is missing or invalid.', 400);
-            }
-
-            if (!$input['success']) {
-                throw new Exception('Transaction was not successful.', 400);
-            }
-
-            if (!$this->dnaPayment::isValidSignature($input, $this->client_secret)) {
-                throw new Exception('Invalid signature.', 403);
-            }
-
-            // Initialize variables
-            $orderId = null;
-            $storeCardOnFile = false;
-
-            // Parse merchant custom data
-            if (isset($input['merchantCustomData'])) {
-                try {
-                    $customData = json_decode($input['merchantCustomData']);
-                    $orderId = $customData->orderId;
-                    $storeCardOnFile = $customData->storeCardOnFile ?? false;
-                } catch (Exception $e) {
-                    $orderId = null;
-                    $logger->warning('Error parsing merchantCustomData: ' . $e->getMessage(), ['source' => $log_source]);
-                }
-            }
-
-            // Find order ID if not already set
-            if (empty($orderId)) {
-                $orderId = WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber($input['invoiceId']);
-                if (empty($orderId)) {
-                    throw new Exception('Order ID could not be determined for invoiceId: ' . $input['invoiceId'], 400);
-                }
-            }
-
-            // Fetch order
-            $order = wc_get_order($orderId);
-            if (!$order) {
-                throw new Exception('Order not found for ID: ' . $orderId, 400);
-            }
-    
-            $status = $order->get_status();
-            $new_status = 'processing';
-    
-            $logger->info('Processing success webhook for order ID ' . $orderId . ' with status ' . $status, ['source' => $log_source]);
-    
-            // Validate order
-            if (!WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order)) {
-                throw new Exception('Order processed by a different payment method: ' . $order->get_payment_method(), 400);
-            }
-    
-            if (!in_array($status, ['pending', 'failed', 'cancelled', 'on-hold'])) {
-                if (!empty($input['paypalCaptureStatus'])) {
-                    $this->savePayPalOrderDetail($order, $input, true);
-                }
-                throw new Exception('Order with ID ' . $orderId . ' is already processed with status: ' . $status, 400);
-            }
-
-            // Update order transaction ID
-            $order->set_transaction_id($input['id']);
-
-            // Handle settlement
-            if ($input['settled']) {
-                $order->payment_complete();
-                $order->add_order_note(sprintf(__('DNA Payments transaction complete (Transaction ID: %s)', 'woocommerce-gateway-dna'), $input['id']));
-
-                if ('yes' === $this->get_option('enable_order_complete')) {
-                    $order->update_status('completed');
-                    $new_status = 'completed';
-                }
-            } else {
-                $new_status = 'on-hold';
-                if ($status !== 'on-hold') {
-                    $order->update_status('on-hold');
-                    $order->add_order_note(sprintf(__('DNA Payments awaiting payment completion (Transaction ID: %s)', 'woocommerce-gateway-dna'), $input['id'])); 
-                }
-            }
-
-            // Log status change
-            $order->add_order_note(sprintf(__('DNA Payments updated order status from %s to %s.', 'woocommerce-gateway-dna'), ucfirst($status), ucfirst($new_status)));
-    
-            // Update metadata
-            $order->update_meta_data('rrn', $input['rrn'] ?? '');
-            $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
-            $order->update_meta_data('is_finished_payment', $input['settled'] ? 'yes' : 'no');
-    
-            if (!empty($input['paypalCaptureStatus'])) {
-                $this->savePayPalOrderDetail($order, $input, false);
-            }
-    
-            // Handle stock reduction
-            $manage_stock_option = get_option('woocommerce_manage_stock');
-            if ($manage_stock_option !== 'yes' || !in_array($status, ['pending', 'on-hold'])) {
-                wc_reduce_stock_levels($orderId);
-                $order->add_order_note(sprintf(__('DNA Payments reduced order stock (Transaction ID: %s)', 'woocommerce-gateway-dna'), $input['id']));
-            }
-    
-            $order->save();
-            $logger->info('Processed success webhook for order ID ' . $orderId . ' with status ' . $status, ['source' => $log_source]);
-    
-            // Handle saving card tokens
-            if ($this->enabled_saved_cards && ($order->get_meta('save_payment_method_requested', true) === 'yes' || $input['storeCardOnFile'] || $storeCardOnFile)) {
-                WC_DNA_Payments_Order_Client_Helpers::saveCardToken($input, $this->id);
-                $logger->info('Card token saved for order ID ' . $orderId, ['source' => $log_source]);
-            }
-
-            return rest_ensure_response([
-                'success' => true,
-                'message' => 'Success webhook processed successfully.',
-            ]);
-        } catch (Exception $e) {
-            $logger->error('Error in success_webhook: ' . $e->getMessage(), ['source' => $log_source]);
-            $logger->error('Input: ' . json_encode($data), ['source' => $log_source]);
-            $logger->error('Stack trace: ' . $e->getTraceAsString(), ['source' => $log_source]);
-            
-            // Respond with the error message and code
-            return new WP_Error(
-                $this->id . '_error',
-                $e->getMessage(),
-                array(
-                    'status' => $e->getCode() ? $e->getCode() : 500,
-                    'plugin_version' => WC_DNA_Payments::$version,
-                    'stack_trace' => $e->getTraceAsString(),
-                )
-            );
-        }
-    }
-
-    public function fail_webhook( WP_REST_Request $input ) {
-        $data = $input->get_params();
-        $logger = wc_get_logger();
-        $log_source = $this->id;
-
-        try {
-            // Validate input
-            if (empty($input) || empty($input['invoiceId'])) {
-                throw new Exception('Invoice ID is missing or invalid.', 400);
-            }
-
-            if ($input['success']) {
-                throw new Exception('Transaction was successful.', 400);
-            }
-
-            if (!$this->dnaPayment::isValidSignature($input, $this->client_secret)) {
-                throw new Exception('Invalid signature.', 403);
-            }
-
-            // Initialize variables
-            $orderId = null;
-            $storeCardOnFile = false;
-
-            // Parse merchant custom data
-            if (isset($input['merchantCustomData'])) {
-                try {
-                    $customData = json_decode($input['merchantCustomData']);
-                    $orderId = $customData->orderId;
-                    $storeCardOnFile = $customData->storeCardOnFile ?? false;
-                } catch (Exception $e) {
-                    $orderId = null;
-                    $logger->warning('Error parsing merchantCustomData: ' . $e->getMessage(), ['source' => $log_source]);
-                }
-            }
-
-            // Find order ID if not already set
-            if (empty($orderId)) {
-                $orderId = WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber($input['invoiceId']);
-                if (empty($orderId)) {
-                    throw new Exception('Order ID could not be determined for invoiceId: ' . $input['invoiceId'], 400);
-                }
-            }
-
-            // Fetch order
-            $order = wc_get_order($orderId);
-            if (!$order) {
-                throw new Exception('Order not found for ID: ' . $orderId, 400);
-            }
-
-            if(!empty($input['paypalCaptureStatus'])) {
-                $this->savePayPalOrderDetail($order, $input, false);
-            }
-            
-            if ($order->get_status() !== 'pending') {
-                throw new Exception('Order with ID ' . $orderId . ' is already processed with status: ' . $order->get_status(), 400);
-            }
-
-            $order->update_status('failed', 'Payment failed');
-            $order->save();
-        
-            return rest_ensure_response([
-                'success' => true,
-                'message' => 'Failure webhook processed successfully.',
-            ]);
-        } catch (Exception $e) {
-            $logger->error('Error in fail_webhook: ' . $e->getMessage(), ['source' => $log_source]);
-            $logger->error('Input: ' . json_encode($data), ['source' => $log_source]);
-            $logger->error('Stack trace: ' . $e->getTraceAsString(), ['source' => $log_source]);
-            
-            // Respond with the error message and code
-            return new WP_Error(
-                $this->id . '_error',
-                $e->getMessage(),
-                array(
-                    'status' => $e->getCode() ? $e->getCode() : 500,
-                    'plugin_version' => WC_DNA_Payments::$version,
-                    'stack_trace' => $e->getTraceAsString(),
-                )
-            );
-        }
-    }
-
-    public function success_webhook_add_card( WP_REST_Request $input ) {
-        $data = $input->get_params();
-        $logger = wc_get_logger();
-        $log_source = $this->id;
-
-        try {
-            // Validate input
-            if (empty($input)) {
-                throw new Exception('Input data is empty.', 400);
-            }
-
-            if (!$input['success']) {
-                throw new Exception('Transaction was not successful.', 400);
-            }
-
-            if (!$this->dnaPayment::isValidSignature($input, $this->client_secret)) {
-                throw new Exception('Invalid signature.', 403);
-            }
-
-            WC_DNA_Payments_Order_Client_Helpers::saveCardToken( $input, $this->id );
-
-            return rest_ensure_response([
-                'success' => true,
-                'message' => 'Add card webhook processed successfully.',
-            ]);
-        } catch (Exception $e) {
-            $logger->error('Error in success_webhook_add_card: ' . $e->getMessage(), ['source' => $log_source]);
-            $logger->error('Input: ' . json_encode($data), ['source' => $log_source]);
-            $logger->error('Stack trace: ' . $e->getTraceAsString(), ['source' => $log_source]);
-            
-            // Respond with the error message and code
-            return new WP_Error(
-                $this->id . '_error',
-                $e->getMessage(),
-                array(
-                    'status' => $e->getCode() ? $e->getCode() : 500,
-                    'plugin_version' => WC_DNA_Payments::$version,
-                    'stack_trace' => $e->getTraceAsString(),
-                )
-            );
-        }
-    }
-
-    public function add_notice($message, $notice_type = 'success', $data = array()) {
-        if(function_exists('wc_add_notice')) {
-            wc_add_notice($message, $notice_type, $data);
-        }
     }
 
     public function init_form_fields(){
@@ -533,8 +256,9 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
         return array(
             'is_test_mode' => $this->is_test_mode,
             'integration_type' => $this->integration_type,
-            'temp_token' => $this->temp_token(),
+            'temp_token' => $this->authDataHelper->get_temp_token(),
             'terminal_id' => $this->terminal,
+            'terminal_config' => $this->paymentDataHelper->get_terminal_config(),
             'current_currency_code' => get_woocommerce_currency(),
             'available_gateways' => array_keys(WC()->payment_gateways->get_available_payment_gateways()),
             'allow_saving_cards' => $this->enabled_saved_cards && !$is_guest,
@@ -571,17 +295,14 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
 
 
         if (is_add_payment_method_page()) {
-            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/dna-add-payment-method.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-payment-api', 'dna-hosted-fields') , WC_DNA_VERSION, true);
+            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments-add-card.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-payment-api', 'dna-hosted-fields') , WC_DNA_VERSION, true);
 
             $dna_params = $this->get_settings_for_frontend();
         } else {            
-            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/dna-payment.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-payment-api') , WC_DNA_VERSION, true);
+            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-payment-api') , WC_DNA_VERSION, true);
 
             $dna_params = array_merge(
-                array(
-                    'order_id' => absint(get_query_var('order-pay')),
-                    'session_order_id' => WC()->session->get('order_awaiting_payment')
-                ),
+                array('order_id' => absint(get_query_var('order-pay'))),
                 $this->get_settings_for_frontend()
             );
         }        
@@ -597,241 +318,89 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
             // Skip validation on Pay for Order page
             return true;
         }
-        
-        if( strlen ( $_POST[ 'billing_country' ]) > 2 ) {
-            $this->add_notice(__('Country must be less than 2 symbols', 'woocommerce-gateway-dna' ), 'error');
-            return false;
-        } else if( strlen ( $_POST[ 'billing_city' ]) > 50 ) {
-            $this->add_notice(__ ('City must be less than 50 symbols', 'woocommerce-gateway-dna' ), 'error');
-            return false;
-        } else if( strlen ( $_POST[ 'billing_address_1' ]) > 50 ) {
-            $this->add_notice( __('Address must be less than 50 symbols', 'woocommerce-gateway-dna' ), 'error');
-            return false;
-        }  else if( strlen ( $_POST[ 'billing_email' ]) > 256 ) {
-            $this->add_notice( __('Email must be less than 256 symbols', 'woocommerce-gateway-dna' ), 'error');
-            return false;
-        } else if( strlen ( $_POST[ 'billing_last_name' ]) > 32 ) {
-            $this->add_notice(__('Lastname must be less than 32 symbols', 'woocommerce-gateway-dna' ), 'error');
-            return false;
-        } else if( strlen ( $_POST[ 'billing_first_name' ]) > 32 ) {
-            $this->add_notice(__( 'Firstname must be less than 32 symbols', 'woocommerce-gateway-dna' ), 'error');
-            return false;
-        } else if( strlen ( $_POST[ 'billing_postcode' ]) > 13 ) {
-            $this->add_notice(__('Postcode must be less than 13 symbols', 'woocommerce-gateway-dna' ), 'error');
-            return false;
+
+        // Check if this is the Add payment method page
+        if (isset($_REQUEST['woocommerce_add_payment_method'])) {
+            // Skip validation on Pay for Order page
+            return true;
         }
 
-        return true;
-    }
+        $checkout = WC()->checkout();
+        $errors = new \WP_Error();
+        $posted_data = $checkout->get_posted_data();
 
-    public function isAbsolute($url)
-    {
-        $pattern = "/^(?:ftp|https?|feed):\/\/(?:(?:(?:[\w\.\-\+!$&'\(\)*\+,;=]|%[0-9a-f]{2})+:)*
-    (?:[\w\.\-\+%!$&'\(\)*\+,;=]|%[0-9a-f]{2})+@)?(?:
-    (?:[a-z0-9\-\.]|%[0-9a-f]{2})+|(?:\[(?:[0-9a-f]{0,4}:)*(?:[0-9a-f]{0,4})\]))(?::[0-9]+)?(?:[\/|\?]
-    (?:[\w#!:\.\?\+=&@$'~*,;\/\(\)\[\]\-]|%[0-9a-f]{2})*)?$/xi";
-
-        return (bool) preg_match($pattern, $url);
-    }
-
-    public function getBackLink($order, $is_failure = false) {
-        $backLink = $this->get_option( $is_failure ? 'failureBackLink' : 'backLink' );
-        if (empty($backLink)) {
-            $return_url = $this->get_return_url( $order );
-            return $is_failure ? add_query_arg( 'status', 'failed', $return_url ) : $return_url;
-
-        } elseif (!$this->isAbsolute($backLink)) {
-            return get_site_url(null, $backLink);
+        $this->checkoutValidation->validate_billing_field_lengths( $posted_data, $errors );
+        foreach ($errors->get_error_messages() as $message) {
+            Helper::add_notice($message);
         }
-        return $backLink;
+
+        return ! $errors->has_errors();
     }
 
     public function process_payment( $order_id ) {
         global $woocommerce;
+
+        $this->analyticsHelper->send_analytics();
+
+        // Check if this is a block-based checkout (REST API request)
+        $is_block_checkout = WC()->is_rest_api_request();
 
         // Clean up all output buffers to remove unexpected output
         while ( ob_get_level() > 0 ) {
             ob_end_clean();
         }
 
-        $logger = wc_get_logger();
-        $log_source = $this->id;
-
         try {
-            $duplicate_order_id = isset( $_POST[ $this->id . '_session_order_id' ] ) ? intval( $_POST[ $this->id . '_session_order_id' ] ) : '';
-            if ( $duplicate_order_id && $duplicate_order_id !== intval( $order_id ) ) {
-                $duplicate_order = wc_get_order( $duplicate_order_id );
-                if ( $duplicate_order && 'pending' === $duplicate_order->get_status() ) {
-                    $duplicate_order->update_status( 'checkout-draft', 'Order was cancelled by ' . $this->id . ' to prevent duplication.' );
-                    wc_release_stock_for_order( $duplicate_order_id );
-                    $logger->info('Order with ID ' . $duplicate_order_id . ' was cancelled by ' . $this->id . ' to prevent duplication.', ['source' => $log_source]);
+            $order = wc_get_order( $order_id );
+            $result_string = Helper::get_posted_value('wc-' . $this->id . '-result');
+
+            if ( empty ($result_string) ) {
+                $auth_data = $this->authDataHelper->get_auth_data_from_order( $order );
+                $payment_data = $this->paymentDataHelper->get_payment_data_from_order( $order, $this->save_payment_method_requested() );
+
+                if ( ! $is_block_checkout ) {
+                    $posted_data = WC()->checkout()->get_posted_data();
+
+                    // merge billing and shipping address
+                    $payment_data['customerDetails']['billingAddress'] = Helper::merge_if_empty(
+                        $this->paymentDataHelper->get_address_from_post_data( $posted_data, 'billing' ),
+                        $payment_data['customerDetails']['billingAddress']
+                    );
+
+                    $payment_data['customerDetails']['deliveryDetails']['deliveryAddress'] = Helper::merge_if_empty(
+                        $this->paymentDataHelper->get_address_from_post_data( $posted_data, 'shipping' ),
+                        $payment_data['customerDetails']['deliveryDetails']['deliveryAddress']
+                    );
                 }
+
+                return array(
+                    'result'        => 'success',
+                    'paymentData'   => json_encode($payment_data),
+                    'auth'          => json_encode($auth_data),
+                    'token'         => $auth_data['access_token'],
+                ); 
             }
-        } catch (Exception $e) {
-            $logger->error('Error in process_payment: ' . $e->getMessage(), ['source' => $log_source]);
-            $logger->error('Stack trace: ' . $e->getTraceAsString(), ['source' => $log_source]);
-        }
 
-        $order = wc_get_order( $order_id );
+            $result = $this->orderHelper->update_status_from_payment_result( $order, $result_string);
 
-        $response = $this->get_payment_and_auth_data_from_order( $order_id );
-
-        if ( $response['result'] == 'success' ) {
-
-            $response['paymentData'] = json_encode($response['paymentData']);
-            $response['auth'] = json_encode($response['auth']);
-
-            $order->update_meta_data('save_payment_method_requested', $this->save_payment_method_requested() ? 'yes' : 'no');
-            $order->save();    
-        }
-
-        return $response;
-    }
-
-    public function add_card_payment_data() {
-
-        $user_id    = get_current_user_id();
-        $meta       = get_user_meta($user_id);
-        $invoice_id = date('d-m-y h:i:s');
-        $auth       = $this->get_auth_data($invoice_id, 0, 'GBP');
-
-        function get_return_url($success) {
-            $result = $success ? 'success' : 'failure';
-            return get_site_url( null, add_query_arg( array('result' => $result), 'my-account/payment-methods' ) );
-        }
-
-        function get_field($meta, $field) {
-            if ( isset( $meta [ $field ] ) ) {
-                return $meta [ $field ][0];
+            if ( $result['status'] === 'failed' ) {
+                throw new \Exception( $result['message'] );
             }
-            return '';
-        }
 
-        function get_address($meta, $prefix) {
+            // Return thankyou redirect
             return array(
-                'firstName'     => get_field( $meta, $prefix . '_first_name' ),
-                'lastName'      => get_field( $meta, $prefix . '_last_name' ),
-                'addressLine1'  => get_field( $meta, $prefix . '_address_1' ),
-                'addressLine2'  => get_field( $meta, $prefix . '_address_2' ),
-                'city'          => get_field( $meta, $prefix . '_city' ),
-                'postalCode'    => get_field( $meta, $prefix . '_postcode' ),
-                'phone'         => get_field( $meta, $prefix . '_phone' ),
-                'country'       => get_field( $meta, $prefix . '_country' ), 
+                'result' 	=> 'success',
+                'redirect'	=> $this->paymentDataHelper->get_return_url_from_order( $order )
             );
-        }
+        } catch (Exception $e) {
+            $this->logger->error('Error in process_payment: ' . $e->getMessage());
+            $this->logger->error('Stack trace: ' . $e->getTraceAsString());
 
-        $paymentData = [
-            'transactionType'   => 'VERIFICATION',
-            'invoiceId'         => $invoice_id,
-            'description'       => 'Add card to ' . get_bloginfo('name'),
-            'amount'            => 0,
-            'currency'          => 'GBP',
-            'language'          => 'en-gb',
-            'paymentSettings' => [
-                'terminalId'        => $this->terminal,
-                'returnUrl'         => get_return_url(true),
-                'failureReturnUrl'  => get_return_url(false),
-                'callbackUrl'       => get_rest_url(null, 'dnapayments/success-add-card')
-            ],
-            'customerDetails' => [
-                'email'             => get_field( $meta, 'billing_email' ),
-                'accountDetails' => [
-                    'accountId'     => strval($user_id)
-                ],
-                'billingAddress'    => get_address($meta, 'billing'),
-                'deliveryDetails' => [
-                    'deliveryAddress' => get_address($meta, 'shipping'),
-                ]
-            ]
-        ];
-
-        echo json_encode(array(
-            'paymentData'   => $paymentData,            
-            'auth'          => $auth,
-            'result'        => is_null($auth['access_token']) ? 'failure' : 'success'
-        ));
-
-        wp_die();
-    }
-
-    public function get_payment_and_auth_data() {
-        global $woocommerce;
-
-        $order_id       = $_POST['order_id'];
-        $total_amount   = $_POST['total'];
-
-        wp_send_json( $this->get_payment_and_auth_data_from_order( $order_id, $total_amount ) );
-
-        wp_die();
-    }
-
-    public function get_payment_and_auth_data_from_order($order_id, $total_amount = null) {
-        global $woocommerce;
-
-        $order = wc_get_order( $order_id );
-
-        if (empty($total_amount)) {
-            $total_amount = floatval($order->get_total());
-        }
-
-        $auth = $this->get_auth_data(
-            strval( $order->get_order_number() ),
-            floatval( $total_amount ),
-            $order->get_currency()
-        );
-
-        if ($auth['access_token'] == null) {
             return array(
                 'result' => 'failure',
-                'messages' => [
-                    __('Invalid auth data', 'woocommerce-gateway-dna')
-                 ]
+                'messages' => $e->getMessage(),
             );
         }
-
-        $isForcePayment = !WC_DNA_Payments_Order_Client_Helpers::isPaypalLineItemsValid($order);
-        $orderLines = WC_DNA_Payments_Order_Client_Helpers::getOrderLines($order, $isForcePayment);
-        $transactionType = $this->get_option('transactionType');
-
-        $paymentData = [
-            'invoiceId' => strval($order->get_order_number()),
-            'description' => $this->get_option('gatewayOrderDescription'),
-            'amount' => floatval($total_amount),
-            'currency' => $order->get_currency(),
-            'language' => 'en-gb',
-            'paymentSettings' => [
-                'terminalId' => $this->terminal,
-                'returnUrl' => $this->getBackLink($order),
-                'failureReturnUrl' => $this->getBackLink($order, true),
-                'callbackUrl' => get_rest_url(null, 'dnapayments/success'),
-                'failureCallbackUrl' => get_rest_url(null, 'dnapayments/failure')
-            ],
-            'customerDetails' => [
-                'email' => $order->get_billing_email(),
-                'accountDetails' => [
-                    'accountId' => $order->get_customer_id() ? strval($order->get_customer_id()) : '',
-                ],
-                'billingAddress' => WC_DNA_Payments_Order_Client_Helpers::getBillingAddress($order),
-                'deliveryDetails' => [
-                    'deliveryAddress' => WC_DNA_Payments_Order_Client_Helpers::getShippingAddress($order),
-                ]
-            ],
-            'amountBreakdown' => WC_DNA_Payments_Order_Client_Helpers::getAmountBreakdown($order),
-            'orderLines' => $orderLines,
-            'merchantCustomData' => json_encode(array(
-                'orderId' => $order_id
-            ))
-        ];
-
-        if ( isset($transactionType) && !empty($transactionType) && $transactionType != 'default' ) {
-            $paymentData['transactionType'] = $transactionType;
-        }
-
-        return array(
-            'result'        => 'success',
-            'paymentData'   => $paymentData,
-            'auth'          => $auth
-        );
     }
 
     /**
@@ -841,20 +410,13 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
 		global $wp;
 		ob_start();
 
-        $cart = WC()->cart;
-        $total = $cart->is_empty() ? [ 'total' => 0 ] : $cart->get_totals();
-
-        echo '<div id="wc-' . esc_attr( $this->id ) . '-totals"  data-totals="' . htmlspecialchars(json_encode($total), ENT_QUOTES, 'UTF-8') . '"></div>';
-
         $description = $this->get_description();
         if ( $description ) {
             echo wpautop( wptexturize( $description ) );
         }
 
-        if ($this->integration_type == 'hosted-fields') {
-            $temp_token = $this->temp_token();
-
-            echo '<div id="wc-' . esc_attr( $this->id ) . '-form" data-token="' . $temp_token . '">';
+        if ($this->integration_type == 'seamless') {
+            echo '<div id="wc-' . esc_attr( $this->id ) . '-form">';
 
             $display_tokenization = $this->supports( 'tokenization' ) && is_checkout() && $this->enabled_saved_cards;
 
@@ -874,30 +436,6 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
 
 		ob_end_flush();
 	}
-
-    public function get_auth_data($invoiceId, $amount, $currency) {
-        try {
-            \DNAPayments\DNAPayments::configure($this->get_config());
-            $auth = \DNAPayments\DNAPayments::auth(array(
-                'client_id' => $this->client_id,
-                'client_secret' => $this->client_secret,
-                'terminal' => $this->terminal,
-                'invoiceId' => $invoiceId,
-                'amount' => $amount,
-                'currency' => $currency
-            ));
-
-            return $auth;
-        } catch (Error $e) {
-            return array(
-                'access_token' => null
-            );
-        }
-    }
-
-    public function temp_token() {
-        return $this->get_auth_data(date('d-m-y h:i:s'), 0, 'GBP')['access_token'];
-    }
 
     /**
 	 * Renders the Hosted fields form.

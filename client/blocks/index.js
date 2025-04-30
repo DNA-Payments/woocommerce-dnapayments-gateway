@@ -4,7 +4,7 @@
 import { registerPaymentMethod } from '@woocommerce/blocks-registry'
 import { __ } from '@wordpress/i18n'
 import { select } from '@wordpress/data'
-import { useState, RawHTML } from '@wordpress/element'
+import { useState, useEffect, RawHTML } from '@wordpress/element'
 import { getPaymentMethodData } from '@woocommerce/settings'
 import { decodeEntities } from '@wordpress/html-entities'
 
@@ -14,10 +14,11 @@ import { decodeEntities } from '@wordpress/html-entities'
 import { GATEWAY_ID, TEXT_DOMAIN } from './constants'
 import { DnapaymentsCreditCardFields } from './components/credit-card-fields'
 import { usePaymentForm } from './hooks/use-payment-form'
+import { setPlaceOrderButtonDisabled } from './utils/place-order-button'
 
 const settings = getPaymentMethodData(GATEWAY_ID, {})
 const allowSavingCards = settings.allow_saving_cards
-const isHostedFields = settings.integration_type === 'hosted-fields'
+const isHostedFields = settings.integration_type === 'seamless'
 
 const defaultLabel = __('DNA Payments', TEXT_DOMAIN)
 const label = decodeEntities(settings?.title || '') || defaultLabel
@@ -38,6 +39,12 @@ const Content = (props) => {
     const [hostedFieldsInstance, setHostedFieldsInstance] = useState(null)
 
     usePaymentForm({ props, hostedFieldsInstance })
+
+    useEffect(() => {
+        if (!isHostedFields) {
+            setPlaceOrderButtonDisabled(false)
+        }
+    }, [])
 
     const isEditor = !!select('core/editor')
     // Don't render anything if we're in the editor.
@@ -69,10 +76,12 @@ const Content = (props) => {
  */
 const Label = (props) => {
     const { PaymentMethodLabel } = props.components
-    return <span style={{ width: '100%' }}>
-        <PaymentMethodLabel text={label} />
-        {icon && <img src={icon} style={{ float: 'right', marginRight: 20 }} />}
-    </span>
+    return (
+        <span style={{ width: '100%' }}>
+            <PaymentMethodLabel text={label} />
+            {icon && <img src={icon} style={{ float: 'right', marginRight: 20 }} />}
+        </span>
+    )
 }
 
 /**

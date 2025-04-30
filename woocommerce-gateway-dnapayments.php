@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce DNA Payments Gateway
  * Plugin URI: https://www.dnapayments.com
  * Description: Take credit card payments on your store.
- * Version: 3.0.14
+ * Version: 4.0.0
  *
  * Author: DNA Payments Integration
  * Author URI: https://www.dnapayments.com
@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'WC_DNA_PLUGIN_PATH', untrailingslashit( plugin_dir_path( __FILE__ ) ) );
 define( 'WC_DNA_MAIN_FILE', __FILE__ );
 define( 'WC_DNA_ID', 'dnapayments' );
-define( 'WC_DNA_VERSION', '3.0.14' );
+define( 'WC_DNA_VERSION', '4.0.0' );
 define( 'WC_DNA_MIN_PHP_VER', '5.6.0' );
 define( 'WC_DNA_MIN_WC_VER', '3.0' );
 
@@ -42,7 +42,7 @@ class WC_DNA_Payments {
 	public static $id = 'dnapayments';
 
 	// Plugin version
-	public static $version = '3.0.14';
+	public static $version = '4.0.0';
 
 	// Wordpress supported min version
 	public static $wp_min_version = '';
@@ -137,9 +137,18 @@ class WC_DNA_Payments {
 	 * Plugin includes.
 	 */
 	public static function includes() {
-		require_once 'includes/class-wc-dna-payments-helpers.php';
 		require_once 'includes/admin/helpers.php';
 		require_once 'includes/client/helpers.php';
+		require_once 'includes/utils/class-helper.php';
+		require_once 'includes/utils/class-logger.php';
+		require_once 'includes/utils/class-ajax-init.php';
+		require_once 'includes/utils/class-webhooks-init.php';
+		require_once 'includes/utils/class-payment-data-helper.php';
+		require_once 'includes/utils/class-auth-data-helper.php';
+		require_once 'includes/utils/class-order-helper.php';
+		require_once 'includes/utils/class-checkout-validation.php';
+		require_once 'includes/utils/class-analytics-helper.php';
+		require_once 'includes/utils/class-request-helper.php';
 		require_once 'includes/WC_DNA_Payments_Gateway.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-base-component.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-googlepay.php';

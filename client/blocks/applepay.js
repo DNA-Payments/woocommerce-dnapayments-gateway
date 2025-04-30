@@ -10,6 +10,7 @@ import { RawHTML } from '@wordpress/element'
 /**
  * Internal dependencies
  */
+import errors from '../common/errors'
 import { CONTAINER_IDS, GATEWAY_ID_APPLE_PAY, TEXT_DOMAIN } from './constants'
 import { PaymentComponent } from './components/payment-component'
 
@@ -20,10 +21,12 @@ const icon = settings?.icon
 
 const Label = (props) => {
     const { PaymentMethodLabel } = props.components
-    return <span style={{ width: '100%' }}>
-        <PaymentMethodLabel text={label} />
-        {icon && <img src={icon} style={{ float: 'right', marginRight: 20 }} />}
-    </span>
+    return (
+        <span style={{ width: '100%' }}>
+            <PaymentMethodLabel text={label} />
+            {icon && <img src={icon} style={{ float: 'right', marginRight: 20 }} />}
+        </span>
+    )
 }
 
 /**
@@ -42,10 +45,7 @@ const ApplePayButton = (props) => {
             componentInstance={window.DNAPayments.ApplePayComponent}
             gatewayId={GATEWAY_ID_APPLE_PAY}
             containerId={CONTAINER_IDS.applepay}
-            errorMessage={__(
-                'Apple Pay payments are not supported in your current browser. Please use Safari on a compatible Apple device to complete your transaction.',
-                TEXT_DOMAIN,
-            )}
+            errorMessage={__(errors.APPLE_PAY_INIT_FAIL.message, TEXT_DOMAIN)}
             props={props}
         />
     )

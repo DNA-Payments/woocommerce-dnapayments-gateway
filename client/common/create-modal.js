@@ -1,6 +1,17 @@
 export function createModal(id) {
+    let modalContainer = document.getElementById(id)
+
+    if (modalContainer) {
+        return {
+            show: () => modalContainer.classList.add('open'),
+            hide: () => modalContainer.classList.remove('open'),
+            remove: () => modalContainer.remove(),
+            body: modalContainer.querySelector('.dna-modal-body'),
+        }
+    }
+
     // Create modal elements
-    const modalContainer = document.createElement('div')
+    modalContainer = document.createElement('div')
     modalContainer.className = 'dna-modal-container'
     modalContainer.id = id
 

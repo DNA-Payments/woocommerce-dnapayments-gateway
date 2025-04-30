@@ -75,6 +75,10 @@
     width: 100%;
 }
 
+.wc-classic-dnapayments-gateway-input.has-error {
+    border-color: #dc3545;
+}
+
 .wc-classic-dnapayments-card-element-small {
     width: calc(50% - 8px);
 }
@@ -128,15 +132,6 @@
     clear: both;
 }
 
-#wc-dnapayments-form .woocommerce-error {
-    background-color: #e2401c;
-    padding: 1em 1.618em;
-    margin-bottom: 2.617924em;
-    color: #fff;
-    margin-left: 0;
-    border-radius: 2px;
-}
-
 #dnapayments_google_pay_container iframe,
 #dnapayments_apple_pay_container iframe {
     width: 100%;
@@ -163,10 +158,6 @@
     max-width: 300px;
     width: 100%;
     height: auto;
-}
-
-.dna-payments-hosted-field-invalid {
-    border-color: #dc3545;
 }
 
 @media (min-width: 768px) {

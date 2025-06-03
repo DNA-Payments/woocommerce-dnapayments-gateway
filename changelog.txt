@@ -1,0 +1,28 @@
+=== WooCommerce DNA Payments Gateway ===
+Contributors: DNA Payments Integration Team
+Tags: woocommerce, payment, apple pay, google pay, dna payments
+Requires at least: 5.0
+Tested up to: 6.5.2
+Stable tag: 4.0.0
+Requires PHP: 7.4
+
+== Changelog ==
+
+= 4.0.0 - 2025-05-27 =
+* Upgraded to version 4.0.0
+* Fully refactored the codebase for better structure and maintainability
+* Improved rendering of Apple Pay and Google Pay buttons
+* Enabled order status updates without relying on webhooks
+* Improved refund processing for Apple Pay and Google Pay payments
+* Hide saved card payment options when the integration type is not “Hosted Fields”
+* Added README.md with installation and local development instructions
+* Fixed bug where “Pay with DNA Payments” button remains disabled after switching from Google Pay to another payment method
+* Fixed issue where the order address is empty due to delayed frontend address data not being attached to the order in time
+* Added Analytics Helper for telemetry
+* Do not send order lines when both PayPal and Klarna are disabled
+* Hide warning messages related to failed block support script registration on the login page
+* Replaced the integration type value "hosted-fields" with "seamless"
+* Added the "empty" class to card input fields when they are cleared
+* Fixed the method name used when calling the logger class
+* Handled exception when fetching terminal configuration
+* Fixed validation for "Create an account" option on the checkout page

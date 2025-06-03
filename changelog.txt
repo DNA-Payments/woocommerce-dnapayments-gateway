@@ -1,15 +1,6 @@
-=== WooCommerce DNA Payments Gateway ===
-Contributors: DNA Payments Integration Team
-Tags: woocommerce, payment, apple pay, google pay, dna payments
-Requires at least: 5.0
-Tested up to: 6.5.2
-Stable tag: 4.0.0
-Requires PHP: 7.4
+*** WooCommerce DNA Payments Gateway Changelog ***
 
-== Changelog ==
-
-= 4.0.0 - 2025-05-27 =
-* Upgraded to version 4.0.0
+2025-05-27 - version 4.0.0
 * Fully refactored the codebase for better structure and maintainability
 * Improved rendering of Apple Pay and Google Pay buttons
 * Enabled order status updates without relying on webhooks

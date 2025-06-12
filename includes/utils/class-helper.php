@@ -26,7 +26,7 @@ class Helper {
 			if ( is_string( $_POST[ $key ] ) ) {
 				$value = sanitize_text_field( wp_unslash( $_POST[ $key ] ) );
 			} else {
-				$value = wp_unslash( $_POST[ $key ] );
+				$value = sanitize_text_field ( wp_unslash( $_POST[ $key ] ) );
 			}
 		}
 

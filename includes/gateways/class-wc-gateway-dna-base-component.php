@@ -97,10 +97,10 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Payment_Gateway {
 
         $description = $this->get_description();
         if ( $description ) {
-            echo wpautop( wptexturize( $description ) );
+            echo wp_kses_post( wpautop( wptexturize( $description ) ) );
         }
 
-        echo '<div id="' . $this->id . '_container"></div>';
+        echo '<div id="' . esc_attr( $this->id . '_container' ) . '"></div>';
 
         ob_end_flush();
     }

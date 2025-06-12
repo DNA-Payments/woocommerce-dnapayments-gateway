@@ -20,11 +20,14 @@ class Helper {
 	 * @return int|float|array|bool|null|string posted data value if key found, or default
 	 */
 	public static function get_posted_value( $key, $default = '' ) {
-
 		$value = $default;
 
 		if ( isset( $_POST[ $key ] ) ) {
-			$value = is_string( $_POST[ $key ] ) ? trim( $_POST[ $key ] ) : $_POST[ $key ];
+			if ( is_string( $_POST[ $key ] ) ) {
+				$value = sanitize_text_field( wp_unslash( $_POST[ $key ] ) );
+			} else {
+				$value = wp_unslash( $_POST[ $key ] );
+			}
 		}
 
 		return $value;

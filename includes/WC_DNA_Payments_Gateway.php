@@ -412,7 +412,7 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
 
         $description = $this->get_description();
         if ( $description ) {
-            echo wpautop( wptexturize( $description ) );
+            echo wp_kses_post( wpautop( wptexturize( $description ) ) );
         }
 
         if ($this->integration_type == 'seamless') {
@@ -456,7 +456,7 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
                     <label for="dna-card-number"><?php esc_html_e( 'Card number', 'woocommerce-gateway-dna' ); ?></label>
                     <div class="wc-classic-dnapayments-gateway-input-container">
                     <div id="dna-card-number" class="wc-classic-dnapayments-gateway-input"></div>
-                        <img id="dna-card-selected" class='wc-dnapayments-card-selected' src=<?php echo WC_DNA_Payments::plugin_url() . '/assets/img/cc/none.png'?> />
+                        <img id="dna-card-selected" class="wc-dnapayments-card-selected" src="<?php echo esc_url( WC_DNA_Payments::plugin_url() . '/assets/img/cc/none.png' ); ?>" alt="<?php esc_attr_e( 'Selected card', \WC_DNA_Payments::$text_domain ); ?>" />
                     </div>
                 </div>
 

@@ -29,8 +29,8 @@ class AjaxInit {
     }
 
 	public function handle_get_payment_and_auth_data() {
-        $order_id       = $_POST['order_id'];
-        $total_amount   = $_POST['total'];
+        $order_id     = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
+        $total_amount = isset( $_POST['total'] ) ? sanitize_text_field( wp_unslash( $_POST['total'] ) ) : '';
 
 		try {
 			$order 			= wc_get_order( $order_id );
@@ -96,7 +96,7 @@ class AjaxInit {
     }
 
     public function handle_update_order_status() {
-        $order_id       = $_POST['order_id'];
+        $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
         $result_string  = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
 
 		try {

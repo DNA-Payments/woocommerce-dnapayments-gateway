@@ -25,7 +25,7 @@ class AnalyticsHelper {
 			'integrationType'    => $integration_type,
 			'terminalId'         => $terminal_id,
 			'phpVersion'         => phpversion(),
-			'domainName'         => $_SERVER['HTTP_HOST'] ?? parse_url( site_url(), PHP_URL_HOST ),
+			'domainName'         => isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : parse_url( site_url(), PHP_URL_HOST ),
 			'pluginVersion'      => $this->get_plugin_version(),
 			'cmsPlatformName'    => 'WordPress',
 			'cmsPlatformVersion' => get_bloginfo( 'version' ),

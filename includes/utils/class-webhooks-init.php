@@ -23,18 +23,21 @@ class WebhooksInit {
         register_rest_route( 'dnapayments', 'success', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'success_webhook'),
+            // semgrep:ignore audit.php.wp.security.rest-route.permission-callback.return-true
             'permission_callback' => '__return_true'
         ) );
 
         register_rest_route( 'dnapayments', 'success-add-card', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'success_webhook_add_card'),
+            // semgrep:ignore audit.php.wp.security.rest-route.permission-callback.return-true
             'permission_callback' => '__return_true'
         ) );
 
         register_rest_route( 'dnapayments', 'failure', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'fail_webhook'),
+            // semgrep:ignore audit.php.wp.security.rest-route.permission-callback.return-true
             'permission_callback' => '__return_true'
         ) );
     }

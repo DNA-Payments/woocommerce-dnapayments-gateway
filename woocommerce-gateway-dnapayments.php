@@ -196,7 +196,10 @@ class WC_DNA_Payments {
 	}
 
 	public static function add_custom_elements() {
-		echo '<div class="dnapayments-footer" style="display: none"><p>Powered by </p><img src="' . plugins_url('assets/img/dnapayments-logo.svg', WC_DNA_MAIN_FILE) .'" /></div>';
+		echo '<div class="dnapayments-footer" style="display: none">';
+		echo '<p>' . esc_html__( 'Powered by', \WC_DNA_Payments::$text_domain ) . '</p>';
+		echo '<img src="' . esc_url( plugins_url( 'assets/img/dnapayments-logo.svg', WC_DNA_MAIN_FILE ) ) . '" alt="' . esc_attr__( 'DNA Payments', \WC_DNA_Payments::$text_domain ) . '" />';
+		echo '</div>';
 	}
 }
 

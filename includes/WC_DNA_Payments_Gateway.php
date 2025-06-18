@@ -273,10 +273,10 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
         $current_user_id = get_current_user_id();
         $is_guest = !isset($current_user_id) || empty($current_user_id) || $current_user_id === '0';
 
-        wp_register_script( 'dna-payment-api', 'https://' . $prefix . 'pay.dnapayments.com/checkout/payment-api.js' , array(), WC_DNA_VERSION, true );
-        wp_register_script( 'dna-hosted-fields', 'https://' . $prefix . 'cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), WC_DNA_VERSION, true );
-        wp_register_script( 'dna-google-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), WC_DNA_VERSION, true );
-        wp_register_script( 'dna-apple-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), WC_DNA_VERSION, true );
+        wp_register_script( 'dna-payment-api', 'https://' . $prefix . 'pay.dnapayments.com/checkout/payment-api.js' , array(), \WC_DNA_Payments::$version, true );
+        wp_register_script( 'dna-hosted-fields', 'https://' . $prefix . 'cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), \WC_DNA_Payments::$version, true );
+        wp_register_script( 'dna-google-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), \WC_DNA_Payments::$version, true );
+        wp_register_script( 'dna-apple-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), \WC_DNA_Payments::$version, true );
         
         if ( ! is_cart() && ! is_checkout() && ! isset( $_GET['pay_for_order'] ) && ! is_add_payment_method_page()) {
             return;
@@ -290,16 +290,16 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
             return;
         }
 
-        wp_register_style( 'dna_styles', plugins_url( 'assets/css/dna-payment.css', WC_DNA_MAIN_FILE ), [], WC_DNA_VERSION );
+        wp_register_style( 'dna_styles', plugins_url( 'assets/css/dna-payment.css', WC_DNA_MAIN_FILE ), [], \WC_DNA_Payments::$version );
 		wp_enqueue_style( 'dna_styles' );
 
 
         if (is_add_payment_method_page()) {
-            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments-add-card.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-payment-api', 'dna-hosted-fields') , WC_DNA_VERSION, true);
+            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments-add-card.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-payment-api', 'dna-hosted-fields') , \WC_DNA_Payments::$version, true);
 
             $dna_params = $this->get_settings_for_frontend();
         } else {            
-            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-payment-api') , WC_DNA_VERSION, true);
+            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-payment-api') , \WC_DNA_Payments::$version, true);
 
             $dna_params = array_merge(
                 array('order_id' => absint(get_query_var('order-pay'))),

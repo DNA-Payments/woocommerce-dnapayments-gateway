@@ -23,23 +23,47 @@ class WebhooksInit {
         register_rest_route( 'dnapayments', 'success', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'success_webhook'),
-            // semgrep:ignore audit.php.wp.security.rest-route.permission-callback.return-true
-            'permission_callback' => '__return_true'
+            'permission_callback' => array( $this, 'validate_webhook_permission' )
         ) );
 
         register_rest_route( 'dnapayments', 'success-add-card', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'success_webhook_add_card'),
-            // semgrep:ignore audit.php.wp.security.rest-route.permission-callback.return-true
-            'permission_callback' => '__return_true'
+            'permission_callback' => array( $this, 'validate_webhook_permission' )
         ) );
 
         register_rest_route( 'dnapayments', 'failure', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'fail_webhook'),
-            // semgrep:ignore audit.php.wp.security.rest-route.permission-callback.return-true
-            'permission_callback' => '__return_true'
+            'permission_callback' => array( $this, 'validate_webhook_permission' )
         ) );
+    }
+    
+    /**
+     * Validates that the incoming webhook request is authorized
+     * 
+     * @param \WP_REST_Request $request The request object
+     * @return bool Whether the request is authorized
+     */
+    public function validate_webhook_permission( $request ) {
+        // Allow requests only if they have the required headers or parameters
+        if ( empty( $request->get_params() ) ) {
+            $this->gateway->logger->error('Webhook permission denied: Empty parameters');
+            return false;
+        }
+
+        // Check for signature parameter
+        $params = $request->get_params();
+        if ( ! isset( $params['signature'] ) || empty( $params['signature'] ) ) {
+            $this->gateway->logger->error('Webhook permission denied: Missing signature parameter');
+            return false;
+        }
+
+        // Note: Signature validation is intentionally handled in the webhook handler methods
+        // rather than at the permission callback level. This allows us to receive the webhook
+        // and properly log invalid signatures while still maintaining security.
+        // The actual signature validation occurs in validate_webhook_input method.
+        return true;
     }
 
     public function success_webhook($input) {

@@ -1,5 +1,18 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-06-18 - version 4.0.1
+* Enhanced webhook security by implementing proper permission validation
+* Improved error handling and logging for webhook requests
+* Fixed double order completion when the order contains only virtual products
+* Added readme.txt and changelog.txt files
+* Updated all NPM package dependencies
+* Escaped all HTML outputs using esc_html(), esc_attr(), and wp_kses_post() where applicable
+* Sanitized $_POST, $_GET, and $_SERVER inputs to address PHPCS and Semgrep audit warnings
+* Added missing escaping for image src attributes and dynamic content outputs
+* Security: Updated @babel/runtime to version 7.27.6 to address security vulnerabilities
+* Security: Added webpack-dev-server version 5.2.2 to address CVE-2025-9jgg-88mc-972h and CVE-2025-4v9v-hfq4-rm2v
+* Completed all preparations required for publishing the plugin to the WordPress marketplace
+
 2025-05-27 - version 4.0.0
 * Fully refactored the codebase for better structure and maintainability
 * Improved rendering of Apple Pay and Google Pay buttons

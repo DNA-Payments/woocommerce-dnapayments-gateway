@@ -114,22 +114,22 @@ class OrderHelper {
 
         // Handle settlement
         if ($settled) {
-            $new_status = 'processing';
+            $new_status = $order->needs_processing() ? 'processing' : 'completed';
             $order->payment_complete();
-            $order->add_order_note(sprintf(__( 'DNA Payments transaction complete (Transaction ID: %s)', \WC_DNA_Payments::$text_domain ), $transaction_id ));
+            $order->add_order_note(sprintf(__( 'DNA Payments transaction complete (Transaction ID: %s). Order status changed from %s to %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status) ));
 
-            if ('yes' === $this->gateway->get_option('enable_order_complete')) {
+            if ($new_status === 'processing' && 'yes' === $this->gateway->get_option('enable_order_complete')) {
                 $order->update_status('completed');
                 $new_status = 'completed';
+                // Log status change
+                $order->add_order_note(sprintf(__('DNA Payments updated order status from %s to %s.', \WC_DNA_Payments::$text_domain), ucfirst($status), ucfirst($new_status)));
             }
         } else {
             $new_status = 'on-hold';
             $order->update_status('on-hold');
-            $order->add_order_note(sprintf(__( 'DNA Payments awaiting payment completion (Transaction ID: %s)', \WC_DNA_Payments::$text_domain ), $transaction_id ));
+            $order->add_order_note(sprintf(__( 'DNA Payments awaiting payment completion (Transaction ID: %s). Order status changed from %s to %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status) ));
         }
 
-        // Log status change
-        $order->add_order_note(sprintf(__('DNA Payments updated order status from %s to %s.', \WC_DNA_Payments::$text_domain), ucfirst($status), ucfirst($new_status)));
         // Update order transaction ID
         $order->set_transaction_id( $transaction_id );
         // Update metadata

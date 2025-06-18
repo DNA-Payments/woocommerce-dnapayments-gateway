@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce DNA Payments Gateway
  * Plugin URI: https://www.dnapayments.com
  * Description: Take credit card payments on your store.
- * Version: 4.0.0
+ * Version: 4.0.1
  *
  * Author: DNA Payments Integration
  * Author URI: https://www.dnapayments.com
@@ -17,6 +17,9 @@
  * WC tested up to: 9.4
  * Requires PHP: 7.4
  * PHP tested up to: 8.3
+ *
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 // Exit if accessed directly.
@@ -27,9 +30,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'WC_DNA_PLUGIN_PATH', untrailingslashit( plugin_dir_path( __FILE__ ) ) );
 define( 'WC_DNA_MAIN_FILE', __FILE__ );
 define( 'WC_DNA_ID', 'dnapayments' );
-define( 'WC_DNA_VERSION', '4.0.0' );
-define( 'WC_DNA_MIN_PHP_VER', '5.6.0' );
-define( 'WC_DNA_MIN_WC_VER', '3.0' );
 
 /**
  * WC DnaPayments payment gateway plugin class.
@@ -42,16 +42,16 @@ class WC_DNA_Payments {
 	public static $id = 'dnapayments';
 
 	// Plugin version
-	public static $version = '4.0.0';
+	public static $version = '4.0.1';
 
 	// Wordpress supported min version
-	public static $wp_min_version = '';
+	public static $wp_min_version = '4.2';
 
 	// WooCommerce supported min version
-	public static $wc_min_version = '';
+	public static $wc_min_version = '4.8';
 
 	// PHP supported min version
-	public static $php_min_version = '5.6.0';
+	public static $php_min_version = '7.4';
 
 	// Text Domain
 	public static $text_domain = 'woocommerce-gateway-dna';

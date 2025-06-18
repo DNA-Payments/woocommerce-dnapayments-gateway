@@ -108,4 +108,7 @@ class WC_DNA_Payments_Order_Handler extends WC_DNA_Payments_Gateway {
     }
 }
 
-new WC_DNA_Payments_Order_Handler();
+// Initialize the order handler on init hook to ensure translations are loaded properly
+add_action( 'init', function() {
+    new WC_DNA_Payments_Order_Handler();
+}, 20 );

@@ -29,7 +29,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'WC_DNA_PLUGIN_PATH', untrailingslashit( plugin_dir_path( __FILE__ ) ) );
 define( 'WC_DNA_MAIN_FILE', __FILE__ );
-define( 'WC_DNA_ID', 'dnapayments' );
 
 /**
  * WC DnaPayments payment gateway plugin class.
@@ -63,11 +62,9 @@ class WC_DNA_Payments {
 
 		add_action( 'before_woocommerce_init', array( __CLASS__, 'before_woocommerce_hpos' ) );
 
-		// The init action ensures that all WordPress core functions and hooks are fully loaded, making it safe to load translations.
-		add_action( 'init', function() {
-			// Load translations
-			load_plugin_textdomain( self::$text_domain, false, self::plugin_abspath() . '/languages' );
-		} );		
+		
+		// Load translations at init hook to ensure WordPress core is fully loaded
+		add_action( 'init', array( __CLASS__, 'load_plugin_textdomain' ) );
 
 		// This hook is used to execute code after all active plugins have fully loaded, 
 		// ensuring that WooCommerce is loaded before executing WooCommerce-specific code.
@@ -200,6 +197,13 @@ class WC_DNA_Payments {
 		echo '<p>' . esc_html__( 'Powered by', \WC_DNA_Payments::$text_domain ) . '</p>';
 		echo '<img src="' . esc_url( plugins_url( 'assets/img/dnapayments-logo.svg', WC_DNA_MAIN_FILE ) ) . '" alt="' . esc_attr__( 'DNA Payments', \WC_DNA_Payments::$text_domain ) . '" />';
 		echo '</div>';
+	}
+
+	/**
+	 * Load plugin text domain.
+	 */
+	public static function load_plugin_textdomain() {
+		load_plugin_textdomain( self::$text_domain, false, self::plugin_abspath() . '/languages' );
 	}
 }
 

@@ -18,7 +18,7 @@ class OrderHelper {
     }
 
     public function update_status_from_payment_result( $order, $result_string ) {
-        $input = json_decode( stripslashes($result_string), true);
+        $input = json_decode( $result_string, true);
 
         if ( json_last_error() !== JSON_ERROR_NONE ) {
             throw new \Exception(json_last_error());

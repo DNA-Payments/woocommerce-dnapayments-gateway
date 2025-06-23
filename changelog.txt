@@ -1,5 +1,9 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-06-23 - version 4.0.2
+* Fixed JSON parsing issue in order status updates by removing stripslashes call
+* Resolve translation loading timing issue for WordPress 6.7.0 compatibility
+
 2025-06-18 - version 4.0.1
 * Enhanced webhook security by implementing proper permission validation
 * Improved error handling and logging for webhook requests

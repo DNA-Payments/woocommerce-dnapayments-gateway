@@ -1,5 +1,11 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-06-25 - version 4.0.3
+* Add transaction lock mechanism to prevent concurrent order status updates
+* Track order update sources in logs and notes for better debugging
+* Improve logging for webhook and AJAX order processing
+* Add WooCommerce platform info to analytics data
+
 2025-06-23 - version 4.0.2
 * Fixed JSON parsing issue in order status updates by removing stripslashes call
 * Resolve translation loading timing issue for WordPress 6.7.0 compatibility

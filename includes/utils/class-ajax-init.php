@@ -106,13 +106,14 @@ class AjaxInit {
                 throw new \Exception('Order not found for ID: ' . $order_id, 400);
             }
 
-            $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string );
+            $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, 'update_order_status' );
             $status = $result['status'];
             $redirect = $this->gateway->paymentDataHelper->get_return_url_from_order( $order, $status === 'failed');
 
 			wp_send_json_success( array(
                 'status'    => $status,
                 'redirect'  => $redirect,
+                'message'   => $result['message'],
 			) );
 		} catch (\Exception $e) {
 			wp_send_json_error([

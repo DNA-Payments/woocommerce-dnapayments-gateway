@@ -79,9 +79,9 @@ class WebhooksInit {
 
             $this->gateway->logger->info('Processing success webhook for order ID ' . $order_id . ' with status ' . $status);
 
-            $result = $this->gateway->orderHelper->update_status( $order, $input, $input['settled'] );
+            $result = $this->gateway->orderHelper->update_status( $order, $input, $input['settled'], 'success_webhook' );
 
-            $this->gateway->logger->info('Processed success webhook for order ID ' . $order_id . ' with status ' . $status);
+            $this->gateway->logger->info('Processed success webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
 
             return rest_ensure_response([
                 'success' => true,
@@ -99,12 +99,19 @@ class WebhooksInit {
             $this->validate_webhook_input( $input, false );
 
             $order = $this->parse_webhook_order( $input );
-
-            $this->gateway->orderHelper->update_status( $order, $input, false );
+            
+            $order_id = $order->get_id();
+            $status = $order->get_status();
+            
+            $this->gateway->logger->info('Processing failure webhook for order ID ' . $order_id . ' with status ' . $status);
+            
+            $result = $this->gateway->orderHelper->update_status( $order, $input, false, 'fail_webhook' );
+            
+            $this->gateway->logger->info('Processed failure webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
         
             return rest_ensure_response([
                 'success' => true,
-                'message' => 'Failure webhook processed successfully.',
+                'message' => isset($result['message']) ? $result['message'] : 'Failure webhook processed successfully.',
             ]);
         } catch (\Exception $e) {
             return $this->get_wp_error( $e, 'fail_webhook', $data );

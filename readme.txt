@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.0.2
+Stable tag: 4.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,12 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.0.3 - 2025-06-25 =
+* Add transaction lock mechanism to prevent concurrent order status updates
+* Track order update sources in logs and notes for better debugging
+* Improve logging for webhook and AJAX order processing
+* Add WooCommerce platform info to analytics data
 
 = 4.0.2 - 2025-06-23 =
 * Fixed JSON parsing issue in order status updates by removing stripslashes call

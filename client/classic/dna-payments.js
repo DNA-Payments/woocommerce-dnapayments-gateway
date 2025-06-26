@@ -69,22 +69,21 @@ jQuery(function ($) {
             return
         }
 
-        const messages = validate($form)
-        if (messages.length) {
-            showError(messages, false)
-            paymentData = null
-            authData = null
-        } else if (!paymentData || shouldFetchPaymentData) {
-            setFormLoading(true)
-            await fetchPaymentData()
-            setFormLoading(false)
-        }
-
         $form.find('.dnapayments-footer').show()
 
         switch (selectedGateway) {
             case 'dnapayments_google_pay':
             case 'dnapayments_apple_pay':
+                const messages = validate($form)
+                if (messages.length) {
+                    showError(messages, true)
+                    paymentData = null
+                    authData = null
+                } else if (!paymentData || shouldFetchPaymentData) {
+                    setFormLoading(true)
+                    await fetchPaymentData()
+                    setFormLoading(false)
+                }
                 placeOrderBtn.setAttribute('disabled', 'disabled')
                 renderGoogleOrApplePayComponent(selectedGateway, shouldUpdate)
                 break

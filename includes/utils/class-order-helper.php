@@ -19,6 +19,7 @@ class OrderHelper {
 
     public function update_status_from_payment_result( $order, $result_string, $source = '' ) {
         $input = json_decode( $result_string, true);
+        $order_id = $order->get_id();
 
         if ( json_last_error() !== JSON_ERROR_NONE ) {
             throw new \Exception(json_last_error());
@@ -72,7 +73,7 @@ class OrderHelper {
 
         // Check if there's a code indicating the transaction is already being processed
         if (isset($result['code']) && $result['code'] === 'transaction_in_process') {
-            $this->gateway->logger->info('AJAX update skipped for order ' . $order->get_id() . ' as it is being processed by another request');
+            $this->gateway->logger->info('AJAX update skipped for order ' . $order_id . ' as it is being processed by another request');
             // Fetch the order again to get the updated status after waiting 2 second
             sleep(2);
             $order = wc_get_order( $order_id );
@@ -119,7 +120,7 @@ class OrderHelper {
                 }
 
                 if ( $status !== 'pending' ) {
-                    throw new \Exception('Order with ID ' . $orderId . ' is already processed with status: ' . $status, 400);
+                    throw new \Exception('Order with ID ' . $order_id . ' is already processed with status: ' . $status, 400);
                 }
 
                 $message = __( 'Could not process payment.', \WC_DNA_Payments::$text_domain );

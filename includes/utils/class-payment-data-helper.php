@@ -27,7 +27,7 @@ class PaymentDataHelper {
         }
     }
 
-    public function get_payment_data_from_order( \WC_Abstract_order $order, $store_card_on_file = false ) {
+    public function get_payment_data_from_order( \WC_Order $order, $store_card_on_file = false ) {
         $payment_data = array(
             'invoiceId' => strval( $order->get_order_number() ),
             'description' => $this->gateway->get_option('gatewayOrderDescription'),
@@ -163,7 +163,7 @@ class PaymentDataHelper {
         return $cart_lines;
     }
 
-    private function get_order_lines_from_order( \WC_Abstract_order $order ) {
+    private function get_order_lines_from_order( \WC_Order $order ) {
         $isForcePayment = ! \WC_DNA_Payments_Order_Client_Helpers::isPaypalLineItemsValid( $order );
 
         if ( $isForcePayment ) {
@@ -171,7 +171,8 @@ class PaymentDataHelper {
         }
 
         $order_lines = [];
-        foreach ($order->get_items() as $item_id => $item) {
+        foreach ($order->get_items() as $item) {
+            /** @disregard P1013 Method get_product not found */
             $order_lines[] = $this->get_order_line( $item->get_product(), $item->get_total(), $item->get_quantity() );
         }
         return $order_lines;
@@ -209,7 +210,7 @@ class PaymentDataHelper {
         ) );
     }
 
-    private function get_address_from_order( \WC_Abstract_order $order, $section ) {
+    private function get_address_from_order( \WC_Order $order, $section ) {
         if ( $section === 'billing' ) {
             return Helper::clean_array( array(
                 'firstName'     => $order->get_billing_first_name(),
@@ -228,7 +229,7 @@ class PaymentDataHelper {
         }
 
         $shipping_phone = '';
-        if (version_compare( WC_VERSION, '5.6.0', '<' )) {
+        if (version_compare( WC()->version, '5.6.0', '<' )) {
             $shipping_phone = $order->get_meta('_shipping_phone');
         } else {
             $shipping_phone = $order->get_shipping_phone();
@@ -268,7 +269,7 @@ class PaymentDataHelper {
         }
 
         $shipping_phone = '';
-        if (version_compare( WC_VERSION, '5.6.0', '<' )) {
+        if (version_compare( WC()->version, '5.6.0', '<' )) {
             $shipping_phone = $customer->get_meta( '_shipping_phone', true );
         } else {
             $shipping_phone = $customer->get_shipping_phone();

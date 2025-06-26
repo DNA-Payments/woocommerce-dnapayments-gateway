@@ -12,7 +12,7 @@ require_once WC_DNA_PLUGIN_PATH . '/includes/admin/fields.php';
 
 use WCPG_DNA_Payments\Utils\Helper;
 
-class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
+class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
     /**
 	 * True if the gateway shows fields on the checkout.
@@ -249,6 +249,13 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
         $this->form_fields = get_dnapayments_admin_fields();
     }
 
+    /**
+     * Returns the settings data exposed to the frontend JavaScript.
+     *
+     * Overrides the method from WC_Gateway_Abstract_Dnapayments.
+     *
+     * @return array Associative array of settings used by frontend scripts.
+     */
     public function get_settings_for_frontend() {
         $current_user_id = get_current_user_id();
         $is_guest = !isset($current_user_id) || empty($current_user_id) || $current_user_id === '0';
@@ -338,8 +345,6 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
     }
 
     public function process_payment( $order_id ) {
-        global $woocommerce;
-
         $this->analyticsHelper->send_analytics();
 
         // Check if this is a block-based checkout (REST API request)
@@ -407,7 +412,6 @@ class WC_DNA_Payments_Gateway extends WC_Payment_Gateway {
 	 * Payment form on checkout page
 	 */
 	public function payment_fields() {
-		global $wp;
 		ob_start();
 
         $description = $this->get_description();

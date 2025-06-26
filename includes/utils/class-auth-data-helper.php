@@ -43,7 +43,7 @@ class AuthDataHelper {
 	public function get_auth_data_with_try( $invoice_id, $amount, $currency ) {
         try {            
             return $this->get_auth_data( $invoice_id, $amount, $currency );
-        } catch (Error $e) {
+        } catch (\Error $e) {
             return array(
                 'access_token' => null
             );

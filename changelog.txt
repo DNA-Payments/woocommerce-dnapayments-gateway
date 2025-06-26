@@ -1,5 +1,14 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-06-28 - version 4.0.4
+* Added abstract gateway class for DNA Payments
+* Extracted common gateway logic to abstract class
+* Fixed error handling in auth data helper
+* Restrict checkout validation to Google/Apple Pay buttons only
+* Refactored to use WC()->version instead of WC_VERSION constant
+* Cleaned up unused global variables and imports
+* Added .vscode to gitignore
+
 2025-06-25 - version 4.0.3
 * Add transaction lock mechanism to prevent concurrent order status updates
 * Track order update sources in logs and notes for better debugging

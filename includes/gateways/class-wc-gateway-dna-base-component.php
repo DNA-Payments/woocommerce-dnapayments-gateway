@@ -1,8 +1,10 @@
 <?php
 
-use WCPG_DNA_Payments\Utils\Helper;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly
+}
 
-class WC_Gateway_DNA_Base_Payment_Component extends WC_Payment_Gateway {
+class WC_Gateway_DNA_Base_Payment_Component extends WC_Gateway_Abstract_Dnapayments {
     /**
 	 * True if the gateway shows fields on the checkout.
 	 *
@@ -56,11 +58,6 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Payment_Gateway {
          );
     }
 
-    // Returns settings data used in frontend (js file)
-    public function get_settings_for_frontend() {
-        return array();
-    }
-
     /**
 	 * Process refund.
 	 *
@@ -92,7 +89,6 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Payment_Gateway {
 	 * Payment form on checkout page
 	 */
 	public function payment_fields() {
-		global $wp;
 		ob_start();
 
         $description = $this->get_description();

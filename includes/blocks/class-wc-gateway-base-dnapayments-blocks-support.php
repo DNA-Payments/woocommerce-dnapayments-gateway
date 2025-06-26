@@ -15,7 +15,7 @@ abstract class WC_Gateway_Base_DNA_Payments_Blocks_Support extends AbstractPayme
 	/**
 	 * The gateway instance.
 	 *
-	 * @var WC_Payment_Gateway
+	 * @var WC_Gateway_Abstract_Dnapayments
 	 */
 	private $gateway;
 

@@ -93,7 +93,7 @@ class WC_DNA_Payments_Order_Client_Helpers {
         return apply_filters( 'woocommerce_paypal_get_order_item_names', implode( ', ', $item_names ), $order );
     }
 
-    public static function getAmountBreakdown(WC_Abstract_order $order) {
+    public static function getAmountBreakdown(\WC_Order $order) {
         return array(
             'itemTotal' => array('totalAmount' => self::numberFormat($order->get_subtotal())),
             'shipping' => array('totalAmount' => self::numberFormat($order->get_shipping_total())),
@@ -102,7 +102,7 @@ class WC_DNA_Payments_Order_Client_Helpers {
         );
     }
 
-    public static function getBillingAddress(WC_Abstract_order $order) {
+    public static function getBillingAddress(\WC_Order $order) {
         $state = $order->get_billing_state();
         return array(
             'firstName' => $order->get_billing_first_name(),
@@ -118,7 +118,7 @@ class WC_DNA_Payments_Order_Client_Helpers {
         );
     }
 
-    public static function getShippingAddress(WC_Abstract_order $order) {
+    public static function getShippingAddress(\WC_Order $order) {
         if(!$order->needs_shipping_address()) return null;
         $state = $order->get_shipping_state();
 
@@ -136,9 +136,9 @@ class WC_DNA_Payments_Order_Client_Helpers {
         );
     }
 
-    public static function getShippingPhone(WC_Abstract_order $order) {
+    public static function getShippingPhone(\WC_Order $order) {
         $shipping_phone = '';
-        if (version_compare( WC_VERSION, '5.6.0', '<' )) {
+        if (version_compare( WC()->version, '5.6.0', '<' )) {
             $shipping_phone = $order->get_meta('_shipping_phone');
         } else {
             $shipping_phone = $order->get_shipping_phone();
@@ -146,7 +146,7 @@ class WC_DNA_Payments_Order_Client_Helpers {
         return $shipping_phone ? $shipping_phone : $order->get_billing_phone();
     }
 
-    public static function getSingItemOrderLines(WC_Abstract_order $order) {
+    public static function getSingItemOrderLines(\WC_Order $order) {
         return array(
             array(
                 'name' => self::limitLength(self::getOrderItemNames($order)),
@@ -157,7 +157,7 @@ class WC_DNA_Payments_Order_Client_Helpers {
         );
     }
 
-    public static function getOrderLines(WC_Abstract_order $order, $forceOneItem = false) {
+    public static function getOrderLines(\WC_Order $order, $forceOneItem = false) {
         if($forceOneItem) {
             return self::getSingItemOrderLines($order);
         }

@@ -30,7 +30,7 @@ class AnalyticsHelper {
 			'cmsPlatformName'     => 'WordPress',
 			'cmsPlatformVersion'  => get_bloginfo( 'version' ),
 			'cmsExtensionName'	  => 'WooCommerce',
-			'cmsExtensionVersion' => defined( 'WC_VERSION' ) ? WC_VERSION : 'unknown'
+			'cmsExtensionVersion' => WC()->version
 		];
 	}
 

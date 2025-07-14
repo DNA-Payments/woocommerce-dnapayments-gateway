@@ -19,13 +19,7 @@ class PaymentDataHelper {
         $this->gateway = $gateway;
     }
 
-    public function get_terminal_config() {
-        try {
-            return $this->gateway->requestHelper->get('/payments/form/configuration');
-        } catch (\Exception $e) {
-            $this->gateway->logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
-        }
-    }
+
 
     public function get_payment_data_from_order( \WC_Order $order, $store_card_on_file = false ) {
         $payment_data = array(

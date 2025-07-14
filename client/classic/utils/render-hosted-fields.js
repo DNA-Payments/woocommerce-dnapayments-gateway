@@ -1,15 +1,17 @@
 /* global wc_dna_params */
 
+import { normalizeCardSchemeName } from '../../common/card-scheme'
 import { createHostedFields } from '../../common/create-hosted-fields'
 import { createModal } from '../../common/create-modal'
 import { getGlobalVariables } from './data'
 
 export const renderHostedFields = async ({ setFormLoading, onSuccess, onError }) => {
-    const { gateway_id, cards, isTestMode, iconPath, sendCallbackEveryFailedAttempt, tempToken } = getGlobalVariables()
+    const { gatewayId, cards, isTestMode, iconPath, sendCallbackEveryFailedAttempt, tempToken, availableSchemes } =
+        getGlobalVariables()
 
-    const $payment_form = jQuery('#wc-' + gateway_id + '-form')
+    const $payment_form = jQuery('#wc-' + gatewayId + '-form')
     const $card_form = $payment_form.find('.wc-credit-card-form')
-    const $payment_token = $payment_form.find('input[name="wc-' + gateway_id + '-payment-token"]')
+    const $payment_token = $payment_form.find('input[name="wc-' + gatewayId + '-payment-token"]')
     const $tokenized_cvc = $payment_form.find('#dna-card-cvc-token-container')
 
     // If the element exists and contains an iframe, return
@@ -41,10 +43,15 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError })
 
         hostedFieldsInstance.on('change', () => {
             const state = hostedFieldsInstance.getState()
-            const scheme = (state.cardInfo && state.cardInfo.type) || 'none'
             const img = document.getElementById('dna-card-selected')
+            let scheme = normalizeCardSchemeName(state.cardInfo?.type)
+
+            if (!scheme || !availableSchemes.includes(scheme)) {
+                scheme = 'none'
+            }
+
             if (img && scheme !== prevScheme) {
-                img.setAttribute('src', iconPath + '/' + scheme + '.png')
+                img.setAttribute('src', iconPath + '/' + scheme + '.svg')
             }
             prevScheme = scheme
         })

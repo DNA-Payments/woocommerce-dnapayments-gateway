@@ -20,6 +20,7 @@ import { completePayment, getOrderIdFromPaymentData } from '../common/complete-p
 import { request } from '../common/api/request'
 import { debounce } from '../common/debounce'
 import errors from '../common/errors'
+import { tryParse } from '../common/try-parse'
 
 /* global wc_dna_params */
 const orderId = Number(wc_dna_params.order_id) || 0
@@ -31,7 +32,7 @@ let paymentData = null
 let authData = null
 
 jQuery(function ($) {
-    const { gateway_id, cards, isHostedFields, tempToken } = getGlobalVariables()
+    const { gatewayId, cards, isHostedFields, tempToken } = getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
     const cardError = createCardError()
@@ -43,9 +44,25 @@ jQuery(function ($) {
         setFormLoading,
         fetchPaymentData: async () => {
             try {
+                if (isPayForOrderPage) {
+                    await fetchPaymentData()
+                    const storeCardOnFile = $(`#wc-${gatewayId}-new-payment-method`).is(':checked')
+                    return {
+                        paymentData: {
+                            ...paymentData,
+                            merchantCustomData: JSON.stringify({
+                                ...(tryParse(paymentData.merchantCustomData) || {}),
+                                storeCardOnFile,
+                                gatewayId,
+                            }),
+                        },
+                        auth: authData,
+                    }
+                }
+
                 return await postProcessPayment()
             } catch (err) {
-                cardError.show(err.message)
+                showError(err.message, true)
             }
         },
         onComplete: (result) =>
@@ -120,10 +137,16 @@ jQuery(function ($) {
     $(document.body).on('updated_checkout', () => render({ shouldFetchPaymentData: true, shouldUpdate: true }))
     $form.on('change', 'input[name="payment_method"]', () => render({ selectedGateway: $(this).val() }))
     $form.on('change', 'input, textarea, select', function (e) {
-        const name = e.target?.getAttribute('name')
+        const elem = e.target
+        if (!elem) return
+
+        const name = elem.getAttribute('name')
         const isShippingIncluded = $form.find('[name="ship_to_different_address"]').is(':checked')
 
-        if (!isUpdating && getRequiredFields(isShippingIncluded).includes(name)) {
+        const required = elem.getAttribute('aria-required')
+        const isRequired = (required && required === 'true') || getRequiredFields(isShippingIncluded).includes(name)
+
+        if (!isUpdating && isRequired) {
             render({ shouldFetchPaymentData: name !== 'terms' })
         }
     })
@@ -159,7 +182,22 @@ jQuery(function ($) {
             onClick: () => {
                 setFormLoading(true)
             },
-            onBeforeProcessPayment: postProcessPayment,
+            onBeforeProcessPayment: async () => {
+                if (isPayForOrderPage) {
+                    await fetchPaymentData()
+                    return {
+                        paymentData: {
+                            ...paymentData,
+                            merchantCustomData: JSON.stringify({
+                                ...(tryParse(paymentData.merchantCustomData) || {}),
+                                gatewayId: paymentMethodId,
+                            }),
+                        },
+                        auth: authData,
+                    }
+                }
+                return await postProcessPayment()
+            },
             onPaymentSuccess: (paymentResult) =>
                 completePayment({
                     paymentResult,
@@ -197,7 +235,7 @@ jQuery(function ($) {
     }
 
     function onSubmit(e) {
-        if (getSelectedPaymentGateway() === gateway_id) {
+        if (getSelectedPaymentGateway() === gatewayId) {
             e.preventDefault()
 
             const messages = validate($form)
@@ -282,11 +320,11 @@ jQuery(function ($) {
                 wrapMessage(error_message) +
                 '</div>',
         )
-        $form.removeClass('processing').unblock()
+        setTimeout(() => $form.removeClass('processing').unblock())
         $.unblockUI()
+
         if (shouldScrollToNotices) {
             $form.find('.input-text, select, input:checkbox').trigger('validate').blur()
-            console.log('scrollToNotices $form', $form)
             scrollToNotices($form)
         }
         $(document.body).trigger('checkout_error')

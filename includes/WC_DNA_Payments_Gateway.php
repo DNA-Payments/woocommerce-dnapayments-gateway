@@ -45,6 +45,10 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
      */
     public $integration_type;
     /**
+     * @var object
+     */
+    public $terminal_config;
+    /**
      * @var \DNAPayments\DNAPayments
      */
     public $dnaPayment;
@@ -94,6 +98,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 	 */
     public $requestHelper;
 
+    /**
+     * @var \WCPG_DNA_Payments\Utils\ConfigHelper
+     */
+    public $configHelper;
+
     public function __construct() {
 
         $this->id = 'dnapayments';
@@ -129,7 +138,9 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->webhooksInit = new WCPG_DNA_Payments\Utils\WebhooksInit( $this );
         $this->analyticsHelper = new WCPG_DNA_Payments\Utils\AnalyticsHelper($this);
         $this->requestHelper = new WCPG_DNA_Payments\Utils\RequestHelper($this);
+        $this->configHelper = new WCPG_DNA_Payments\Utils\ConfigHelper($this);
 
+        $this->terminal_config = $this->configHelper->get_terminal_config();
         $this->supports = array( 'products', 'refunds' );
         if ( $this->enabled_saved_cards ) {
             array_push($this->supports, 'tokenization' );
@@ -152,6 +163,20 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
 		return isset( $_POST[ 'wc-' . $payment_method . '-new-payment-method' ] ) && ! empty( $_POST[ 'wc-' . $payment_method . '-new-payment-method' ] );
 	}
+
+    /**
+     * Return the gateway's icon.
+     *
+     * @return string
+     */
+    public function get_icon() {
+        $icon_str = $this->configHelper->get_payment_gateway_icons();
+        if ( empty( $icon_str ) ) {
+            return parent::get_icon();
+        }
+
+        return apply_filters( 'woocommerce_gateway_icon', $icon_str, $this->id );
+    }
 
     /**
      * Cancel a charge.
@@ -265,11 +290,13 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'integration_type' => $this->integration_type,
             'temp_token' => $this->authDataHelper->get_temp_token(),
             'terminal_id' => $this->terminal,
-            'terminal_config' => $this->paymentDataHelper->get_terminal_config(),
+            'terminal_config' => $this->terminal_config,
             'current_currency_code' => get_woocommerce_currency(),
             'available_gateways' => array_keys(WC()->payment_gateways->get_available_payment_gateways()),
             'allow_saving_cards' => $this->enabled_saved_cards && !$is_guest,
-            'card_scheme_icon_path' => WC_DNA_Payments::plugin_url() . '/assets/img/cc',
+            'icons' => $this->configHelper->get_payment_gateway_icon_urls(),
+            'available_schemes' => $this->configHelper->available_schemes,
+            'card_scheme_icon_path' => WC_DNA_Payments::plugin_url() . '/assets/img/schemes',
             'send_callback_every_failed_attempt' => $this->get_option( 'failed_attempts_limit' ),
             'cards' => WC_DNA_Payments_Order_Client_Helpers::getCardTokens( $current_user_id, $this->id )
         );
@@ -460,7 +487,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                     <label for="dna-card-number"><?php esc_html_e( 'Card number', 'woocommerce-gateway-dna' ); ?></label>
                     <div class="wc-classic-dnapayments-gateway-input-container">
                     <div id="dna-card-number" class="wc-classic-dnapayments-gateway-input"></div>
-                        <img id="dna-card-selected" class="wc-dnapayments-card-selected" src="<?php echo esc_url( WC_DNA_Payments::plugin_url() . '/assets/img/cc/none.png' ); ?>" alt="<?php esc_attr_e( 'Selected card', \WC_DNA_Payments::$text_domain ); ?>" />
+                        <img id="dna-card-selected" class="wc-dnapayments-card-selected" src="<?php echo esc_url( WC_DNA_Payments::plugin_url() . '/assets/img/schemes/none.svg' ); ?>" alt="<?php esc_attr_e( 'Selected card', \WC_DNA_Payments::$text_domain ); ?>" />
                     </div>
                 </div>
 

@@ -1,5 +1,21 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-07-11 - version 4.0.5
+* Fixed a minor payment processing issue on the "Pay for Order" page
+* Fixed an issue with saving cards for later use when the payment is processed on the "Pay for Order" page
+* Fixed validation error messages for custom required fields on the checkout page
+* Handled 'null' string values in the total amount calculation when fetching payment data
+* Improved get_posted_value helper to preserve original data types
+* Added persistent loading state after successful payment until redirect
+* Improved error handling in the payment flow
+* Replaced PNG card scheme logos with SVGs for better quality
+* Added support for dynamic card scheme logos
+* Fixed broken image display when entering an unsupported card scheme in Hosted Fields
+* Introduced ConfigHelper for managing terminal configuration and retrieving available card schemes
+* Prevented blank page opening when the Terms & Conditions checkbox is unchecked during checkout with Google Pay on mobile devices
+* Fixed updating the order's payment method when payment is processed via the "Pay for Order" page
+* Add !important to icon height and margin rules to ensure consistent styling by enforcing these properties to override any potential conflicting styles
+
 2025-06-28 - version 4.0.4
 * Added abstract gateway class for DNA Payments
 * Extracted common gateway logic to abstract class

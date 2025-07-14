@@ -20,7 +20,7 @@ export const PaymentComponent = ({ containerId, componentInstance, errorMessage,
         activePaymentMethod,
         emitResponse: { responseTypes, noticeContexts },
         components: { LoadingMask },
-        eventRegistration: { onCheckoutSuccess, onCheckoutFail },
+        eventRegistration: { onCheckoutSuccess, onCheckoutFail, onCheckoutValidation },
     } = props
 
     const [loadingState, setLoadingState] = useState('idle')
@@ -59,6 +59,18 @@ export const PaymentComponent = ({ containerId, componentInstance, errorMessage,
         }
     }, [responseTypes, noticeContexts])
 
+    useEffect(() => {
+        const handler = (payload) => {
+            const messages = validatePaymentData(draftPaymentDataRef.current)
+            logData('onCheckoutValidation', payload, messages)
+            if (messages.length) {
+                processPromiseRef.current?.reject(messages[0])
+            }
+        }
+
+        return onCheckoutValidation(handler)
+    }, [onCheckoutValidation])
+
     const setupIntegration = useCallback(
         debounce(async () => {
             setLoadingState('loading')
@@ -71,12 +83,7 @@ export const PaymentComponent = ({ containerId, componentInstance, errorMessage,
                 {
                     onClick: () => {
                         setLoadingState('loading')
-                        const messages = validatePaymentData(draftPaymentDataRef.current)
-                        if (messages.length > 0) {
-                            return { error: { message: messages } }
-                        } else {
-                            return { paymentData: draftPaymentDataRef.current }
-                        }
+                        return { paymentData: draftPaymentDataRef.current }
                     },
                     onBeforeProcessPayment: () =>
                         new Promise((resolve, reject) => {

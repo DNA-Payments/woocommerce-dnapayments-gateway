@@ -34,7 +34,7 @@ class AjaxInit {
 
 		try {
 			$order 			= wc_get_order( $order_id );
-			$total_amount 	= floatval( empty($total_amount) ? $order->get_total() : $total_amount );
+			$total_amount 	= floatval( empty($total_amount) || $total_amount === 'null' ? $order->get_total() : $total_amount );
 
 			$auth_data      = $this->gateway->authDataHelper->get_auth_data_from_order( $order, $total_amount );
 			$payment_data   = $this->gateway->paymentDataHelper->get_payment_data_from_order( $order );
@@ -97,7 +97,7 @@ class AjaxInit {
 
     public function handle_update_order_status() {
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
-        $result_string  = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
+        $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
 
 		try {
 			$order 	= wc_get_order( $order_id );

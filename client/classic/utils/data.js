@@ -1,6 +1,6 @@
 export function getGlobalVariables() {
     /* global wc_dna_params */
-    const gateway_id = 'dnapayments'
+    const gatewayId = 'dnapayments'
     const isTestMode = wc_dna_params.is_test_mode === '1'
     const integrationType = wc_dna_params.integration_type
     const isHostedFields = wc_dna_params.integration_type === 'seamless'
@@ -9,11 +9,12 @@ export function getGlobalVariables() {
     const cards = Object.values(wc_dna_params.cards || {})
     const availableGateways = wc_dna_params.available_gateways || []
     const sendCallbackEveryFailedAttempt = Number(wc_dna_params.send_callback_every_failed_attempt)
+    const availableSchemes = wc_dna_params.available_schemes || []
     const iconPath = wc_dna_params.card_scheme_icon_path
     const terminalConfig = wc_dna_params.terminal_config
 
     return {
-        gateway_id,
+        gatewayId,
         isTestMode,
         isHostedFields,
         integrationType,
@@ -21,6 +22,7 @@ export function getGlobalVariables() {
         cards,
         availableGateways,
         sendCallbackEveryFailedAttempt,
+        availableSchemes,
         iconPath,
         tempToken,
         terminalConfig,

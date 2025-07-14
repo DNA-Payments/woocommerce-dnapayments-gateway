@@ -8,6 +8,7 @@ import { ValidationInputError } from '@woocommerce/blocks-checkout'
 /**
  * Internal dependencies
  */
+import { normalizeCardSchemeName } from '../../common/card-scheme'
 import { createHostedFields } from '../../common/create-hosted-fields'
 import { createModal } from '../../common/create-modal'
 import { logData } from '../../common/log'
@@ -47,7 +48,8 @@ export const DnapaymentsCreditCardFields = ({
     })
 
     const setupIntegration = async () => {
-        const { isTestMode, tempToken, cards, sendCallbackEveryFailedAttempt } = dnaPaymentsSettingsData
+        const { isTestMode, tempToken, cards, sendCallbackEveryFailedAttempt, availableSchemes } =
+            dnaPaymentsSettingsData
         const selectedCard = cards.find((c) => String(c.id) === String(token))
 
         setPlaceOrderButtonDisabled(true)
@@ -70,8 +72,9 @@ export const DnapaymentsCreditCardFields = ({
 
         hostedFieldsInstance.on('change', () => {
             const state = hostedFieldsInstance.getState()
-            setCardScheme(state.cardInfo?.type || '')
-            logData('card scheme:', state.cardInfo?.type)
+            const scheme = normalizeCardSchemeName(state.cardInfo?.type)
+            setCardScheme(availableSchemes.includes(scheme) ? scheme : '')
+            logData('card scheme:', scheme)
         })
 
         if (selectedCard) {
@@ -129,7 +132,7 @@ export const DnapaymentsCreditCardFields = ({
                     <label htmlFor={HOSTED_FIELD_IDS.number}>{__('Card number', TEXT_DOMAIN)}</label>
                     <img
                         className='wc-dnapayments-card-selected'
-                        src={`${cardSchemeIconPath}/${cardScheme || 'none'}.png`}
+                        src={`${cardSchemeIconPath}/${cardScheme || 'none'}.svg`}
                     />
                     <ValidationInputError errorMessage={error.number} />
                 </div>

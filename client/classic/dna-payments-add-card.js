@@ -16,7 +16,7 @@ jQuery(function ($) {
     const message = createMessage()
     const setFormLoading = createSetLoading($form)
 
-    const { gateway_id, isHostedFields, cards } = getGlobalVariables()
+    const { gatewayId, isHostedFields, cards } = getGlobalVariables()
 
     const placeOrder = createPlaceOrder({
         cardError,
@@ -62,7 +62,7 @@ jQuery(function ($) {
     }
 
     function onSubmit(e) {
-        if (getSelectedPaymentGateway() === gateway_id) {
+        if (getSelectedPaymentGateway() === gatewayId) {
             e.preventDefault()
             placeOrder(hostedFieldsInstance)
             return false

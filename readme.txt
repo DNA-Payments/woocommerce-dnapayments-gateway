@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.0.4
+Stable tag: 4.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,22 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.0.5 - 2025-07-07 =
+* Fixed a minor payment processing issue on the "Pay for Order" page
+* Fixed an issue with saving cards for later use when the payment is processed on the "Pay for Order" page
+* Fixed validation error messages for custom required fields on the checkout page
+* Handled 'null' string values in the total amount calculation when fetching payment data
+* Improved get_posted_value helper to preserve original data types
+* Added persistent loading state after successful payment until redirect
+* Improved error handling in the payment flow
+* Replaced PNG card scheme logos with SVGs for better quality
+* Added support for dynamic card scheme logos
+* Fixed broken image display when entering an unsupported card scheme in Hosted Fields
+* Introduced ConfigHelper for managing terminal configuration and retrieving available card schemes
+* Prevented blank page opening when the Terms & Conditions checkbox is unchecked during checkout with Google Pay on mobile devices
+* Fixed updating the order's payment method when payment is processed via the "Pay for Order" page
+* Add !important to icon height and margin rules to ensure consistent styling by enforcing these properties to override any potential conflicting styles
 
 = 4.0.4 - 2025-06-28 =
 * Added abstract gateway class for DNA Payments

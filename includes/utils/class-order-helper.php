@@ -146,7 +146,7 @@ class OrderHelper {
             // Handle settlement
             if ($settled) {
                 $new_status = $order->needs_processing() ? 'processing' : 'completed';
-                $order->payment_complete();
+                $order->payment_complete( $transaction_id );
                 $order->add_order_note(sprintf(__( 'DNA Payments transaction complete (Transaction ID: %s). Order status changed from %s to %s. Source: %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status), $source ));
 
                 if ($new_status === 'processing' && 'yes' === $this->gateway->get_option('enable_order_complete')) {
@@ -159,11 +159,23 @@ class OrderHelper {
             } else {
                 $new_status = 'on-hold';
                 $order->update_status('on-hold');
+                $order->set_transaction_id( $transaction_id );
                 $order->add_order_note(sprintf(__( 'DNA Payments awaiting payment completion (Transaction ID: %s). Order status changed from %s to %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status) ));
             }
 
-            // Update order transaction ID
-            $order->set_transaction_id( $transaction_id );
+            $custom_data = $this->parse_merchant_custom_data( $input );
+            $gateway_id  = $custom_data['gateway_id'];
+
+            // Update payment method if gateway_id is provided in custom data
+            if ( ! empty($gateway_id) && $gateway_id !==  $order->get_payment_method() ) {
+                // Get the actual gateway object
+                $gateway = WC()->payment_gateways->payment_gateways()[ $gateway_id ] ?? null;
+                if ( ! is_null( $gateway ) ) {
+                    $order->set_payment_method( $gateway );
+                    $this->gateway->logger->info('Order set payment method ' . $gateway->get_title());
+                }
+            }
+
             // Update metadata
             $order->update_meta_data('rrn', $input['rrn'] ?? '');
             $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
@@ -184,7 +196,7 @@ class OrderHelper {
 
             // Handle saving card tokens. Status "on-hold" means that saveCardToken already processed
             $is_processed = $new_status !== $status && $status === 'on-hold';
-            if ( ! $is_processed && $this->gateway->enabled_saved_cards && ($input['storeCardOnFile'] || $this->parse_merchant_custom_data( $input )['store_card_on_file']) ) {
+            if ( ! $is_processed && $this->gateway->enabled_saved_cards && ($input['storeCardOnFile'] || $custom_data['store_card_on_file']) ) {
                 \WC_DNA_Payments_Order_Client_Helpers::saveCardToken($input, $this->gateway->id);
                 $this->gateway->logger->info('Card token saved for order ID ' . $order_id);
             }
@@ -261,11 +273,19 @@ class OrderHelper {
         if ( isset($input['merchantCustomData']) ) {
             try {
                 $customData = json_decode($input['merchantCustomData']);
-                return [ 'order_id' => $customData->orderId, 'store_card_on_file' => $customData->storeCardOnFile ?? false];
+                return [ 
+                    'order_id' => $customData->orderId, 
+                    'store_card_on_file' => $customData->storeCardOnFile ?? false,
+                    'gateway_id' => $customData->gatewayId ?? ''
+                ];
             } catch (\Exception $e) {
                 $this->gateway->logger->warning('Error parsing merchantCustomData: ' . $e->getMessage());
             }
         }
-        return [ 'order_id' => null, 'store_card_on_file' => false ];
+        return [ 
+            'order_id' => null, 
+            'store_card_on_file' => false,
+            'gateway_id' => ''
+        ];
     }
 }

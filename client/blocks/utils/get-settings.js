@@ -13,4 +13,5 @@ export const dnaPaymentsSettingsData = {
     cards: settings.cards,
     cardSchemeIconPath: settings.card_scheme_icon_path,
     terminalConfig: settings.terminal_config,
+    availableSchemes: settings.available_schemes || [],
 }

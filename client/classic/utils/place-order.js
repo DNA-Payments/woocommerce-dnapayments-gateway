@@ -30,23 +30,38 @@ export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, 
             delete paymentData.orderLines
         }
 
-        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards })
+        const events =
+            integrationType === 'embedded'
+                ? {
+                      paid: () => {
+                          setFormLoading(true)
+                      },
+                  }
+                : undefined
+
+        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards, events })
 
         switch (integrationType) {
             case 'seamless':
                 const result = await payHostedFields(hostedFieldsInstance, paymentData, auth)
 
                 if (result.error) {
+                    setFormLoading(false)
                     cardError.show(result.error)
                 }
-                onComplete && onComplete(result)
+
+                if (onComplete) {
+                    onComplete(result)
+                } else {
+                    setFormLoading(false)
+                }
                 break
             case 'embedded':
                 window.DNAPayments.openPaymentIframeWidget({ ...paymentData, auth })
+                setFormLoading(false)
                 break
             default:
                 window.DNAPayments.openPaymentPage({ ...paymentData, auth })
+                setFormLoading(false)
         }
-
-        setFormLoading(false)
     })

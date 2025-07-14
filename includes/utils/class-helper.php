@@ -12,6 +12,7 @@ class Helper {
 	 * Safely gets a value from $_POST.
 	 *
 	 * If the expected data is a string also trims it.
+	 * Preserves original data type for non-string values.
 	 *
 	 * @since 5.5.0
 	 *
@@ -19,14 +20,26 @@ class Helper {
 	 * @param int|float|array|bool|null|string $default default data type to return (default empty string)
 	 * @return int|float|array|bool|null|string posted data value if key found, or default
 	 */
-	public static function get_posted_value( $key, $default = '' ) {
+	public static function get_posted_value( $key, $default = '') {
+		// Initialize value to default to avoid undefined variable issues
 		$value = $default;
 
+		// Only proceed if the key exists in $_POST
 		if ( isset( $_POST[ $key ] ) ) {
-			if ( is_string( $_POST[ $key ] ) ) {
-				$value = sanitize_text_field( wp_unslash( $_POST[ $key ] ) );
-			} else {
-				$value = sanitize_text_field ( wp_unslash( $_POST[ $key ] ) );
+			$value_raw = $_POST[ $key ];
+			$value = sanitize_text_field( wp_unslash( $value_raw ) );
+
+			if ( is_bool( $value_raw ) ) {
+				$value = $value === 'true' || $value === true;
+			} elseif ( is_numeric( $value_raw ) ) {
+				// Preserve integer or float type
+				$value = is_float( $value_raw ) ? (float) $value : (int) $value;
+			} elseif ( is_array( $value_raw ) ) {
+				// For arrays, sanitize each element
+				$value = array_map( 'sanitize_text_field', $value_raw );
+			} elseif ( $value_raw === null || $value === 'null' ) {
+				// Handle null values
+				$value = $default;
 			}
 		}
 

@@ -23,6 +23,7 @@ const isHostedFields = settings.integration_type === 'seamless'
 const defaultLabel = __('DNA Payments', TEXT_DOMAIN)
 const label = decodeEntities(settings?.title || '') || defaultLabel
 const icon = settings?.icon
+const icons = settings?.icons
 
 /**
  * Content component
@@ -79,7 +80,13 @@ const Label = (props) => {
     return (
         <span style={{ width: '100%' }}>
             <PaymentMethodLabel text={label} />
-            {icon && <img src={icon} style={{ float: 'right', marginRight: 20 }} />}
+            <span style={{ float: 'right', marginRight: 20, display: 'inline-flex' }}>
+                {icons
+                    ? icons.map((iconUrl, index) => (
+                          <img key={index} src={iconUrl} style={{ marginRight: index === icons.length - 1 ? 0 : 2 }} />
+                      ))
+                    : icon && <img src={icon} />}
+            </span>
         </span>
     )
 }

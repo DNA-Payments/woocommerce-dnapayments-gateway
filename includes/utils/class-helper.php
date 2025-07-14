@@ -9,42 +9,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Helper {
 
     /**
-	 * Safely gets a value from $_POST.
-	 *
-	 * If the expected data is a string also trims it.
-	 * Preserves original data type for non-string values.
-	 *
-	 * @since 5.5.0
-	 *
-	 * @param string $key posted data key
-	 * @param int|float|array|bool|null|string $default default data type to return (default empty string)
-	 * @return int|float|array|bool|null|string posted data value if key found, or default
-	 */
-	public static function get_posted_value( $key, $default = '') {
-		// Initialize value to default to avoid undefined variable issues
-		$value = $default;
-
-		// Only proceed if the key exists in $_POST
-		if ( isset( $_POST[ $key ] ) ) {
-			$value_raw = $_POST[ $key ];
-			$value = sanitize_text_field( wp_unslash( $value_raw ) );
-
-			if ( is_bool( $value_raw ) ) {
-				$value = $value === 'true' || $value === true;
-			} elseif ( is_numeric( $value_raw ) ) {
-				// Preserve integer or float type
-				$value = is_float( $value_raw ) ? (float) $value : (int) $value;
-			} elseif ( is_array( $value_raw ) ) {
-				// For arrays, sanitize each element
-				$value = array_map( 'sanitize_text_field', $value_raw );
-			} elseif ( $value_raw === null || $value === 'null' ) {
-				// Handle null values
-				$value = $default;
-			}
-		}
-
-		return $value;
-	}
+     * Safely gets a sanitized string value from $_POST.
+     *
+     * @since 5.5.0
+     *
+     * @param string $key posted data key
+     * @param string $default default value to return (default empty string)
+     * @return string sanitized posted data value if key found, or default
+     */
+    public static function get_posted_value( $key, $default = '' ) {        
+        // Only proceed if the key exists in $_POST
+        if ( isset( $_POST[ $key ] ) ) {
+            return sanitize_text_field( wp_unslash( $_POST[ $key ] ) );
+        }
+		// Return default value to avoid undefined variable issues
+        return $default;
+    }
 
 	public static function number_format( $price ) {
         return floatval(number_format( $price, 2, '.', '' ));

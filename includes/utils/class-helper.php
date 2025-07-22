@@ -67,4 +67,26 @@ class Helper {
 	
 		return empty($filtered) ? null : $filtered;
 	}
+
+    /**
+	 * Check if current user has DNA email domain
+	 * 
+	 * @return bool
+	 */
+	public static function current_user_has_dna_email_domain() {
+		$user = wp_get_current_user();
+		if ( ! $user || ! $user->exists() ) {
+			return false;
+		}
+
+		$email = $user->user_email;
+		$domain = substr( strrchr( $email, '@' ), 1 ); // get domain part
+
+		$allowed_domains = [
+			'dnapayments.com',
+			'dnapaymentsgroup.com',
+		];
+
+		return in_array( strtolower( $domain ), $allowed_domains, true );
+	}
 }

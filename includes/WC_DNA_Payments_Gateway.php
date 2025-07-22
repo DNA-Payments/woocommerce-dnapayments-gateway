@@ -15,6 +15,12 @@ use WCPG_DNA_Payments\Utils\Helper;
 class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
     /**
+	 * Whether the gateway is visible for non-admin users.
+	 * @var boolean
+	 *
+	 */
+	protected $hide_for_non_admin_users;
+    /**
 	 * True if the gateway shows fields on the checkout.
 	 *
 	 * @var bool
@@ -108,13 +114,14 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->id = 'dnapayments';
         $this->icon = WC_DNA_Payments::plugin_url() . '/assets/img/scheme.svg';
         $this->method_title = 'DNA Payments Gateway';
-        $this->method_description = 'Card payment method';
+        $this->method_description = 'Accept card payments via DNA Payments.';
 
         $this->init_form_fields();
         $this->init_settings();
         $this->title = $this->get_option( 'title' );
         $this->description = $this->get_option( 'description' );
         $this->enabled = $this->get_option( 'enabled' );
+        $this->hide_for_non_admin_users = $this->get_option( 'hide_for_non_admin_users' );
         $this->is_test_mode = 'yes' === $this->get_option( 'is_test_mode' );
         $integration_type = $this->get_option( 'integration_type' );
         $this->integration_type = $integration_type === 'hosted-fields' ? 'seamless' : $integration_type;
@@ -162,6 +169,30 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 		$payment_method = isset( $_POST['payment_method'] ) ? wc_clean( wp_unslash( $_POST['payment_method'] ) ) : $this->id;
 
 		return isset( $_POST[ 'wc-' . $payment_method . '-new-payment-method' ] ) && ! empty( $_POST[ 'wc-' . $payment_method . '-new-payment-method' ] );
+	}
+
+    /**
+	 * Check if this gateway is available for use.
+	 *
+	 * @return bool
+	 */
+	public function is_available() {
+		// First check parent availability
+		if (!parent::is_available()) {
+			return false;
+		}
+		
+		// Check visibility for non-admin users
+		if ('yes' === $this->hide_for_non_admin_users) {
+			$is_admin = current_user_can('manage_options');
+			$has_dna_email = Helper::current_user_has_dna_email_domain();
+			
+			if (!$is_admin && !$has_dna_email) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
     /**
@@ -304,13 +335,12 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
     public function payment_scripts() {
         $prefix = $this->is_test_mode ? 'test-' : '';
-        $current_user_id = get_current_user_id();
-        $is_guest = !isset($current_user_id) || empty($current_user_id) || $current_user_id === '0';
 
         wp_register_script( 'dna-payment-api', 'https://' . $prefix . 'pay.dnapayments.com/checkout/payment-api.js' , array(), \WC_DNA_Payments::$version, true );
         wp_register_script( 'dna-hosted-fields', 'https://' . $prefix . 'cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), \WC_DNA_Payments::$version, true );
         wp_register_script( 'dna-google-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), \WC_DNA_Payments::$version, true );
-        wp_register_script( 'dna-apple-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), \WC_DNA_Payments::$version, true );
+        wp_register_script( 'dna-apple-pay-sdk', 'https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js', array(), false, true );
+        wp_register_script( 'dna-apple-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api', 'dna-apple-pay-sdk'), \WC_DNA_Payments::$version, true );
         
         if ( ! is_cart() && ! is_checkout() && ! isset( $_GET['pay_for_order'] ) && ! is_add_payment_method_page()) {
             return;

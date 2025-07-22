@@ -77,7 +77,7 @@ class AnalyticsHelper {
 	public function send_analytics() {
 		try {
 			if ( $this->has_hash_changed() ) {
-				$access_token   = $this->gateway->authDataHelper->get_temp_token();
+				$access_token   = $this->gateway->authDataHelper->fetch_temp_token();
 				$analytics_data = $this->get_analytics_data();
 				$response = $this->post(
 					$access_token,

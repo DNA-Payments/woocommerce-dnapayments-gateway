@@ -1,5 +1,16 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-07-18 - version 4.0.6
+* Implemented Apple Pay button visibility only for supported browsers
+* Improved error logging in AJAX and auth helper classes
+* Added token caching in AuthDataHelper
+* Updated terminal config endpoint path to fetch without token
+* Added error message display if token fetch fails on checkout page
+* Fixed order line items' price and total calculation to ensure compatibility with PayPal payment processing
+* Hide saved cards on DNA Payments page if "Enable payment via saved cards" is unchecked
+* Added functionality to hide this payment method at checkout for customers, while keeping it visible to site admins and DNA Payments users for debugging purposes.
+* Enable Apple Pay support in third-party browsers by loading Apple Pay JS SDK
+
 2025-07-11 - version 4.0.5
 * Fixed a minor payment processing issue on the "Pay for Order" page
 * Fixed an issue with saving cards for later use when the payment is processed on the "Pay for Order" page

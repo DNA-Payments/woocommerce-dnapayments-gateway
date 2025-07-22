@@ -13,6 +13,11 @@ class AuthDataHelper {
      */
     public $gateway;
 
+    /**
+     * @var string|null Temporary authentication token
+     */
+    public $temp_token = null;
+
     public function __construct( $gateway ) {
         $this->gateway = $gateway;
     }
@@ -40,18 +45,51 @@ class AuthDataHelper {
         );
     }
 
-	public function get_auth_data_with_try( $invoice_id, $amount, $currency ) {
+	/**
+     * Attempts to get authentication data and handles errors gracefully
+     *
+     * @param string $invoice_id The invoice ID
+     * @param float $amount The payment amount
+     * @param string $currency The payment currency
+     * @return array Authentication data with access_token or null if failed
+     */
+    public function get_auth_data_with_try( $invoice_id, $amount, $currency ) {
         try {            
             return $this->get_auth_data( $invoice_id, $amount, $currency );
-        } catch (\Error $e) {
+        } catch (\Exception $e) {
+            // Log the error
+            if ( isset( $this->gateway->logger ) ) {
+                $this->gateway->logger->error( 'Failed to get authentication token: ' . $e->getMessage() );
+            }
+            
             return array(
                 'access_token' => null
             );
         }
     }
 
-    public function get_temp_token() {
+    /**
+     * Fetches a temporary authentication token
+     * Uses current timestamp as invoice ID and zero amount in GBP currency
+     * 
+     * @return string|null Authentication token or null if request fails
+     */
+    public function fetch_temp_token() {
         return $this->get_auth_data_with_try( date('d-m-y h:i:s'), 0, 'GBP' )['access_token'];
+    }
+
+    /**
+     * Gets a temporary authentication token
+     * Returns cached token if available, otherwise fetches a new one
+     * 
+     * @return string|null Authentication token or null if request fails
+     */
+    public function get_temp_token() {
+        if ( $this->temp_token === null ) {
+            $this->temp_token = $this->fetch_temp_token();
+        }
+        
+        return $this->temp_token;
     }
 
 }

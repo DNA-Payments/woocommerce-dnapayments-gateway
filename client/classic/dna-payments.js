@@ -21,6 +21,7 @@ import { request } from '../common/api/request'
 import { debounce } from '../common/debounce'
 import errors from '../common/errors'
 import { tryParse } from '../common/try-parse'
+import { checkApplePayAvailability } from '../common/validater'
 
 /* global wc_dna_params */
 const orderId = Number(wc_dna_params.order_id) || 0
@@ -30,9 +31,10 @@ let isUpdating = false // is event updated_checkout will be triggered
 let hostedFieldsInstance = null
 let paymentData = null
 let authData = null
+let globalError = null
 
 jQuery(function ($) {
-    const { gatewayId, cards, isHostedFields, tempToken } = getGlobalVariables()
+    const { gatewayId, isHostedFields, tempToken, terminalConfig } = getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
     const cardError = createCardError()
@@ -40,7 +42,6 @@ jQuery(function ($) {
 
     const placeOrder = createPlaceOrder({
         cardError,
-        cards,
         setFormLoading,
         fetchPaymentData: async () => {
             try {
@@ -84,6 +85,16 @@ jQuery(function ($) {
             $form.find('.dnapayments-footer').hide()
             placeOrderBtn.removeAttribute('disabled')
             return
+        }
+
+        if (!(await checkApplePayAvailability(terminalConfig))) {
+            $('.wc_payment_method.payment_method_dnapayments_apple_pay').hide()
+            if (selectedGateway === 'dnapayments_apple_pay') {
+                $('.wc_payment_method.payment_method_dnapayments #payment_method_dnapayments').click()
+                return
+            }
+        } else {
+            $('.wc_payment_method.payment_method_dnapayments_apple_pay').show()
         }
 
         $form.find('.dnapayments-footer').show()
@@ -150,6 +161,11 @@ jQuery(function ($) {
             render({ shouldFetchPaymentData: name !== 'terms' })
         }
     })
+
+    if (!tempToken) {
+        globalError = `Authentication failed. Please check that your credentials are correct. If you are using the Hosted Fields integration, make sure it is enabled for your account by your payment provider.`
+        displayError(globalError)
+    }
 
     // On the Pay for Order page, ensure initialization
     if (isPayForOrderPage) {
@@ -313,13 +329,20 @@ jQuery(function ($) {
         $('.woocommerce-NoticeGroup-checkout, .woocommerce-error, .woocommerce-message').remove()
     }
 
-    function showError(error_message, shouldScrollToNotices = true) {
-        hideError()
+    function displayError(error_message) {
         $form.prepend(
             '<div class="woocommerce-NoticeGroup woocommerce-NoticeGroup-checkout">' +
                 wrapMessage(error_message) +
                 '</div>',
         )
+    }
+
+    function showError(error_message, shouldScrollToNotices = true) {
+        hideError()
+        displayError(error_message)
+        if (globalError) {
+            displayError(globalError)
+        }
         setTimeout(() => $form.removeClass('processing').unblock())
         $.unblockUI()
 

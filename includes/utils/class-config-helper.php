@@ -35,7 +35,7 @@ class ConfigHelper {
      */
     public function get_terminal_config() {
         try {
-            return $this->gateway->requestHelper->get('/payments/form/configuration');
+            return $this->gateway->requestHelper->get('/payments/settings/terminals/' . $this->gateway->terminal, false);
         } catch (\Exception $e) {
             $this->gateway->logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
             return null;

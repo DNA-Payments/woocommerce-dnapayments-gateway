@@ -45,6 +45,10 @@ class AjaxInit {
 				'paymentData'	=> $payment_data,
 			) );
 		} catch (\Exception $e) {
+            // Log the error
+            if ( isset( $this->gateway->logger ) ) {
+                $this->gateway->logger->error( 'handle_get_payment_and_auth_data: ' . $e->getMessage() );
+            }
 			wp_send_json_error([
                 'errors' => [ $e->getMessage() ]
             ], 500);
@@ -70,6 +74,10 @@ class AjaxInit {
                 'paymentData' => $this->gateway->paymentDataHelper->get_payment_data_from_cart( $checkout, $cart, $customer )
             ) );
         } catch (\Exception $e) {
+            // Log the error
+            if ( isset( $this->gateway->logger ) ) {
+                $this->gateway->logger->error( 'handle_get_payment_data_from_cart: ' . $e->getMessage() );
+            }
             wp_send_json_error([
                 'errors' => [ $e->getMessage() ]
             ], 500);
@@ -88,7 +96,10 @@ class AjaxInit {
 				'paymentData'	=> $this->gateway->paymentDataHelper->get_payment_data_from_customer( $customer, $invoice_id )
 			) );
 		} catch (\Exception $e) {
-
+            // Log the error
+            if ( isset( $this->gateway->logger ) ) {
+                $this->gateway->logger->error( 'handle_get_payment_and_auth_data_for_saving_card: ' . $e->getMessage() );
+            }
             wp_send_json_error([
                 'errors' => [ $e->getMessage() ]
             ], 500);
@@ -116,6 +127,10 @@ class AjaxInit {
                 'message'   => $result['message'],
 			) );
 		} catch (\Exception $e) {
+            // Log the error
+            if ( isset( $this->gateway->logger ) ) {
+                $this->gateway->logger->error( 'handle_update_order_status: ' . $e->getMessage() );
+            }
 			wp_send_json_error([
                 'errors' => [ $e->getMessage() ]
             ], 500);

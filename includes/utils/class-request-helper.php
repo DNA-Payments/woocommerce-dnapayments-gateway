@@ -27,24 +27,55 @@ class RequestHelper {
         return $base_url . $path;
     }
 
-    public function get( string $url ) {
-		return $this->request( 'GET', $url );
+    /**
+     * Performs a GET request to the specified URL
+     *
+     * @param string $url The endpoint URL
+     * @param bool $use_token Whether to include the authorization token in the request
+     * @return array The response data
+     */
+    public function get( string $url, bool $use_token = true ) {
+		return $this->request( 'GET', $url, [], $use_token );
 	}
 
-    public function post( string $url, array $data ) {
-		return $this->request( 'POST', $url, $data );
+    /**
+     * Performs a POST request to the specified URL with the given data
+     *
+     * @param string $url The endpoint URL
+     * @param array $data The data to send in the request body
+     * @param bool $use_token Whether to include the authorization token in the request
+     * @return array The response data
+     */
+    public function post( string $url, array $data, bool $use_token = true ) {
+		return $this->request( 'POST', $url, $data, $use_token );
 	}
 
-    public function request( string $method, string $url, array $data = [] ): array {
-        $access_token = $this->gateway->authDataHelper->get_temp_token();
-
+    /**
+     * Performs an HTTP request to the specified URL with the given method and data
+     *
+     * @param string $method The HTTP method (GET, POST, etc.)
+     * @param string $url The endpoint URL
+     * @param array $data The data to send in the request body
+     * @param bool $use_token Whether to include the authorization token in the request
+     * @return array The response data
+     * @throws \Exception If the token is required but not set, or if the request fails
+     */
+    public function request( string $method, string $url, array $data = [], bool $use_token = true ): array {
         $args = [
             'method'  => strtoupper( $method ),
-            'headers' => [
-				'Authorization' => 'Bearer ' . $access_token,
-			],
+            'headers' => [],
             'timeout' => self::REQUEST_TIMEOUT,
         ];
+        
+        if ( $use_token ) {
+            $access_token = $this->gateway->authDataHelper->fetch_temp_token();
+            
+            if ( null === $access_token ) {
+                throw new \Exception( 'Access token is not set' );
+            }
+            
+            $args['headers']['Authorization'] = 'Bearer ' . $access_token;
+        }
     
         if ( ! empty( $data ) ) {
             $args['headers']['Content-Type'] = 'application/json';

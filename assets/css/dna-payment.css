@@ -41,6 +41,11 @@
 
 /** CLASSIC checkout styles **/
 
+#dnapayments_apple_pay_container,
+#dnapayments_google_pay_container {
+    height: 46px !important;
+}
+
 .wc-classic-dnapayments-card-elements {
     display: flex;
     width: 100%;

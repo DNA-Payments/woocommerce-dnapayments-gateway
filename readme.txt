@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.0.5
+Stable tag: 4.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,17 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.0.6 - 2025-07-18 =
+* Implemented Apple Pay button visibility only for supported browsers
+* Improved error logging in AJAX and auth helper classes
+* Added token caching in AuthDataHelper
+* Updated terminal config endpoint path to fetch without token
+* Added error message display if token fetch fails on checkout page
+* Fixed order line items' price and total calculation to ensure compatibility with PayPal payment processing
+* Hide saved cards on DNA Payments page if "Enable payment via saved cards" is unchecked
+* Added functionality to hide this payment method at checkout for customers, while keeping it visible to site admins and DNA Payments users for debugging purposes.
+* Enable Apple Pay support in third-party browsers by loading Apple Pay JS SDK
 
 = 4.0.5 - 2025-07-07 =
 * Fixed a minor payment processing issue on the "Pay for Order" page

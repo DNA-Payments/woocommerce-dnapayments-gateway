@@ -11,6 +11,13 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Gateway_Abstract_Dnapayme
 	 * @var bool
 	 */
 	public $has_fields = true;
+	
+	/**
+	 * Reference to the main DNA Payments gateway.
+	 *
+	 * @var WC_DNA_Payments_Gateway
+	 */
+	protected $dnapayments_gateway;
 
     public function __construct() {
 
@@ -35,8 +42,8 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Gateway_Abstract_Dnapayme
     public function init_form_fields() {
         $this->form_fields = array(
             'enabled' => array(
-               'title'       => __( 'Enable/Disable', WC_DNA_Payments::$text_domain ),
-               'label'       => __( 'Enabled ' . $this->method_title, WC_DNA_Payments::$text_domain ),
+               'title'       => __( 'Enable Gateway', WC_DNA_Payments::$text_domain ),
+               'label'       => __( 'Enable the ' . $this->method_title, WC_DNA_Payments::$text_domain ),
                'type'        => 'checkbox',
                'description' => '',
                'default'     => 'no'
@@ -59,6 +66,25 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Gateway_Abstract_Dnapayme
     }
 
     /**
+	 * Get the main DNA Payments gateway instance.
+	 * Lazy-loads the gateway only when needed to avoid initialization issues.
+	 *
+	 * @return WC_DNA_Payments_Gateway|null The gateway instance or null if not available
+	 */
+	protected function get_dnapayments_gateway() {
+		if ( null === $this->dnapayments_gateway ) {
+			// Make sure WooCommerce is fully loaded
+			if ( function_exists( 'WC' ) && WC()->payment_gateways && method_exists( WC()->payment_gateways, 'payment_gateways' ) ) {
+				$payment_gateways = WC()->payment_gateways->payment_gateways();
+				if ( isset( $payment_gateways[WC_DNA_Payments::$id] ) ) {
+					$this->dnapayments_gateway = $payment_gateways[WC_DNA_Payments::$id];
+				}
+			}
+		}
+		return $this->dnapayments_gateway;
+	}
+
+    /**
 	 * Process refund.
 	 *
 	 * If the gateway declares 'refunds' support, this will allow it to refund.
@@ -70,8 +96,11 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Gateway_Abstract_Dnapayme
 	 * @return bool|\WP_Error True or false based on success, or a WP_Error object.
 	 */
     public function process_refund( $order_id, $amount = null, $reason = '') {
-        $dnapayments_gateway = WC()->payment_gateways->payment_gateways()[WC_DNA_Payments::$id];
-        return $dnapayments_gateway->process_refund( $order_id, $amount, $reason );
+        $gateway = $this->get_dnapayments_gateway();
+        if ( $gateway ) {
+            return $gateway->process_refund( $order_id, $amount, $reason );
+        }
+        return new WP_Error( 'dnapayments_error', __( 'Unable to process refund: Main payment gateway not available.', WC_DNA_Payments::$text_domain ) );
     }
 
     /**
@@ -81,8 +110,14 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Gateway_Abstract_Dnapayme
 	 * @return array
 	 */
 	public function process_payment( $order_id ) {
-        $dnapayments_gateway = WC()->payment_gateways->payment_gateways()[WC_DNA_Payments::$id];
-        return $dnapayments_gateway->process_payment( $order_id );
+        $gateway = $this->get_dnapayments_gateway();
+        if ( $gateway ) {
+            return $gateway->process_payment( $order_id );
+        }
+        return array(
+            'result'   => 'failure',
+            'messages' => __( 'Unable to process payment: Main payment gateway not available.', WC_DNA_Payments::$text_domain )
+        );
 	}
 
     /**
@@ -100,5 +135,22 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Gateway_Abstract_Dnapayme
 
         ob_end_flush();
     }
+
+    /**
+	 * Check if this gateway is available for use.
+	 *
+	 * First checks if the main DNA Payments gateway is available,
+	 * then checks if this specific payment component is available.
+	 *
+	 * @return bool
+	 */
+	public function is_available() {
+		$gateway = $this->get_dnapayments_gateway();
+		if ( ! $gateway || ! $gateway->is_available() ) {
+			return false;
+		}
+		
+		return parent::is_available();
+	}
 
 }

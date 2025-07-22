@@ -151,8 +151,8 @@ class PaymentDataHelper {
 
     private function get_order_lines_from_cart( \WC_Cart $cart ) {
         $cart_lines = [];
-        foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-            $cart_lines[] = $this->get_order_line( $cart_item['data'], $cart_item['line_total'], $cart_item['quantity'] );
+        foreach ( $cart->get_cart() as $cart_item ) {
+            $cart_lines[] = $this->get_order_line( $cart_item['data'], $cart_item['line_subtotal'], $cart_item['quantity'] );
         }
         return $cart_lines;
     }
@@ -167,7 +167,7 @@ class PaymentDataHelper {
         $order_lines = [];
         foreach ($order->get_items() as $item) {
             /** @disregard P1013 Method get_product not found */
-            $order_lines[] = $this->get_order_line( $item->get_product(), $item->get_total(), $item->get_quantity() );
+            $order_lines[] = $this->get_order_line( $item->get_product(), $item->get_subtotal(), $item->get_quantity() );
         }
         return $order_lines;
     }

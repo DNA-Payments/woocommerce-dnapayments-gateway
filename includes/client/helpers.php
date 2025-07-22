@@ -14,26 +14,44 @@ class WC_DNA_Payments_Order_Client_Helpers {
         return round( $price, $precision );
     }
 
-    public static function isPaypalLineItemsValid( $order ) {
+    /**
+     * Validates if order line items are compatible with PayPal requirements
+     * 
+     * PayPal requires:
+     * 1. No negative line item amounts
+     * 2. Total calculation must match order total exactly
+     * 
+     * @param \WC_Order $order The WooCommerce order object to validate
+     * @return bool True if order is valid for PayPal, false otherwise
+     */
+    public static function isPaypalLineItemsValid( \WC_Order $order ) {
         $negativeItemAmount = false;
-        $calculatedTotal     = 0;
+        $calculatedTotal = 0;
 
-        // Products.
+        // Validate line items and fees
         foreach ( $order->get_items( array( 'line_item', 'fee' ) ) as $item ) {
+            $itemLineTotal = 0;
+            
             if ( 'fee' === $item['type'] ) {
-                $itemLineTotal   = self::numberFormat( $item['line_total'] );
+                $itemLineTotal = self::numberFormat( $item['line_total'] );
                 $calculatedTotal += $itemLineTotal;
             } else {
-                $itemLineTotal   = self::numberFormat( $order->get_item_subtotal( $item, false ) );
+                // Use subtotal to get price before discounts (consistent with order line generation)
+                $itemLineTotal = self::numberFormat( $order->get_item_subtotal( $item, false ) );
                 $calculatedTotal += $itemLineTotal * $item->get_quantity();
             }
 
+            // PayPal doesn't accept negative amounts
             if ( $itemLineTotal < 0 ) {
                 $negativeItemAmount = true;
             }
         }
 
-        $mismatched_totals = self::numberFormat( $calculatedTotal + $order->get_total_tax() + self::round( $order->get_shipping_total() ) - self::round( $order->get_total_discount() ) ) !== self::numberFormat( $order->get_total() );
+        // Verify total calculation matches order total
+        $expectedTotal = $calculatedTotal + $order->get_total_tax() + self::round( $order->get_shipping_total() ) - self::round( $order->get_total_discount() );
+        $actualTotal = self::numberFormat( $order->get_total() );
+        $mismatched_totals = self::numberFormat( $expectedTotal ) !== $actualTotal;
+
         return ! $negativeItemAmount && ! $mismatched_totals;
     }
 
@@ -93,59 +111,6 @@ class WC_DNA_Payments_Order_Client_Helpers {
         return apply_filters( 'woocommerce_paypal_get_order_item_names', implode( ', ', $item_names ), $order );
     }
 
-    public static function getAmountBreakdown(\WC_Order $order) {
-        return array(
-            'itemTotal' => array('totalAmount' => self::numberFormat($order->get_subtotal())),
-            'shipping' => array('totalAmount' => self::numberFormat($order->get_shipping_total())),
-            'taxTotal' => array('totalAmount' => self::numberFormat($order->get_total_tax())),
-            'discount' => array('totalAmount' => self::numberFormat($order->get_total_discount()))
-        );
-    }
-
-    public static function getBillingAddress(\WC_Order $order) {
-        $state = $order->get_billing_state();
-        return array(
-            'firstName' => $order->get_billing_first_name(),
-            'lastName'  => $order->get_billing_last_name(),
-            'addressLine1'  => $order->get_billing_address_1(),
-            'addressLine2'  => $order->get_billing_address_2(),
-            'city'       => $order->get_billing_city(),
-            // User can write text that does not match ISO 3166 state code
-            // 'region'      => strlen($state) >= 0 && strlen($state) <= 3 ? $state : '',
-            'postalCode'   => $order->get_billing_postcode(),
-            'phone'      => $order->get_billing_phone(),
-            'country'    => $order->get_billing_country()
-        );
-    }
-
-    public static function getShippingAddress(\WC_Order $order) {
-        if(!$order->needs_shipping_address()) return null;
-        $state = $order->get_shipping_state();
-
-        return array(
-            'firstName' => $order->get_shipping_first_name(),
-            'lastName'  => $order->get_shipping_last_name(),
-            'addressLine1'  => $order->get_shipping_address_1(),
-            'addressLine2'  => $order->get_shipping_address_2(),
-            'city'       => $order->get_shipping_city(),
-            // User can write text that does not match ISO 3166 state code
-            // 'region'      => strlen($state) >= 0 && strlen($state) <= 3 ? $state : '',
-            'postalCode'   => $order->get_shipping_postcode(),
-            'phone'      => self::getShippingPhone($order),
-            'country'    => $order->get_shipping_country()
-        );
-    }
-
-    public static function getShippingPhone(\WC_Order $order) {
-        $shipping_phone = '';
-        if (version_compare( WC()->version, '5.6.0', '<' )) {
-            $shipping_phone = $order->get_meta('_shipping_phone');
-        } else {
-            $shipping_phone = $order->get_shipping_phone();
-        }
-        return $shipping_phone ? $shipping_phone : $order->get_billing_phone();
-    }
-
     public static function getSingItemOrderLines(\WC_Order $order) {
         return array(
             array(
@@ -155,32 +120,6 @@ class WC_DNA_Payments_Order_Client_Helpers {
                 'totalAmount' => self::numberFormat($order->get_subtotal())
             )
         );
-    }
-
-    public static function getOrderLines(\WC_Order $order, $forceOneItem = false) {
-        if($forceOneItem) {
-            return self::getSingItemOrderLines($order);
-        }
-        $orderLines = [];
-
-        foreach ($order->get_items() as $item_id => $item) {
-            $total = self::numberFormat($item->get_total());
-            $product = $item->get_product();
-            $image_id  = $product->get_image_id();
-            $image_url = $image_id ? wp_get_attachment_image_url( $image_id, 'full' ) : '';
-            
-            $orderLines[] = array(
-                'reference' => strval($product->get_id()),
-                'name' => html_entity_decode( wc_trim_string( $item->get_name() ? wp_strip_all_tags( $item->get_name() ) : __( 'Item', 'woocommerce' ), 127 ), ENT_NOQUOTES, 'UTF-8' ),
-                'quantity' => $item->get_quantity(),
-                'unitPrice' => self::numberFormat(($item->get_total()/$item->get_quantity())),
-                'imageUrl' => $image_url,
-                'productUrl' => $product->get_permalink(),
-                'totalAmount' => $total
-            );
-        }
-
-        return $orderLines;
     }
 
     public static function isDNAPaymentOrder(WC_Order $order): bool {

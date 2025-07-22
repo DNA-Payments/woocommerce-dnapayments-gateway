@@ -24,7 +24,7 @@ msgid "Oups! Payment failed! Please, try later..."
 msgstr ""
 
 #: dnapayments-gateway.php:92
-msgid "Enable/Disable"
+msgid "Enable Gateway"
 msgstr ""
 
 #: dnapayments-gateway.php:93

@@ -25,6 +25,11 @@ const label = decodeEntities(settings?.title || '') || defaultLabel
 const icon = settings?.icon
 const icons = settings?.icons
 
+const globalError = __(
+    `Authentication failed. Please check that your credentials are correct. If you are using the Hosted Fields integration, make sure it is enabled for your account by your payment provider.`,
+    TEXT_DOMAIN,
+)
+
 /**
  * Content component
  */
@@ -40,6 +45,12 @@ const Content = (props) => {
     const [hostedFieldsInstance, setHostedFieldsInstance] = useState(null)
 
     usePaymentForm({ props, hostedFieldsInstance })
+
+    useEffect(() => {
+        if (!settings.temp_token) {
+            props.setExpressPaymentError(globalError)
+        }
+    }, [])
 
     useEffect(() => {
         if (!isHostedFields) {

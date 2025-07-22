@@ -60,3 +60,28 @@ export function shouldHideOrderLines(terminalConfig) {
     const isPayPalOrKlarnaActive = ['paypal', 'klarna'].some((method) => settings[method]?.status === 'active')
     return !isPayPalOrKlarnaActive
 }
+
+export const isApplePayAvailable = () => {
+    try {
+        const ApplePaySession = window.ApplePaySession // it is declared as a class
+        return Boolean(ApplePaySession?.canMakePayments())
+    } catch (e) {
+        console.error('Error in isApplePayAvailable', e)
+        return false
+    }
+}
+
+export const checkApplePayAvailability = async (terminalConfig) => {
+    const merchantId = terminalConfig?.merchantId
+
+    if (merchantId && typeof window.DNAPayments?.ApplePayComponent?.isAvailable === 'function') {
+        try {
+            return await window.DNAPayments.ApplePayComponent.isAvailable(merchantId)
+        } catch (err) {
+            console.error('Error in checkApplePayAvailability', err)
+            return false
+        }
+    }
+
+    return isApplePayAvailable()
+}

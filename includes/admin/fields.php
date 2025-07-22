@@ -6,12 +6,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 function get_dnapayments_admin_fields() {
     return [
         "enabled" => [
-            "title" => __("Enable/Disable", \WC_DNA_Payments::$text_domain),
-            "label" => __("Enabled DNA Payments Gateway", \WC_DNA_Payments::$text_domain),
+            "title" => __("Enable Gateway", \WC_DNA_Payments::$text_domain),
+            "label" => __("Enable the DNA Payments Gateway", \WC_DNA_Payments::$text_domain),
             "type" => "checkbox",
             "description" => "",
             "default" => "no",
         ],
+        'hide_for_non_admin_users' => array(
+            'type'    => 'checkbox',
+            'label'   => __( 'Hide this payment method at checkout for Customers, and display it only to site admins and DNA Payments staff (for debugging purposes)', \WC_DNA_Payments::$text_domain ),
+            'default' => 'no',
+        ),
         "title" => [
             "title" => __("Title", \WC_DNA_Payments::$text_domain),
             "type" => "text",
@@ -30,7 +35,7 @@ function get_dnapayments_admin_fields() {
                 "This controls the description which the user sees during checkout.",
                 \WC_DNA_Payments::$text_domain
             ),
-            "default" => "Card payment method",
+            "default" => "Accept card payments via DNA Payments.",
         ],
         "client_id" => [
             "title" => __("LIVE Client ID", \WC_DNA_Payments::$text_domain),

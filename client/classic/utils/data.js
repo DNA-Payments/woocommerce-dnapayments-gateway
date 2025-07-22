@@ -19,7 +19,7 @@ export function getGlobalVariables() {
         isHostedFields,
         integrationType,
         allowSavingCards,
-        cards,
+        cards: allowSavingCards ? cards : [],
         availableGateways,
         sendCallbackEveryFailedAttempt,
         availableSchemes,

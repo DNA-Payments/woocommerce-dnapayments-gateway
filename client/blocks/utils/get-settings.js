@@ -10,7 +10,7 @@ export const dnaPaymentsSettingsData = {
     terminalId: settings.terminal_id,
     allowSavingCards: settings.allow_saving_cards,
     sendCallbackEveryFailedAttempt: Number(settings.send_callback_every_failed_attempt),
-    cards: settings.cards,
+    cards: settings.allow_saving_cards ? settings.cards : [],
     cardSchemeIconPath: settings.card_scheme_icon_path,
     terminalConfig: settings.terminal_config,
     availableSchemes: settings.available_schemes || [],

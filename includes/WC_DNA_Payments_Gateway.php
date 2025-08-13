@@ -21,6 +21,12 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 	 */
 	protected $hide_for_non_admin_users;
     /**
+	 * Whether to enable AJAX order status updates.
+	 * @var boolean
+	 *
+	 */
+	public $enable_ajax_order_status_update;
+    /**
 	 * True if the gateway shows fields on the checkout.
 	 *
 	 * @var bool
@@ -50,10 +56,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
      * @var string
      */
     public $integration_type;
-    /**
-     * @var object
-     */
-    public $terminal_config;
     /**
      * @var \DNAPayments\DNAPayments
      */
@@ -122,6 +124,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->description = $this->get_option( 'description' );
         $this->enabled = $this->get_option( 'enabled' );
         $this->hide_for_non_admin_users = $this->get_option( 'hide_for_non_admin_users' );
+        $this->enable_ajax_order_status_update = $this->get_option( 'enable_ajax_order_status_update' );
         $this->is_test_mode = 'yes' === $this->get_option( 'is_test_mode' );
         $integration_type = $this->get_option( 'integration_type' );
         $this->integration_type = $integration_type === 'hosted-fields' ? 'seamless' : $integration_type;
@@ -147,7 +150,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->requestHelper = new WCPG_DNA_Payments\Utils\RequestHelper($this);
         $this->configHelper = new WCPG_DNA_Payments\Utils\ConfigHelper($this);
 
-        $this->terminal_config = $this->configHelper->get_terminal_config();
         $this->supports = array( 'products', 'refunds' );
         if ( $this->enabled_saved_cards ) {
             array_push($this->supports, 'tokenization' );
@@ -181,7 +183,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 		if (!parent::is_available()) {
 			return false;
 		}
-		
+
 		// Check visibility for non-admin users
 		if ('yes' === $this->hide_for_non_admin_users) {
 			$is_admin = current_user_can('manage_options');
@@ -191,7 +193,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 				return false;
 			}
 		}
-		
+
 		return true;
 	}
 
@@ -229,7 +231,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
             return !empty($result) && $result['success'];
         } catch (Exception $e) {
-            $this->logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+            $this->logger->error('Error in process_cancel; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
             return false;
         }
 
@@ -294,7 +296,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
             return !empty($result) && $result['success'];
         } catch (Exception $e) {
-            $this->logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+            $this->logger->error('Error in process_refund; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
             return false;
         }
 
@@ -321,7 +323,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'integration_type' => $this->integration_type,
             'temp_token' => $this->authDataHelper->get_temp_token(),
             'terminal_id' => $this->terminal,
-            'terminal_config' => $this->terminal_config,
+            'terminal_config' => $this->configHelper->get_terminal_config(),
             'current_currency_code' => get_woocommerce_currency(),
             'available_gateways' => array_keys(WC()->payment_gateways->get_available_payment_gateways()),
             'allow_saving_cards' => $this->enabled_saved_cards && !$is_guest,
@@ -339,9 +341,8 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         wp_register_script( 'dna-payment-api', 'https://' . $prefix . 'pay.dnapayments.com/checkout/payment-api.js' , array(), \WC_DNA_Payments::$version, true );
         wp_register_script( 'dna-hosted-fields', 'https://' . $prefix . 'cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), \WC_DNA_Payments::$version, true );
         wp_register_script( 'dna-google-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), \WC_DNA_Payments::$version, true );
-        wp_register_script( 'dna-apple-pay-sdk', 'https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js', array(), false, true );
-        wp_register_script( 'dna-apple-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api', 'dna-apple-pay-sdk'), \WC_DNA_Payments::$version, true );
-        
+        wp_register_script( 'dna-apple-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), \WC_DNA_Payments::$version, true );
+
         if ( ! is_cart() && ! is_checkout() && ! isset( $_GET['pay_for_order'] ) && ! is_add_payment_method_page()) {
             return;
         }

@@ -10,19 +10,33 @@ import { useEffect } from '@wordpress/element'
 import { tryParse } from '../../common/try-parse'
 import { payHostedFields } from '../../common/pay-hosted-fields'
 import errors from '../../common/errors'
-
-import { TEXT_DOMAIN } from '../constants'
-import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { completePayment } from '../../common/complete-payment'
 import { shouldHideOrderLines } from '../../common/validater'
 
+import { TEXT_DOMAIN } from '../constants'
+import { dnaPaymentsSettingsData } from '../utils/get-settings'
+import { getValidationErrors } from '../utils/validator'
+
 export const usePaymentForm = ({ props, hostedFieldsInstance }) => {
     const {
+        setExpressPaymentError,
         emitResponse: { responseTypes, noticeContexts },
-        eventRegistration: { onCheckoutSuccess, onPaymentSetup },
+        eventRegistration: { onCheckoutSuccess, onPaymentSetup, onCheckoutValidation },
         shouldSavePayment,
     } = props
     const { isTestMode, integrationType, allowSavingCards, cards, terminalConfig } = dnaPaymentsSettingsData
+
+    useEffect(() => {
+        const handler = () => {
+            const errorMessage = getValidationErrors()
+            if (errorMessage.length) {
+                setExpressPaymentError(errorMessage)
+            }
+            return !errorMessage.length
+        }
+
+        return onCheckoutValidation(handler)
+    }, [onCheckoutValidation])
 
     useEffect(() => {
         const handler = async () => {
@@ -126,5 +140,5 @@ export const usePaymentForm = ({ props, hostedFieldsInstance }) => {
             })
 
         return onCheckoutSuccess(handler)
-    }, [onCheckoutSuccess, hostedFieldsInstance, responseTypes, noticeContexts])
+    }, [onCheckoutSuccess, hostedFieldsInstance, responseTypes, noticeContexts, shouldSavePayment])
 }

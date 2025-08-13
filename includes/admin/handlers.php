@@ -75,7 +75,7 @@ class WC_DNA_Payments_Order_Handler extends WC_DNA_Payments_Gateway {
                         return true;
                     }
                 } catch (\Exception $e) {
-                    $logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+                    $logger->error('Error in capture_payment; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
                 }
 
                 return false;

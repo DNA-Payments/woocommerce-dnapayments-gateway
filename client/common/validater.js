@@ -71,11 +71,33 @@ export const isApplePayAvailable = () => {
     }
 }
 
+// @ts-ignore
+export const getApplePaySession = () => window.ApplePaySession
+
+export function loadApplePaySDK() {
+    return new Promise((resolve, reject) => {
+        if (document.getElementById('apple-pay-sdk')) {
+            return resolve()
+        }
+
+        const script = document.createElement('script')
+        script.id = 'apple-pay-sdk'
+        script.src = 'https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js'
+        script.async = true
+        script.setAttribute('crossorigin', 'anonymous')
+        script.onload = () => resolve()
+        script.onerror = () => reject(new Error('Failed to load Apple Pay SDK.'))
+
+        document.head.appendChild(script)
+    })
+}
+
 export const checkApplePayAvailability = async (terminalConfig) => {
     const merchantId = terminalConfig?.merchantId
 
     if (merchantId && typeof window.DNAPayments?.ApplePayComponent?.isAvailable === 'function') {
         try {
+            await loadApplePaySDK()
             return await window.DNAPayments.ApplePayComponent.isAvailable(merchantId)
         } catch (err) {
             console.error('Error in checkApplePayAvailability', err)

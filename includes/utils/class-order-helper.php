@@ -30,43 +30,18 @@ class OrderHelper {
         }
 
         if ( $input['success'] ) {
-            $client_token = $this->gateway->dnaPayment->get_client_token(
-                $this->gateway->client_id,
-                $this->gateway->client_secret
-            );
-
             if ( empty($input['id']) ) {
                 throw new \Exception( __( 'Transaction ID is missing or invalid.', \WC_DNA_Payments::$text_domain ) );
             }
 
-            $transactions = $this->gateway->dnaPayment->get_transactions_by_id(
-                $client_token['access_token'],
-                $input['id']
-            );
-
-            $has_charge = false;
-            foreach ($transactions as $item) {
-                if ( in_array( $item['transactionState'], [ 'CHARGE', 'AUTH' ]) ) {
-                    $has_charge = true;
-                }
-            }
+            $has_charge = $this->has_transaction_charge($input['id']);
 
             if ( ! $has_charge ) {
                 throw new \Exception( __( 'No successful transaction has been processed for this order ID.', \WC_DNA_Payments::$text_domain ) );
             }
         }
 
-        $settled = strtoupper( $this->gateway->get_option('transactionType') ) === 'SALE';
-
-        if ( in_array( $input['paymentMethod'], array(
-            'paybybankapp',
-            'ecospend',
-            'alipay',
-            'wechatpay',
-            'astropay',
-        ) ) ) {
-            $settled = true;
-        }
+        $settled = $this->determine_settlement_status($input);
 
         $result = $this->update_status( $order, $input, $settled, $source );
         $status = $result['status'];
@@ -197,8 +172,12 @@ class OrderHelper {
             // Handle saving card tokens. Status "on-hold" means that saveCardToken already processed
             $is_processed = $new_status !== $status && $status === 'on-hold';
             if ( ! $is_processed && $this->gateway->enabled_saved_cards && ($input['storeCardOnFile'] || $custom_data['store_card_on_file']) ) {
-                \WC_DNA_Payments_Order_Client_Helpers::saveCardToken($input, $this->gateway->id);
-                $this->gateway->logger->info('Card token saved for order ID ' . $order_id);
+                $msg_save_token = \WC_DNA_Payments_Order_Client_Helpers::saveCardToken($input, $this->gateway->id);
+                if ( empty( $msg_save_token ) ) {
+                    $this->gateway->logger->info('Card token saved for order ID ' . $order_id);
+                } else {
+                    $this->gateway->logger->info('Card token not saved for order ID ' . $order_id . '. Error: ' . $msg_save_token);
+                }
             }
             
             // Release the transaction lock
@@ -287,5 +266,65 @@ class OrderHelper {
             'store_card_on_file' => false,
             'gateway_id' => ''
         ];
+    }
+
+    /**
+     * Check if a transaction has a charge or authorization
+     *
+     * @param string $transaction_id The transaction ID to check
+     * @return bool True if the transaction has a charge or authorization, false otherwise
+     */
+    public function has_transaction_charge( $transaction_id ) {
+        $client_token = $this->gateway->dnaPayment->get_client_token(
+            $this->gateway->client_id,
+            $this->gateway->client_secret
+        );
+
+        $transactions = $this->gateway->dnaPayment->get_transactions_by_id(
+            $client_token['access_token'],
+            $transaction_id
+        );
+
+        $has_charge = false;
+        foreach ($transactions as $item) {
+            if ( in_array( $item['transactionState'], [ 'CHARGE', 'AUTH' ]) ) {
+                $has_charge = true;
+            }
+        }
+
+        return $has_charge;
+    }
+
+    /**
+     * Determine if the transaction should be considered settled based on transaction type and payment method
+     *
+     * @param array $input Payment data from the payment result
+     * @return bool True if the transaction should be considered settled, false otherwise
+     */
+    public function determine_settlement_status( $input ) {
+        $transaction_type = strtoupper($this->gateway->get_option('transactionType'));
+        $settled = false;
+
+        if (in_array($transaction_type, ['SALE', 'AUTH'])) {
+            $settled = $transaction_type === 'SALE';
+        } else {
+            // Fallback to terminal config if available
+            $terminal_config = $this->gateway->configHelper->get_terminal_config();
+            if (!is_null($terminal_config) && isset($terminal_config->transactionType)) {
+                $settled = strtoupper($terminal_config->transactionType) === 'SALE';
+            }
+        }
+
+        if ( in_array( $input['paymentMethod'], array(
+            'paybybankapp',
+            'ecospend',
+            'alipay',
+            'wechatpay',
+            'astropay',
+        ) ) ) {
+            $settled = true;
+        }
+
+        return $settled;
     }
 }

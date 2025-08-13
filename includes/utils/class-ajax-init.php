@@ -117,19 +117,32 @@ class AjaxInit {
                 throw new \Exception('Order not found for ID: ' . $order_id, 400);
             }
 
-            $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, 'update_order_status' );
-            $status = $result['status'];
-            $redirect = $this->gateway->paymentDataHelper->get_return_url_from_order( $order, $status === 'failed');
+            // Check if AJAX order status update is enabled
+            if ( isset( $this->gateway->enable_ajax_order_status_update ) && $this->gateway->enable_ajax_order_status_update === 'yes' ) {
+                $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, 'update_order_status' );
+                $status = $result['status'];
+                $message = $result['message'];
+            } else {
+                // Wait for 2 seconds
+                sleep(2);
+                
+                // Refresh order data
+                $order = wc_get_order( $order_id );
+                $status = $order->get_status();
+                $message = __( 'Refreshed order data', \WC_DNA_Payments::$text_domain );
+            }
+
+            $redirect = $this->gateway->paymentDataHelper->get_return_url_from_order( $order, $status === 'failed' );
 
 			wp_send_json_success( array(
                 'status'    => $status,
                 'redirect'  => $redirect,
-                'message'   => $result['message'],
+                'message'   => $message,
 			) );
 		} catch (\Exception $e) {
             // Log the error
             if ( isset( $this->gateway->logger ) ) {
-                $this->gateway->logger->error( 'handle_update_order_status: ' . $e->getMessage() );
+                $this->gateway->logger->error( 'Error in handle_update_order_status: ' . $e->getMessage() );
             }
 			wp_send_json_error([
                 'errors' => [ $e->getMessage() ]

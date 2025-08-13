@@ -11,9 +11,9 @@ export function getPaymentComponentErrorMessage(err, initErrorMessage) {
     }
 
     // TODO: rejected text in additionalInfo
-    // if (err.additionalInfo) {
-    //     message = err.additionalInfo
-    // }
+    if (err.additionalInfo?.message) {
+        message = err.additionalInfo.message
+    }
 
     if (initErrorMessage && isInitFailed(err)) {
         message = initErrorMessage

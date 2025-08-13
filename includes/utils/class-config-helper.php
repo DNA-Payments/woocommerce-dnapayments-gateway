@@ -29,15 +29,35 @@ class ConfigHelper {
     }
 
     /**
-     * Get terminal configuration from the API
+     * Get terminal configuration from the API with caching
      * 
      * @return array|null Terminal configuration or null on error
      */
     public function get_terminal_config() {
+        $is_test_mode = $this->gateway->is_test_mode;
+        $terminal = $this->gateway->terminal;
+        
+        // Create a unique cache key based on test mode and terminal ID
+        $cache_key = $this->gateway->id . '_terminal_config_' . ($is_test_mode ? 'test_' : 'live_') . $terminal;
+        
+        // Try to get cached config
+        $cached_config = get_transient($cache_key);
+        
+        if (false !== $cached_config) {
+            return $cached_config;
+        }
+        
         try {
-            return $this->gateway->requestHelper->get('/payments/settings/terminals/' . $this->gateway->terminal, false);
+            $config = $this->gateway->requestHelper->get('/payments/settings/terminals/' . $terminal, false);
+            
+            if ($config) {
+                // Cache the config for 1 hour (3600 seconds)
+                set_transient($cache_key, $config, HOUR_IN_SECONDS);
+            }
+            
+            return $config;
         } catch (\Exception $e) {
-            $this->gateway->logger->error('Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+            $this->gateway->logger->error('Error in get_terminal_config; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
             return null;
         }
     }
@@ -106,7 +126,7 @@ class ConfigHelper {
      * @return array List of enabled card schemes
      */
     public function get_enabled_schemes() {
-        $config = $this->gateway->terminal_config ?? [];
+        $config = $this->get_terminal_config() ?? [];
         $schemes = [];
 
         if (

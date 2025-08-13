@@ -1,5 +1,15 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-08-13 - version 4.0.7
+* Added a fallback to terminal configuration when the gateway transaction type is neither “SALE” nor “AUTH” during order status updates triggered via AJAX.
+* Add method names to error log messages to provide better context when exceptions occur
+* Add stack trace logging for auth data exceptions
+* Refactor ConfigHelper to cache terminal config for one day, replacing direct terminal_config access with get_terminal_config() to reduce API calls.
+* Fixed custom field validation issue for Apple Pay and Google Pay on the checkout page.
+* Added setting to toggle AJAX order status update after frontend payment confirmation. Use only if webhooks are unavailable, as it may cause duplicate completion events.
+* Fixed issue where cards were not saved after successful payment using Block-Based Checkout.
+* Added validation error handling for card payments in Block-Based Checkout.
+
 2025-07-18 - version 4.0.6
 * Implemented Apple Pay button visibility only for supported browsers
 * Improved error logging in AJAX and auth helper classes

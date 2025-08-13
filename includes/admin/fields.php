@@ -1,5 +1,5 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) {
+if ( ! defined( "ABSPATH" ) ) {
 	exit;
 }
 
@@ -12,10 +12,10 @@ function get_dnapayments_admin_fields() {
             "description" => "",
             "default" => "no",
         ],
-        'hide_for_non_admin_users' => array(
-            'type'    => 'checkbox',
-            'label'   => __( 'Hide this payment method at checkout for Customers, and display it only to site admins and DNA Payments staff (for debugging purposes)', \WC_DNA_Payments::$text_domain ),
-            'default' => 'no',
+        "hide_for_non_admin_users" => array(
+            "type"    => "checkbox",
+            "label"   => __( 'Hide this payment method at checkout for Customers, and display it only to site admins and DNA Payments staff (for debugging purposes)', \WC_DNA_Payments::$text_domain ),
+            "default" => "no",
         ),
         "title" => [
             "title" => __("Title", \WC_DNA_Payments::$text_domain),
@@ -83,6 +83,13 @@ function get_dnapayments_admin_fields() {
             "description" => "",
             "default" => "no",
         ],
+        "enable_ajax_order_status_update" => array(
+            "title"   => __( 'Enable frontend order status update (AJAX)', \WC_DNA_Payments::$text_domain ),
+            "type"    => "checkbox",
+            "label"   => __( 'If enabled, the plugin will update the order status via AJAX following frontend payment confirmation.', \WC_DNA_Payments::$text_domain ),
+            "description" => __( 'This setting is intended for exceptional cases, such as when webhook delivery is not possible due to infrastructure limitations. In standard configurations where webhook processing functions as expected, enabling this option may lead to duplicate order completion events and is therefore not recommended.', \WC_DNA_Payments::$text_domain ),
+            "default" => "no",
+        ),
         "enable_order_complete" => [
             "title" => __(
                 "Order status upon successful payment",

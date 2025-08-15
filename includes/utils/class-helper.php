@@ -69,6 +69,34 @@ class Helper {
 	}
 
     /**
+     * Remove emojis from a string
+     *
+     * @param string $text The text to clean
+     * @return string The text without emojis
+     */
+    public static function remove_emojis( $text ) {
+        // Remove emojis using regex pattern
+        $text = preg_replace('/[\x{1F000}-\x{1FFFF}]/u', '', $text);
+
+		// Remove any remaining whitespace that might be left after emoji removal
+        return trim( $text );
+    }
+
+    /**
+     * Remove non-Latin1 characters from a string
+     *
+     * @param string $string The input string to clean
+     * @return string The string with only Latin-1 characters
+     */
+    public static function remove_non_latin1($text) {
+        // Keep only Latin-1 (ISO-8859-1) characters: 0x00-0xFF
+        $text = preg_replace('/[^\x00-\xFF]/u', '', $text);
+
+		// Remove any remaining whitespace that might be left after non-Latin1 removal
+        return trim( $text );
+    }
+
+    /**
 	 * Check if current user has DNA email domain
 	 * 
 	 * @return bool

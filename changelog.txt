@@ -1,5 +1,8 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-08-15 - version 4.0.8
+* Added non-Latin1 character removal functionality for order item names to ensure clean order line item names
+
 2025-08-13 - version 4.0.7
 * Added a fallback to terminal configuration when the gateway transaction type is neither “SALE” nor “AUTH” during order status updates triggered via AJAX.
 * Add method names to error log messages to provide better context when exceptions occur

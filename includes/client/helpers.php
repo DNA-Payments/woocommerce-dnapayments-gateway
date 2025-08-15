@@ -4,6 +4,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+use WCPG_DNA_Payments\Utils\Helper;
+
 class WC_DNA_Payments_Order_Client_Helpers {
     public static function numberFormat( $price ) {
         return floatval(number_format( $price, 2, '.', '' ));
@@ -87,7 +89,7 @@ class WC_DNA_Payments_Order_Client_Helpers {
         $item_names = array();
 
         foreach ( $order->get_items() as $item ) {
-            $item_name = $item->get_name();
+            $item_name = Helper::remove_non_latin1( $item->get_name() );
             $item_meta = wp_strip_all_tags(
                 wc_display_item_meta(
                     $item,

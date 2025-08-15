@@ -1,5 +1,6 @@
 import { select } from '@wordpress/data'
 
+import { removeNonLatin1 } from '../../common/utils'
 import { dnaPaymentsSettingsData } from './get-settings'
 
 export function getPaymentData(props) {
@@ -12,7 +13,7 @@ export function getPaymentData(props) {
 
         return {
             reference: String(product.id),
-            name: product.name,
+            name: removeNonLatin1(product.name),
             imageUrl: product.images?.[0]?.src ?? '',
             productUrl: product.permalink,
             quantity,

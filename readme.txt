@@ -75,6 +75,9 @@ For support, please contact DNA Payments directly through their website at https
 
 == Changelog ==
 
+= 4.0.8 - 2025-08-15 =
+* Added non-Latin1 character removal functionality for order item names to ensure clean order line item names
+
 = 4.0.7 - 2025-08-13 =
 * Added a fallback to terminal configuration when the gateway transaction type is neither “SALE” nor “AUTH” during order status updates triggered via AJAX.
 * Add method names to error log messages to provide better context when exceptions occur

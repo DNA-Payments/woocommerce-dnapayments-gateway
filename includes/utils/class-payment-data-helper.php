@@ -19,8 +19,6 @@ class PaymentDataHelper {
         $this->gateway = $gateway;
     }
 
-
-
     public function get_payment_data_from_order( \WC_Order $order, $store_card_on_file = false ) {
         $payment_data = array(
             'invoiceId' => strval( $order->get_order_number() ),
@@ -175,10 +173,14 @@ class PaymentDataHelper {
     private function get_order_line( \WC_Product $product, float $total, int $quantity ) {
         $image_id  = $product->get_image_id();
         $image_url = $image_id ? wp_get_attachment_image_url( $image_id, 'full' ) : '';
+        
+        // Get product name and remove emojis
+        $product_name = $product->get_name() ? wp_strip_all_tags($product->get_name()) : __('Item', 'woocommerce');
+        $product_name = Helper::remove_non_latin1( $product_name );
 
         return array(
             'reference'     => strval( $product->get_id() ),
-            'name'          => html_entity_decode( wc_trim_string($product->get_name() ? wp_strip_all_tags($product->get_name()) : __('Item', 'woocommerce'), 127), ENT_NOQUOTES, 'UTF-8'),
+            'name'          => html_entity_decode( wc_trim_string($product_name, 127), ENT_NOQUOTES, 'UTF-8'),
             'imageUrl'      => $image_url,
             'productUrl'    => $product->get_permalink(),
             'quantity'      => $quantity,

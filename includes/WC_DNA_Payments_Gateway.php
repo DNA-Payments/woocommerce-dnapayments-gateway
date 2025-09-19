@@ -333,7 +333,8 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'available_schemes' => $this->configHelper->available_schemes,
             'card_scheme_icon_path' => WC_DNA_Payments::plugin_url() . '/assets/img/schemes',
             'send_callback_every_failed_attempt' => $this->get_option( 'failed_attempts_limit' ),
-            'cards' => WC_DNA_Payments_Order_Client_Helpers::getCardTokens( $current_user_id, $this->id )
+            'cards' => WC_DNA_Payments_Order_Client_Helpers::getCardTokens( $current_user_id, $this->id ),
+            'placeOrderButtonText' => $this->get_option( 'placeOrderButtonText', '' )
         );
     }
 

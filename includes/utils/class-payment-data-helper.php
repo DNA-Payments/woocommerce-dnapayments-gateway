@@ -124,7 +124,7 @@ class PaymentDataHelper {
     private function get_payment_settings() {
         return array(
             'terminalId' => $this->gateway->terminal,
-            'callbackUrl' => get_rest_url(null, 'dnapayments/success'),
+            'callbackUrl' => 'https://9e6a5a65d002.ngrok-free.app/index.php?rest_route=/dnapayments/success', // get_rest_url(null, 'dnapayments/success'),
             'failureCallbackUrl' => get_rest_url(null, 'dnapayments/failure'),
         );
     }

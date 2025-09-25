@@ -34,7 +34,7 @@ let authData = null
 let globalError = null
 
 jQuery(function ($) {
-    const { gatewayId, isHostedFields, tempToken, terminalConfig } = getGlobalVariables()
+    const { isTestMode, gatewayId, isHostedFields, tempToken, terminalConfig } = getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
     const cardError = createCardError()
@@ -246,7 +246,13 @@ jQuery(function ($) {
         }
 
         setLoading($container, true)
-        paymentMethodObject.create($container[0], paymentData, events, authData ? authData.access_token : tempToken)
+        paymentMethodObject.init({
+            containerElement: $container[0],
+            events,
+            paymentData,
+            token: authData ? authData.access_token : tempToken,
+            environment: isTestMode ? 'sandbox' : 'production',
+        })
         paymentMethodObject.isLoading = true
     }
 

@@ -37,7 +37,7 @@ export const PaymentComponent = ({ containerId, componentInstance, errorMessage,
     // resolve and reject of onCheckoutSuccess
     const checkoutPromiseRef = useRef()
 
-    const { tempToken } = dnaPaymentsSettingsData
+    const { tempToken, isTestMode } = dnaPaymentsSettingsData
 
     const paymentDataJSON = useMemo(() => {
         try {
@@ -77,10 +77,10 @@ export const PaymentComponent = ({ containerId, componentInstance, errorMessage,
 
             containerRef.current.innerHTML = ''
 
-            componentInstance.create(
-                containerRef.current,
-                draftPaymentDataRef.current,
-                {
+            componentInstance.init({
+                containerElement: containerRef.current,
+                paymentData: draftPaymentDataRef.current,
+                events: {
                     onClick: () => {
                         setLoadingState('loading')
                         return { paymentData: draftPaymentDataRef.current }
@@ -120,8 +120,9 @@ export const PaymentComponent = ({ containerId, componentInstance, errorMessage,
                         setLoadingState('done')
                     },
                 },
-                tempToken,
-            )
+                token: tempToken,
+                environment: isTestMode ? 'sandbox' : 'production',
+            })
         }),
         [componentInstance, rejectCheckoutPromise],
     )

@@ -136,6 +136,8 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
         // This action hook saves the settings
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+        
+        // Enqueue scripts for classic checkout
         add_action( 'wp_enqueue_scripts', array( $this, 'payment_scripts') );
 
         $this->dnaPayment = new DNAPayments\DNAPayments($this->get_config());
@@ -335,13 +337,10 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         );
     }
 
+    /**
+     * Enqueue payment scripts for classic checkout
+     */
     public function payment_scripts() {
-        $prefix = $this->is_test_mode ? 'test-' : '';
-
-        wp_register_script( 'dna-payment-api', 'https://' . $prefix . 'pay.dnapayments.com/checkout/payment-api.js' , array(), \WC_DNA_Payments::$version, true );
-        wp_register_script( 'dna-hosted-fields', 'https://' . $prefix . 'cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), \WC_DNA_Payments::$version, true );
-        wp_register_script( 'dna-google-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), \WC_DNA_Payments::$version, true );
-        wp_register_script( 'dna-apple-pay', 'https://' . $prefix . 'pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), \WC_DNA_Payments::$version, true );
 
         if ( ! is_cart() && ! is_checkout() && ! isset( $_GET['pay_for_order'] ) && ! is_add_payment_method_page()) {
             return;

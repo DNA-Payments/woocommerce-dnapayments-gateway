@@ -65,6 +65,9 @@ class WC_DNA_Payments {
 		// Load translations at init hook to ensure WordPress core is fully loaded
 		add_action( 'init', array( __CLASS__, 'load_plugin_textdomain' ) );
 
+		// Register DNA scripts globally for blocks compatibility (runs early)
+		add_action( 'init', array( __CLASS__, 'register_dna_scripts_globally' ) );
+
 		// This hook is used to execute code after all active plugins have fully loaded, 
 		// ensuring that WooCommerce is loaded before executing WooCommerce-specific code.
 		add_action( 'plugins_loaded', array( __CLASS__, 'includes' ), 0 );
@@ -199,6 +202,17 @@ class WC_DNA_Payments {
 		echo '<p>' . esc_html__( 'Powered by', \WC_DNA_Payments::$text_domain ) . '</p>';
 		echo '<img src="' . esc_url( plugins_url( 'assets/img/dnapayments-logo.svg', WC_DNA_MAIN_FILE ) ) . '" alt="' . esc_attr__( 'DNA Payments', \WC_DNA_Payments::$text_domain ) . '" />';
 		echo '</div>';
+	}
+
+	/**
+	 * Register DNA payment scripts globally for WooCommerce Blocks compatibility
+	 * This ensures scripts are available when blocks integration needs them
+	 */
+	public static function register_dna_scripts_globally() {
+		wp_register_script( 'dna-payment-api', 'https://pay.dnapayments.com/checkout/payment-api.js' , array(), self::$version, true );
+		wp_register_script( 'dna-hosted-fields', 'https://cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), self::$version, true );
+		wp_register_script( 'dna-google-pay', 'https://pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), self::$version, true );
+		wp_register_script( 'dna-apple-pay', 'https://pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), self::$version, true );
 	}
 
 	/**

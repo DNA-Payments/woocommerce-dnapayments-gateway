@@ -119,7 +119,7 @@ const dnapaymentsPaymentMethod = {
         showSaveOption: allowSavingCards && isHostedFields,
         features: settings?.supports ?? [],
     },
-    ...(customPlaceOrder ? { placeOrderButtonLabel: customPlaceOrder } : {}),
+    placeOrderButtonLabel: customPlaceOrder || undefined,
 }
 
 registerPaymentMethod(dnapaymentsPaymentMethod)

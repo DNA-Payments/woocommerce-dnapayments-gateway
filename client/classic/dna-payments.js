@@ -108,28 +108,26 @@ jQuery(function ($) {
             selectedGateway = getSelectedPaymentGateway()
         }
         const placeOrderBtn = document.getElementById('place_order')
+        if (!placeOrderBtn) {
+            return
+        }
 
         // Remembering the default button label once
-        if (placeOrderBtn && originalPlaceOrderText === null) {
+        if (originalPlaceOrderText === null) {
             originalPlaceOrderText = readButtonText(placeOrderBtn)
         }
 
         if (!['dnapayments', 'dnapayments_google_pay', 'dnapayments_apple_pay'].includes(selectedGateway)) {
             $form.find('.dnapayments-footer').hide()
             placeOrderBtn.removeAttribute('disabled')
-
-            if (placeOrderBtn && originalPlaceOrderText !== null) {
-                writeButtonText(placeOrderBtn, originalPlaceOrderText)
-            }
+            writeButtonText(placeOrderBtn, originalPlaceOrderText)
 
             return
         }
 
         // Our gateway is selected then setting custom label if provided
-        if (placeOrderBtn && originalPlaceOrderText !== null) {
-            const custom = (placeOrderButtonText || '').trim()
-
-            writeButtonText(placeOrderBtn, custom ? custom : originalPlaceOrderText)
+        if (placeOrderButtonText) {
+            writeButtonText(placeOrderBtn, placeOrderButtonText)
         }
 
         if (!(await checkApplePayAvailability(terminalConfig))) {

@@ -12,7 +12,7 @@ export function getGlobalVariables() {
     const availableSchemes = wc_dna_params.available_schemes || []
     const iconPath = wc_dna_params.card_scheme_icon_path
     const terminalConfig = wc_dna_params.terminal_config
-    const placeOrderButtonText = wc_dna_params.placeOrderButtonText || ''
+    const placeOrderButtonText = (wc_dna_params.placeOrderButtonText || '').trim()
 
     return {
         gatewayId,

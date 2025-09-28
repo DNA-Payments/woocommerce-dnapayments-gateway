@@ -19,6 +19,7 @@ import { setPlaceOrderButtonDisabled } from './utils/place-order-button'
 const settings = getPaymentMethodData(GATEWAY_ID, {})
 const allowSavingCards = settings.allow_saving_cards
 const isHostedFields = settings.integration_type === 'seamless'
+const customPlaceOrder = (settings?.placeOrderButtonText || '').trim()
 
 const defaultLabel = __('DNA Payments', TEXT_DOMAIN)
 const label = decodeEntities(settings?.title || '') || defaultLabel
@@ -118,7 +119,7 @@ const dnapaymentsPaymentMethod = {
         showSaveOption: allowSavingCards && isHostedFields,
         features: settings?.supports ?? [],
     },
-    placeOrderButtonLabel: __('Pay with DNA Payments', TEXT_DOMAIN),
+    placeOrderButtonLabel: customPlaceOrder || undefined,
 }
 
 registerPaymentMethod(dnapaymentsPaymentMethod)

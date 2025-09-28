@@ -75,6 +75,9 @@ For support, please contact DNA Payments directly through their website at https
 
 == Changelog ==
 
+= 4.0.9 - 2025-09-19 =
+* Added new option called "Place order button text" in payment gateway setings to control "Place order" button's text both for classic/block checkout
+
 = 4.0.8 - 2025-08-15 =
 * Added non-Latin1 character removal functionality for order item names to ensure clean order line item names
 

@@ -146,5 +146,12 @@ function get_dnapayments_admin_fields() {
             "type" => "textarea",
             "default" => "Pay with your credit card via our payment gateway",
         ],
+        "placeOrderButtonText" => [
+            "title"       => __( "Place order button text", \WC_DNA_Payments::$text_domain ),
+            "type"        => "text",
+            "description" => __( "Overrides the checkout “Place order” button label when DNA Payments is selected. Leave empty to use the default WooCommerce label.", \WC_DNA_Payments::$text_domain ),
+            "default"     => "",
+            "desc_tip"    => true,
+        ]
     ];
 }

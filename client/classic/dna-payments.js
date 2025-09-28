@@ -34,11 +34,39 @@ let authData = null
 let globalError = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, terminalConfig } = getGlobalVariables()
+    const { isTestMode, gatewayId, isHostedFields, tempToken, terminalConfig, placeOrderButtonText } =
+        getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
     const cardError = createCardError()
     const setFormLoading = createSetLoading($form)
+
+    // --- Toggling the "Place order" button label ---
+    let originalPlaceOrderText = null
+
+    const readButtonText = (btn) => {
+        if (!btn) return ''
+
+        if (btn.tagName === 'BUTTON') {
+            return btn.textContent
+        }
+
+        return btn.getAttribute('data-value') || btn.value || ''
+    }
+
+    const writeButtonText = (btn, text) => {
+        if (!btn || typeof text !== 'string') {
+            return
+        }
+
+        if (btn.tagName === 'BUTTON') {
+            btn.textContent = text
+            return
+        }
+
+        btn.value = text
+        btn.setAttribute('data-value', text)
+    }
 
     const placeOrder = createPlaceOrder({
         cardError,
@@ -80,11 +108,26 @@ jQuery(function ($) {
             selectedGateway = getSelectedPaymentGateway()
         }
         const placeOrderBtn = document.getElementById('place_order')
+        if (!placeOrderBtn) {
+            return
+        }
+
+        // Remembering the default button label once
+        if (originalPlaceOrderText === null) {
+            originalPlaceOrderText = readButtonText(placeOrderBtn)
+        }
 
         if (!['dnapayments', 'dnapayments_google_pay', 'dnapayments_apple_pay'].includes(selectedGateway)) {
             $form.find('.dnapayments-footer').hide()
             placeOrderBtn.removeAttribute('disabled')
+            writeButtonText(placeOrderBtn, originalPlaceOrderText)
+
             return
+        }
+
+        // Our gateway is selected then setting custom label if provided
+        if (placeOrderButtonText) {
+            writeButtonText(placeOrderBtn, placeOrderButtonText)
         }
 
         if (!(await checkApplePayAvailability(terminalConfig))) {

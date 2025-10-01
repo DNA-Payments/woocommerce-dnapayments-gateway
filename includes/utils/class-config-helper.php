@@ -74,11 +74,11 @@ class ConfigHelper {
         $display_schemes = [];
         $max_icons = 3;
 
-        foreach ($default_schemes as $scheme) {
+        foreach ($enabled_schemes as $scheme) {
             if (count($display_schemes) >= $max_icons) {
                 break;
             }
-            if (in_array($scheme, $enabled_schemes)) {
+            if (in_array($scheme, $default_schemes)) {
                 $display_schemes[] = $scheme;
             }
         }
@@ -236,7 +236,7 @@ class ConfigHelper {
             case 'maestrocard':
             case 'maestro card':
             case 'maestro-card':
-                return 'maestro';
+                return 'mastercard';
 
             case 'discover':
             case 'discovercard':

@@ -302,17 +302,11 @@ class OrderHelper {
      * @return bool True if the transaction should be considered settled, false otherwise
      */
     public function determine_settlement_status( $input ) {
-        $transaction_type = strtoupper($this->gateway->get_option('transactionType'));
+        $transaction_type = $this->gateway->configHelper->get_transaction_type();
         $settled = false;
 
         if (in_array($transaction_type, ['SALE', 'AUTH'])) {
             $settled = $transaction_type === 'SALE';
-        } else {
-            // Fallback to terminal config if available
-            $terminal_config = $this->gateway->configHelper->get_terminal_config();
-            if (!is_null($terminal_config) && isset($terminal_config->transactionType)) {
-                $settled = strtoupper($terminal_config->transactionType) === 'SALE';
-            }
         }
 
         if ( in_array( $input['paymentMethod'], array(

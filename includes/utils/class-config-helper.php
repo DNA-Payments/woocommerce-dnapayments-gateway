@@ -17,7 +17,7 @@ class ConfigHelper {
      * List of available payment card schemes
      * @var array
      */
-    public $available_schemes = ['visa', 'mastercard', 'amex', 'unionpay', 'diners', 'discover', 'maestro'];
+    public $available_schemes = ['visa', 'mastercard', 'amex', 'diners', 'discover', 'unionpay', 'maestro'];
 
     /**
      * Constructor
@@ -46,6 +46,9 @@ class ConfigHelper {
         if (false !== $cached_config) {
             return $cached_config;
         }
+        
+        // Log the request to fetch terminal config
+        $this->gateway->logger->info('Fetching terminal config for terminal: ' . $terminal . ' (test mode: ' . ($is_test_mode ? 'yes' : 'no') . ')');
         
         try {
             $config = $this->gateway->requestHelper->get('/payments/settings/terminals/' . $terminal, false);
@@ -187,6 +190,26 @@ class ConfigHelper {
             \WC_DNA_Payments::$id,
             esc_attr($scheme)
         );
+    }
+
+    /**
+     * Get transaction type from gateway configuration
+     * 
+     * @return string Transaction type or empty string if default
+     */
+    public function get_transaction_type() {        
+        $transactionType = $this->gateway->get_option('transactionType');
+        if ( isset($transactionType) && !empty($transactionType) && $transactionType != 'default' ) {
+            return strtoupper($transactionType);
+        }
+
+        // Fallback to terminal config if available
+        $terminal_config = $this->get_terminal_config();
+        if (!is_null($terminal_config) && isset($terminal_config['transactionType'])) {
+            return strtoupper($terminal_config['transactionType']);
+        }
+
+        return '';
     }
 
     /**

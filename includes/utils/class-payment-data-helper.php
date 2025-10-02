@@ -115,8 +115,8 @@ class PaymentDataHelper {
     }
 
     private function update_transaction_type( &$payment_data ) {
-        $transactionType = $this->gateway->get_option('transactionType');
-        if ( isset($transactionType) && !empty($transactionType) && $transactionType != 'default' ) {
+        $transactionType = $this->gateway->configHelper->get_transaction_type();
+        if ( !empty($transactionType) ) {
             $payment_data['transactionType'] = $transactionType;
         }
     }

@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.0.6
+Stable tag: 4.0.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -75,8 +75,12 @@ For support, please contact DNA Payments directly through their website at https
 
 == Changelog ==
 
-= 4.0.9 - 2025-09-19 =
-* Added new option called "Place order button text" in payment gateway setings to control "Place order" button's text both for classic/block checkout
+= 4.0.9 - 2025-10-02 =
+* Added a new "Place order button text" setting in the payment gateway configuration that allows customization of the order button text for both classic and block-based checkout experiences.
+* Implemented global script registration for DNA Payments to ensure better compatibility with WooCommerce block-based checkout systems.
+* Refactored Google Pay and Apple Pay components to use the init method instead of the create method for improved initialization and performance.
+* Order card schemes in WooCommerce Checkout according to terminal configuration
+* Consolidated transaction type retrieval logic into config helper
 
 = 4.0.8 - 2025-08-15 =
 * Added non-Latin1 character removal functionality for order item names to ensure clean order line item names

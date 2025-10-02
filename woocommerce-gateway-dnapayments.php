@@ -41,7 +41,7 @@ class WC_DNA_Payments {
 	public static $id = 'dnapayments';
 
 	// Plugin version
-	public static $version = '4.0.8';
+	public static $version = '4.0.9';
 
 	// Wordpress supported min version
 	public static $wp_min_version = '4.2';

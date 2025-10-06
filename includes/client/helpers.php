@@ -129,6 +129,7 @@ class WC_DNA_Payments_Order_Client_Helpers {
             'dnapayments',
             'dnapayments_google_pay',
             'dnapayments_apple_pay',
+            'dnapayments_paypal',
         ]);
     }
 

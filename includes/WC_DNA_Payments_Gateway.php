@@ -326,6 +326,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'temp_token' => $this->authDataHelper->get_temp_token(),
             'terminal_id' => $this->terminal,
             'terminal_config' => $this->configHelper->get_terminal_config(),
+            'transaction_type' => $this->configHelper->get_transaction_type(),
             'current_currency_code' => get_woocommerce_currency(),
             'available_gateways' => array_keys(WC()->payment_gateways->get_available_payment_gateways()),
             'allow_saving_cards' => $this->enabled_saved_cards && !$is_guest,
@@ -363,14 +364,14 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments-add-card.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-payment-api', 'dna-hosted-fields') , \WC_DNA_Payments::$version, true);
 
             $dna_params = $this->get_settings_for_frontend();
-        } else {            
-            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-payment-api') , \WC_DNA_Payments::$version, true);
+        } else {
+            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-paypal', 'dna-payment-api') , \WC_DNA_Payments::$version, true);
 
             $dna_params = array_merge(
                 array('order_id' => absint(get_query_var('order-pay'))),
                 $this->get_settings_for_frontend()
             );
-        }        
+        }
 
         wp_localize_script( 'woocommerce_dna_payment', 'wc_dna_params', apply_filters( 'wc_dna_params', $dna_params ) );
         wp_enqueue_script('woocommerce_dna_payment');

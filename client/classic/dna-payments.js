@@ -117,7 +117,7 @@ jQuery(function ($) {
             originalPlaceOrderText = readButtonText(placeOrderBtn)
         }
 
-        if (!['dnapayments', 'dnapayments_google_pay', 'dnapayments_apple_pay'].includes(selectedGateway)) {
+        if (!['dnapayments', 'dnapayments_google_pay', 'dnapayments_apple_pay', 'dnapayments_paypal'].includes(selectedGateway)) {
             $form.find('.dnapayments-footer').hide()
             placeOrderBtn.removeAttribute('disabled')
             writeButtonText(placeOrderBtn, originalPlaceOrderText)
@@ -145,6 +145,7 @@ jQuery(function ($) {
         switch (selectedGateway) {
             case 'dnapayments_google_pay':
             case 'dnapayments_apple_pay':
+            case 'dnapayments_paypal':
                 const messages = validate($form)
                 if (messages.length) {
                     showError(messages, true)
@@ -216,14 +217,20 @@ jQuery(function ($) {
     }
 
     function renderGoogleOrApplePayComponent(paymentMethodId, shouldUpdate) {
-        const paymentMethodObject =
-            paymentMethodId === 'dnapayments_apple_pay'
-                ? window.DNAPayments.ApplePayComponent
-                : window.DNAPayments.GooglePayComponent
-        const errorMessage =
-            paymentMethodId === 'dnapayments_apple_pay'
-                ? errors.APPLE_PAY_INIT_FAIL.message
-                : errors.GOOGLE_PAY_INIT_FAIL.message
+        const [paymentMethodObject, errorMessage] = (() => {
+            switch (paymentMethodId) {
+                case 'dnapayments_apple_pay':
+                    return [window.DNAPayments.ApplePayComponent, errors.APPLE_PAY_INIT_FAIL.message]
+                case 'dnapayments_google_pay':
+                    return [window.DNAPayments.GooglePayComponent, errors.GOOGLE_PAY_INIT_FAIL.message]
+                case 'dnapayments_paypal':
+                    return [window.DNAPayments.PayPalComponent, errors.PAYPAL_INIT_FAIL.message]
+                default: return []
+            }
+        })()
+
+        if (!paymentMethodObject || !errorMessage) return
+        
         const $container = $form.find('#' + paymentMethodId + '_container')
 
         if (!shouldUpdate && paymentMethodObject.isLoading) {
@@ -282,7 +289,6 @@ jQuery(function ($) {
                 }
             },
             onLoad: () => {
-                $container.find('div').css('height', '40px')
                 setLoading($container, false)
                 paymentMethodObject.isLoading = false
             },
@@ -295,6 +301,7 @@ jQuery(function ($) {
             paymentData,
             token: authData ? authData.access_token : tempToken,
             environment: isTestMode ? 'sandbox' : 'production',
+            terminalId: wc_dna_params.terminal_id,
         })
         paymentMethodObject.isLoading = true
     }

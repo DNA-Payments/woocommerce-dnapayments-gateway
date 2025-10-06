@@ -46,6 +46,11 @@ const GOOGLE_PAY_INIT_FAIL = {
     message: 'Google Pay is not supported in your current browser.',
 }
 
+const PAYPAL_INIT_FAIL = {
+  code: 'PAYPAL_INIT_FAIL',
+  message: 'Something went wrong while setting up the PayPal button. Please try again later.',
+}
+
 const TERMS_NOT_ACCEPTED = {
     code: 'TERMS_NOT_ACCEPTED',
     message: 'Please accept the terms and conditions to continue.',
@@ -131,6 +136,7 @@ export default {
     UNKNOWN_ERROR,
     APPLE_PAY_INIT_FAIL,
     GOOGLE_PAY_INIT_FAIL,
+    PAYPAL_INIT_FAIL,
     HOSTED_FIELDS_INIT_FAIL,
     CARD_PAYMENT_FAIL,
     CARD_PAYMENT_CANCEL,

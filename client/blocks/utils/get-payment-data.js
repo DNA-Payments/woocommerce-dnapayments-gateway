@@ -5,7 +5,7 @@ import { dnaPaymentsSettingsData } from './get-settings'
 
 export function getPaymentData(props) {
     const { billing, shippingData } = props
-    const { terminalId } = dnaPaymentsSettingsData
+    const { terminalId, transactionType } = dnaPaymentsSettingsData
 
     const orderLines = props.cartData.cartItems.map((product) => {
         const total = getAmount(parseFloat(product.totals.line_subtotal), props)
@@ -44,6 +44,7 @@ export function getPaymentData(props) {
             discount: { totalAmount: getValueByKey('total_discount') },
         },
         orderLines,
+        transactionType,
         paymentSettings: {
             terminalId,
         },

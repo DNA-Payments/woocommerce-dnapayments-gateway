@@ -6,6 +6,7 @@ import { tryParse } from './try-parse'
  * Keeps loading state active during page navigation
  */
 export async function completePayment({ paymentResult, redirect, setLoading = () => {}, setErrors = () => {} }) {
+    console.log('paymentResult', paymentResult)
     // Helper function to handle redirects while keeping loading state active
     const handleRedirect = (url) => {
         setLoading(true)

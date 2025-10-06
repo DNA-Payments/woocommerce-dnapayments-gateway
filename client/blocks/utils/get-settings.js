@@ -13,5 +13,6 @@ export const dnaPaymentsSettingsData = {
     cards: settings.allow_saving_cards ? settings.cards : [],
     cardSchemeIconPath: settings.card_scheme_icon_path,
     terminalConfig: settings.terminal_config,
+    transactionType: settings.transaction_type,
     availableSchemes: settings.available_schemes || [],
 }

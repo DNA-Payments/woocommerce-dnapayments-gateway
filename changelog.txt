@@ -1,5 +1,10 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-10-06 - version 4.1.0
+* Added PayPal button payment integration provided by DNA Payments
+* Enhanced payment processing capabilities with PayPal integration
+* Added seamless checkout experience for PayPal users
+
 2025-10-28 - version 4.0.9
 * Added a new "Place order button text" setting in the payment gateway configuration that allows customization of the order button text for both classic and block-based checkout experiences.
 * Implemented global script registration for DNA Payments to ensure better compatibility with WooCommerce block-based checkout systems.

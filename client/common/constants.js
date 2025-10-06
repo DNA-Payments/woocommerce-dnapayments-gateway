@@ -1,6 +1,7 @@
 export const GATEWAY_ID = 'dnapayments'
 export const GATEWAY_ID_GOOGLE_PAY = 'dnapayments_google_pay'
 export const GATEWAY_ID_APPLE_PAY = 'dnapayments_apple_pay'
+export const GATEWAY_ID_PAYPAL = 'dnapayments_paypal'
 
 export const TEXT_DOMAIN = 'woocommerce-gateway-dna'
 
@@ -16,4 +17,5 @@ export const HOSTED_FIELD_IDS = {
 export const CONTAINER_IDS = {
     googlepay: GATEWAY_ID_GOOGLE_PAY + '_container',
     applepay: GATEWAY_ID_APPLE_PAY + '_container',
+    paypal: GATEWAY_ID_PAYPAL + '_container',
 }

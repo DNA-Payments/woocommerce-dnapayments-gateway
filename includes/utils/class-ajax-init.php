@@ -108,13 +108,33 @@ class AjaxInit {
 
     public function handle_update_order_status() {
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
+        $order_number = isset( $_POST['order_number'] ) ? sanitize_text_field( wp_unslash( $_POST['order_number'] ) ) : '';
         $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
 
 		try {
-			$order 	= wc_get_order( $order_id );
+            $order = null;
+            
+            // Try to get order by order_id first
+            if (!empty($order_id)) {
+                $order = wc_get_order($order_id);
+            }
+            
+            // If order not found and order_number is provided, try to find by order_number
+            if (!$order && !empty($order_number)) {
+                // Search for orders with matching order number
+                $orders = wc_get_orders(array(
+                    'order_number' => $order_number,
+                    'limit' => 1
+                ));
+                
+                if (!empty($orders)) {
+                    $order = $orders[0];
+                }
+            }
 
-            if ( ! $order ) {
-                throw new \Exception('Order not found for ID: ' . $order_id, 400);
+            if (!$order) {
+                $error_msg = !empty($order_id) ? 'Order not found for ID: ' . $order_id : 'Order not found for number: ' . $order_number;
+                throw new \Exception($error_msg, 400);
             }
 
             // Check if AJAX order status update is enabled
@@ -125,7 +145,7 @@ class AjaxInit {
             } else {
                 // Wait for 2 seconds
                 sleep(2);
-                
+
                 // Refresh order data
                 $order = wc_get_order( $order_id );
                 $status = $order->get_status();

@@ -117,6 +117,9 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                     },
                     onCancel: () => {
                         setLoadingState('done')
+                        if (checkoutPromiseRef.current?.status === 'pending') {
+                            rejectCheckoutPromise(errors.CARD_PAYMENT_CANCEL.message)
+                        }
                     },
                     onError: (err) => {
                         const notShowError = isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY

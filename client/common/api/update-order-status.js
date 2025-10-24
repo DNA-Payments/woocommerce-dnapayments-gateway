@@ -6,7 +6,7 @@ export async function updateOrderStatus(orderId, paymentResult) {
     formData.append('order_number', paymentResult.invoiceId)
     formData.append('wc-dnapayments-result', JSON.stringify(paymentResult))
 
-    return await request('/wp-admin/admin-ajax.php?action=update_order_status', {
+    return await request('/wp-admin/admin-ajax.php?action=update_order_status_custom', {
         method: 'POST',
         body: formData,
     })

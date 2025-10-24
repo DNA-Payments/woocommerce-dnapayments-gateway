@@ -24,8 +24,8 @@ class AjaxInit {
 		add_action('wp_ajax_get_payment_data_from_cart', array($this, 'handle_get_payment_data_from_cart'));
         add_action('wp_ajax_nopriv_get_payment_data_from_cart', array($this, 'handle_get_payment_data_from_cart'));
 
-        add_action('wp_ajax_update_order_status', array($this, 'handle_update_order_status'));
-        add_action('wp_ajax_nopriv_update_order_status', array($this, 'handle_update_order_status'));
+        add_action('wp_ajax_update_order_status_custom', array($this, 'handle_update_order_status'));
+        add_action('wp_ajax_nopriv_update_order_status_custom', array($this, 'handle_update_order_status'));
     }
 
 	public function handle_get_payment_and_auth_data() {

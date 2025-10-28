@@ -1,5 +1,5 @@
 import { getPaymentMethodData } from '@woocommerce/settings'
-import { GATEWAY_ID } from '../constants'
+import { GATEWAY_ID } from '../../common/constants'
 
 const settings = getPaymentMethodData(GATEWAY_ID, {})
 

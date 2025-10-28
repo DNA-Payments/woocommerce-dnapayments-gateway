@@ -11,7 +11,7 @@ import { decodeEntities } from '@wordpress/html-entities'
 /**
  * Internal dependencies
  */
-import { GATEWAY_ID, TEXT_DOMAIN } from './constants'
+import { GATEWAY_ID, TEXT_DOMAIN } from '../common/constants'
 import { DnapaymentsCreditCardFields } from './components/credit-card-fields'
 import { usePaymentForm } from './hooks/use-payment-form'
 import { setPlaceOrderButtonDisabled } from './utils/place-order-button'

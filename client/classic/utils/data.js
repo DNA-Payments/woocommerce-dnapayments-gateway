@@ -1,6 +1,8 @@
+import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY } from '../../common/constants'
+
 export function getGlobalVariables() {
     /* global wc_dna_params */
-    const gatewayId = 'dnapayments'
+    const gatewayId = GATEWAY_ID
     const isTestMode = wc_dna_params.is_test_mode === '1'
     const integrationType = wc_dna_params.integration_type
     const isHostedFields = wc_dna_params.integration_type === 'seamless'
@@ -31,7 +33,7 @@ export function getGlobalVariables() {
     }
 }
 
-export const DNA_PAYMENTS_GATEWAYS = ['dnapayments', 'dnapayments_google_pay', 'dnapayments_apple_pay']
+export const DNA_PAYMENTS_GATEWAYS = [GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY]
 
 export const getRequiredFields = (isShippingIncluded) => {
     const fields = [

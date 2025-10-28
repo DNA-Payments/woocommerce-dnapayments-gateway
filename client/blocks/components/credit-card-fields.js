@@ -13,7 +13,7 @@ import { createHostedFields } from '../../common/create-hosted-fields'
 import { createModal } from '../../common/create-modal'
 import { logData } from '../../common/log'
 
-import { HOSTED_FIELD_IDS, TEXT_DOMAIN } from '../constants'
+import { HOSTED_FIELD_IDS, TEXT_DOMAIN } from '../../common/constants'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { setPlaceOrderButtonDisabled } from '../utils/place-order-button'
 

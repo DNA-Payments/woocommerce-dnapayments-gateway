@@ -1,5 +1,5 @@
 import { useEffect, useRef } from '@wordpress/element'
-import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY } from '../constants'
+import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY } from '../../common/constants'
 import { useCheckoutUpdate } from '../hooks/use-checkout-update'
 
 export function isPlaceOrderButtonDisabled(activePaymentMethod) {

@@ -13,7 +13,7 @@ import errors from '../../common/errors'
 import { completePayment } from '../../common/complete-payment'
 import { shouldHideOrderLines } from '../../common/validater'
 
-import { TEXT_DOMAIN } from '../constants'
+import { TEXT_DOMAIN } from '../../common/constants'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { getValidationErrors } from '../utils/validator'
 

@@ -22,6 +22,7 @@ import { debounce } from '../common/debounce'
 import errors from '../common/errors'
 import { tryParse } from '../common/try-parse'
 import { checkApplePayAvailability } from '../common/validater'
+import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY } from '../common/constants'
 
 /* global wc_dna_params */
 const orderId = Number(wc_dna_params.order_id) || 0
@@ -117,7 +118,7 @@ jQuery(function ($) {
             originalPlaceOrderText = readButtonText(placeOrderBtn)
         }
 
-        if (!['dnapayments', 'dnapayments_google_pay', 'dnapayments_apple_pay'].includes(selectedGateway)) {
+        if (![GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY].includes(selectedGateway)) {
             $form.find('.dnapayments-footer').hide()
             placeOrderBtn.removeAttribute('disabled')
             writeButtonText(placeOrderBtn, originalPlaceOrderText)
@@ -131,20 +132,20 @@ jQuery(function ($) {
         }
 
         if (!(await checkApplePayAvailability(terminalConfig))) {
-            $('.wc_payment_method.payment_method_dnapayments_apple_pay').hide()
-            if (selectedGateway === 'dnapayments_apple_pay') {
+            $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).hide()
+            if (selectedGateway === GATEWAY_ID_APPLE_PAY) {
                 $('.wc_payment_method.payment_method_dnapayments #payment_method_dnapayments').click()
                 return
             }
         } else {
-            $('.wc_payment_method.payment_method_dnapayments_apple_pay').show()
+            $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).show()
         }
 
         $form.find('.dnapayments-footer').show()
 
         switch (selectedGateway) {
-            case 'dnapayments_google_pay':
-            case 'dnapayments_apple_pay':
+            case GATEWAY_ID_GOOGLE_PAY:
+            case GATEWAY_ID_APPLE_PAY:
                 const messages = validate($form)
                 if (messages.length) {
                     showError(messages, true)
@@ -217,11 +218,11 @@ jQuery(function ($) {
 
     function renderGoogleOrApplePayComponent(paymentMethodId, shouldUpdate) {
         const paymentMethodObject =
-            paymentMethodId === 'dnapayments_apple_pay'
+            paymentMethodId === GATEWAY_ID_APPLE_PAY
                 ? window.DNAPayments.ApplePayComponent
                 : window.DNAPayments.GooglePayComponent
         const errorMessage =
-            paymentMethodId === 'dnapayments_apple_pay'
+            paymentMethodId === GATEWAY_ID_APPLE_PAY
                 ? errors.APPLE_PAY_INIT_FAIL.message
                 : errors.GOOGLE_PAY_INIT_FAIL.message
         const $container = $form.find('#' + paymentMethodId + '_container')

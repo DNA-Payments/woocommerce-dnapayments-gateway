@@ -12,7 +12,7 @@ import { RawHTML } from '@wordpress/element'
  */
 import errors from '../common/errors'
 import { checkApplePayAvailability, isApplePayAvailable } from '../common/validater'
-import { CONTAINER_IDS, GATEWAY_ID_APPLE_PAY, TEXT_DOMAIN } from './constants'
+import { CONTAINER_IDS, GATEWAY_ID_APPLE_PAY, TEXT_DOMAIN } from '../common/constants'
 import { PaymentComponent } from './components/payment-component'
 import { dnaPaymentsSettingsData } from './utils/get-settings'
 

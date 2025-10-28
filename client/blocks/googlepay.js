@@ -11,7 +11,7 @@ import { RawHTML } from '@wordpress/element'
  * Internal dependencies
  */
 import errors from '../common/errors'
-import { CONTAINER_IDS, GATEWAY_ID_GOOGLE_PAY, TEXT_DOMAIN } from './constants'
+import { CONTAINER_IDS, GATEWAY_ID_GOOGLE_PAY, TEXT_DOMAIN } from '../common/constants'
 import { PaymentComponent } from './components/payment-component'
 
 const settings = getPaymentMethodData(GATEWAY_ID_GOOGLE_PAY, {})

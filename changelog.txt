@@ -1,5 +1,17 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-10-28 - version 4.0.9
+* Added a new "Place order button text" setting in the payment gateway configuration that allows customization of the order button text for both classic and block-based checkout experiences.
+* Implemented global script registration for DNA Payments to ensure better compatibility with WooCommerce block-based checkout systems.
+* Refactored Google Pay and Apple Pay components to use the init method instead of the create method for improved initialization and performance.
+* Order card schemes in WooCommerce Checkout according to terminal configuration
+* Consolidated transaction type retrieval logic into
+* Move all gateway constants from individual files to a shared common/constants.js module to improve maintainability and reduce duplication
+* Update the update_order_status AJAX action hook to include the gateway ID prefix, so it doesn't conflict with other AJAX actions using the same name.
+* Pass gatewayId through payment flow to ensure correct payment method tracking
+* Modify order helper to update payment method based on gatewayId before status changes
+* Remove the strict order payment method check.
+
 2025-08-15 - version 4.0.8
 * Added non-Latin1 character removal functionality for order item names to ensure clean order line item names
 

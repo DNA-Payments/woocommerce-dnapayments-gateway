@@ -7,6 +7,7 @@ import { tryParse } from '../../common/try-parse'
 import { validatePaymentData } from '../../common/validater'
 import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
+import { addGatewayId } from '../../common/utils'
 import { getPaymentComponentErrorMessage, isProcessFailed } from '../../common/payment-component-helper'
 
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
@@ -15,7 +16,7 @@ import { getPaymentData } from '../utils/get-payment-data'
 
 import { ErrorMessage } from './error-message'
 
-export const PaymentComponent = ({ containerId, componentInstance, errorMessage, props }) => {
+export const PaymentComponent = ({ containerId, componentInstance, gatewayId, errorMessage, props }) => {
     const {
         activePaymentMethod,
         emitResponse: { responseTypes, noticeContexts },
@@ -136,6 +137,7 @@ export const PaymentComponent = ({ containerId, componentInstance, errorMessage,
                 const auth = tryParse(paymentDetails.auth)
 
                 if (paymentData && auth) {
+                    paymentData.merchantCustomData = addGatewayId(paymentData.merchantCustomData, gatewayId)
                     paymentDataRef.current = paymentData
                     processPromiseRef.current?.resolve({ paymentData, auth, token: auth.access_token })
                 } else {

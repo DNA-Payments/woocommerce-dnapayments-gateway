@@ -104,10 +104,6 @@ class OrderHelper {
                 return [ 'status' => 'failed', 'message' => $message ];
             }
 
-            if ( !\WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order) ) {
-                throw new \Exception(__('Order processed by a different payment method: ', \WC_DNA_Payments::$text_domain ) . $order->get_payment_method(), 400);
-            }
-
             // If the order status is 'on-hold' and the settled parameter is true, the webhook should complete the order.
             if ( ! in_array($status, ['draft', 'pending', 'failed', 'cancelled']) && ($status !== 'on-hold' || ! $settled) ) {
                 if( ! empty($input['paypalCaptureStatus']) ) {
@@ -116,6 +112,23 @@ class OrderHelper {
 
                 $message = __( 'Order with ID ' . $order_id . ' is already processed with status: ' . $status, \WC_DNA_Payments::$text_domain );
                 return [ 'status' => $status, 'message' => $message ];
+            }
+
+            if ( !\WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order) ) {
+                $this->gateway->logger->error( 'Order with ID ' . $order_id . ' processed by a different payment method: ' . $order->get_payment_method() . '. But the payment process will continue.' );
+            }
+
+            $custom_data = $this->parse_merchant_custom_data( $input );
+            $gateway_id  = $custom_data['gateway_id'];
+
+            // Update payment method if gateway_id is provided in custom data
+            if ( ! empty($gateway_id) && $gateway_id !==  $order->get_payment_method() ) {
+                // Get the actual gateway object
+                $gateway = WC()->payment_gateways->payment_gateways()[ $gateway_id ] ?? null;
+                if ( ! is_null( $gateway ) ) {
+                    $order->set_payment_method( $gateway );
+                    $this->gateway->logger->info('Order with ID ' . $order_id . ' set payment method ' . $gateway->get_title() . 'by webhook before status update');
+                }
             }
 
             // Handle settlement
@@ -136,19 +149,6 @@ class OrderHelper {
                 $order->update_status('on-hold');
                 $order->set_transaction_id( $transaction_id );
                 $order->add_order_note(sprintf(__( 'DNA Payments awaiting payment completion (Transaction ID: %s). Order status changed from %s to %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status) ));
-            }
-
-            $custom_data = $this->parse_merchant_custom_data( $input );
-            $gateway_id  = $custom_data['gateway_id'];
-
-            // Update payment method if gateway_id is provided in custom data
-            if ( ! empty($gateway_id) && $gateway_id !==  $order->get_payment_method() ) {
-                // Get the actual gateway object
-                $gateway = WC()->payment_gateways->payment_gateways()[ $gateway_id ] ?? null;
-                if ( ! is_null( $gateway ) ) {
-                    $order->set_payment_method( $gateway );
-                    $this->gateway->logger->info('Order set payment method ' . $gateway->get_title());
-                }
             }
 
             // Update metadata

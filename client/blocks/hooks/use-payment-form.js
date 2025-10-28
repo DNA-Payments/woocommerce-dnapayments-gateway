@@ -12,12 +12,13 @@ import { payHostedFields } from '../../common/pay-hosted-fields'
 import errors from '../../common/errors'
 import { completePayment } from '../../common/complete-payment'
 import { shouldHideOrderLines } from '../../common/validater'
+import { addGatewayId } from '../../common/utils'
 
 import { TEXT_DOMAIN } from '../../common/constants'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { getValidationErrors } from '../utils/validator'
 
-export const usePaymentForm = ({ props, hostedFieldsInstance }) => {
+export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
     const {
         setExpressPaymentError,
         emitResponse: { responseTypes, noticeContexts },
@@ -74,6 +75,8 @@ export const usePaymentForm = ({ props, hostedFieldsInstance }) => {
                     type: responseTypes.ERROR,
                     messageContext: noticeContexts.PAYMENTS,
                 }
+
+                paymentData.merchantCustomData = addGatewayId(paymentData.merchantCustomData, gatewayId)
 
                 switch (integrationType) {
                     case 'seamless': {

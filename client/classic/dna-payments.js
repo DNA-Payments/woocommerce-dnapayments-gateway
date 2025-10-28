@@ -23,6 +23,7 @@ import errors from '../common/errors'
 import { tryParse } from '../common/try-parse'
 import { checkApplePayAvailability } from '../common/validater'
 import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY } from '../common/constants'
+import { addGatewayId } from '../common/utils'
 
 /* global wc_dna_params */
 const orderId = Number(wc_dna_params.order_id) || 0
@@ -90,7 +91,7 @@ jQuery(function ($) {
                     }
                 }
 
-                return await postProcessPayment()
+                return await postProcessPayment(gatewayId)
             } catch (err) {
                 showError(err.message, true)
             }
@@ -256,7 +257,7 @@ jQuery(function ($) {
                         auth: authData,
                     }
                 }
-                return await postProcessPayment()
+                return await postProcessPayment(paymentMethodId)
             },
             onPaymentSuccess: (paymentResult) =>
                 completePayment({
@@ -341,7 +342,7 @@ jQuery(function ($) {
         return success
     }
 
-    async function postProcessPayment() {
+    async function postProcessPayment(selectedGatewayId) {
         const response = await fetch(wc_checkout_params.checkout_url, {
             method: 'POST',
             body: new FormData($form[0]),
@@ -368,6 +369,8 @@ jQuery(function ($) {
         } catch (err) {
             console.error(err)
         }
+
+        result.paymentData.merchantCustomData = addGatewayId(result.paymentData.merchantCustomData, selectedGatewayId)
 
         paymentData = result.paymentData
         authData = result.auth

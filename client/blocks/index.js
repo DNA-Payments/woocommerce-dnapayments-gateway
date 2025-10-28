@@ -45,7 +45,7 @@ const Content = (props) => {
     const [isLoaded, setLoaded] = useState(false)
     const [hostedFieldsInstance, setHostedFieldsInstance] = useState(null)
 
-    usePaymentForm({ props, hostedFieldsInstance })
+    usePaymentForm({ props, hostedFieldsInstance, gatewayId: GATEWAY_ID })
 
     useEffect(() => {
         if (!settings.temp_token) {

@@ -107,6 +107,8 @@ class AjaxInit {
     }
 
     public function handle_update_order_status() {
+        check_ajax_referer( 'dna_update_order_status', '_dna_nonce', true );
+
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
         $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
 

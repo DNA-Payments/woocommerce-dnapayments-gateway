@@ -239,9 +239,12 @@ jQuery(function ($) {
             return
         }
 
+        let appleFlowOpened = false;
+
         const events = {
             onClick: () => {
                 setFormLoading(true)
+                if (paymentMethodId === 'dnapayments_apple_pay') appleFlowOpened = true;
             },
             onBeforeProcessPayment: async () => {
                 if (isPayForOrderPage) {
@@ -268,10 +271,20 @@ jQuery(function ($) {
                 }),
             onCancel: (err) => {
                 setFormLoading(false)
+                if (paymentMethodId === 'dnapayments_apple_pay') appleFlowOpened = false;
             },
             onError: (err) => {
                 setFormLoading(false)
                 setLoading($container, false)
+
+                if (paymentMethodId === 'dnapayments_apple_pay') {
+                    const code = Number(err?.code);
+                    if (code === 1002 || code === 1003) {
+                        appleFlowOpened = false;
+                        paymentMethodObject.isLoading = false;
+                        return;
+                    }
+                }
 
                 const message = getPaymentComponentErrorMessage(err, errorMessage)
 

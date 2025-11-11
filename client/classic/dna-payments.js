@@ -153,13 +153,16 @@ jQuery(function ($) {
                     showError(messages, true)
                     paymentData = null
                     authData = null
-                } else if (!paymentData || shouldFetchPaymentData) {
-                    setFormLoading(true)
-                    await fetchPaymentData()
-                    setFormLoading(false)
+                    placeOrderBtn.setAttribute('disabled', 'disabled')
+                } else {
+                    if (!paymentData || shouldFetchPaymentData) {
+                        setFormLoading(true)
+                        await fetchPaymentData()
+                        setFormLoading(false)
+                    }
+                    placeOrderBtn.setAttribute('disabled', 'disabled')
+                    renderGoogleOrApplePayComponent(selectedGateway, shouldUpdate)
                 }
-                placeOrderBtn.setAttribute('disabled', 'disabled')
-                renderGoogleOrApplePayComponent(selectedGateway, shouldUpdate)
                 break
             default:
                 placeOrderBtn.removeAttribute('disabled')

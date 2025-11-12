@@ -275,6 +275,10 @@ jQuery(function ($) {
 
                 const message = getPaymentComponentErrorMessage(err, errorMessage)
 
+                if (paymentMethodObject.isLoaded && paymentMethodId === 'dnapayments_apple_pay') {
+                    return
+                }
+
                 if (message !== errorMessage) {
                     showError(message)
                 } else {
@@ -287,6 +291,7 @@ jQuery(function ($) {
                 $container.find('div').css('height', '40px')
                 setLoading($container, false)
                 paymentMethodObject.isLoading = false
+                paymentMethodObject.isLoaded = true
             },
         }
 
@@ -299,6 +304,7 @@ jQuery(function ($) {
             environment: isTestMode ? 'sandbox' : 'production',
         })
         paymentMethodObject.isLoading = true
+        paymentMethodObject.isLoaded = false
     }
 
     function onSubmit(e) {

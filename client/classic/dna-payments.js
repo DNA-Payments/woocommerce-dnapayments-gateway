@@ -275,11 +275,7 @@ jQuery(function ($) {
 
                 const message = getPaymentComponentErrorMessage(err, errorMessage)
 
-                if (paymentMethodObject.isLoaded && paymentMethodId === 'dnapayments_apple_pay') {
-                    return
-                }
-
-                if (message !== errorMessage) {
+                if (paymentMethodObject.isLoaded && paymentMethodId !== GATEWAY_ID_APPLE_PAY) {
                     showError(message)
                 } else {
                     paymentMethodObject.isLoading = false

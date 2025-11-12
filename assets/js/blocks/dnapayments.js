@@ -592,9 +592,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _errors__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../errors */ "./client/common/errors.js");
 
-async function request(...args) {
+async function request(input, init = {}) {
+  var _init$credentials;
+  const opts = {
+    credentials: (_init$credentials = init.credentials) !== null && _init$credentials !== void 0 ? _init$credentials : 'same-origin',
+    ...init
+  };
   try {
-    const response = await fetch(...args);
+    const response = await fetch(input, opts);
     return await response.json();
   } catch (err) {
     return {
@@ -620,19 +625,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _constants__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../constants */ "./client/common/constants.js");
 /* harmony import */ var _request__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./request */ "./client/common/api/request.js");
-/* harmony import */ var _blocks_utils_get_settings__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../blocks/utils/get-settings */ "./client/blocks/utils/get-settings.js");
-
 
 
 async function updateOrderStatus(orderId, paymentResult) {
   const formData = new FormData();
   formData.append('order_id', orderId);
   formData.append('wc-dnapayments-result', JSON.stringify(paymentResult));
-  formData.append('_dna_nonce', _blocks_utils_get_settings__WEBPACK_IMPORTED_MODULE_2__.dnaPaymentsSettingsData?.nonces?.update_order_status || '');
+  formData.append('_dna_nonce', getNonce());
   return await (0,_request__WEBPACK_IMPORTED_MODULE_1__.request)('/wp-admin/admin-ajax.php?action=' + _constants__WEBPACK_IMPORTED_MODULE_0__.GATEWAY_ID + '_update_order_status', {
     method: 'POST',
     body: formData
   });
+}
+function getNonce() {
+  return window.wc_dna_params?.nonces?.update_order_status || '';
 }
 
 /***/ }),

@@ -235,6 +235,13 @@ jQuery(function ($) {
         
         const $container = $form.find('#' + paymentMethodId + '_container')
 
+        // For PayPal: If the component is already ready (has child elements)
+        // and shouldUpdate is not set, don't re-render
+        const isAlreadyRendered = $container.children().length > 0
+        if (!shouldUpdate && isAlreadyRendered) {
+            return
+        }
+
         if (!shouldUpdate && paymentMethodObject.isLoading) {
             return
         }

@@ -58,6 +58,7 @@ class AjaxInit {
     }
 
 	public function handle_get_payment_data_from_cart() {
+
         try {
             $cart = WC()->cart;
             $customer = WC()->customer;

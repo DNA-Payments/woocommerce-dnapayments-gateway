@@ -15,7 +15,7 @@ import { getGlobalVariables, getRequiredFields } from './utils/data'
 import { validate } from './utils/validate'
 
 import { fetchPaymentAndAuthData } from '../common/api/fetch-payment-and-auth-data'
-import { getPaymentComponentErrorMessage } from '../common/payment-component-helper'
+import { getPaymentComponentErrorMessage, isInitFailed } from '../common/payment-component-helper'
 import { completePayment, getOrderIdFromPaymentData } from '../common/complete-payment'
 import { request } from '../common/api/request'
 import { debounce } from '../common/debounce'
@@ -275,18 +275,19 @@ jQuery(function ($) {
 
                 const message = getPaymentComponentErrorMessage(err, errorMessage)
 
-                if (message !== errorMessage) {
-                    showError(message)
-                } else {
+                if (!paymentMethodObject.isLoaded) {
                     paymentMethodObject.isLoading = false
                     $container.html(wrapMessage(errorMessage))
                     $container.css('height', 'auto')
+                } else if (paymentMethodId !== GATEWAY_ID_APPLE_PAY || !isInitFailed(err)) {
+                    showError(message)
                 }
             },
             onLoad: () => {
                 $container.find('div').css('height', '40px')
                 setLoading($container, false)
                 paymentMethodObject.isLoading = false
+                paymentMethodObject.isLoaded = true
             },
         }
 
@@ -299,6 +300,7 @@ jQuery(function ($) {
             environment: isTestMode ? 'sandbox' : 'production',
         })
         paymentMethodObject.isLoading = true
+        paymentMethodObject.isLoaded = false
     }
 
     function onSubmit(e) {

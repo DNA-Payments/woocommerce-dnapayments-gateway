@@ -256,11 +256,9 @@ jQuery(function ($) {
 
         const events = {
             onClick: () => {
-                console.log('PayPal onClick triggered')
                 setFormLoading(true)
             },
             onBeforeProcessPayment: async () => {
-                console.log('PayPal onBeforeProcessPayment triggered', { isPayForOrderPage, paymentData, authData })
                 if (isPayForOrderPage) {
                     await fetchPaymentData()
                     return {
@@ -277,7 +275,6 @@ jQuery(function ($) {
                 return await postProcessPayment(paymentMethodId)
             },
             onPaymentSuccess: (paymentResult) => {
-                console.log('PayPal onPaymentSuccess triggered', paymentResult)
                 return completePayment({
                     paymentResult,
                     redirect: paymentData?.paymentSettings?.returnUrl,
@@ -286,11 +283,9 @@ jQuery(function ($) {
                 })
             },
             onCancel: (err) => {
-                console.log('PayPal onCancel triggered', err)
                 setFormLoading(false)
             },
             onError: (err) => {
-                console.error('PayPal onError triggered', err)
                 setFormLoading(false)
                 setLoading($container, false)
 
@@ -305,7 +300,6 @@ jQuery(function ($) {
                 }
             },
             onLoad: () => {
-                console.log('PayPal onLoad triggered')
                 setLoading($container, false)
                 paymentMethodObject.isLoading = false
                 // Убираем pointer-events: none с контейнера для PayPal
@@ -316,14 +310,6 @@ jQuery(function ($) {
         }
 
         setLoading($container, true)
-        console.log('Initializing PayPal component with:', {
-            paymentMethodId,
-            hasPaymentData: !!paymentData,
-            hasAuthData: !!authData,
-            token: authData ? authData.access_token : tempToken,
-            environment: isTestMode ? 'sandbox' : 'production',
-            terminalId: wc_dna_params.terminal_id,
-        })
         paymentMethodObject.init({
             containerElement: $container[0],
             events,

@@ -28,15 +28,9 @@ class AjaxInit {
 
         add_action('wp_ajax_' . $this->gateway->id . '_update_order_status', array($this, 'handle_update_order_status'));
         add_action('wp_ajax_nopriv_' . $this->gateway->id . '_update_order_status', array($this, 'handle_update_order_status'));
-
-	    add_action( 'woocommerce_new_order', [ $this, 'bind_dna_session_token' ], 10, 1 );
     }
 
 	public function handle_get_payment_and_auth_data() {
-		if (! WC()->session->has_session()) {
-			WC()->session->set_customer_session_cookie(true);
-		}
-
         $order_id     = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
         $total_amount = isset( $_POST['total'] ) ? sanitize_text_field( wp_unslash( $_POST['total'] ) ) : '';
 
@@ -64,10 +58,6 @@ class AjaxInit {
     }
 
 	public function handle_get_payment_data_from_cart() {
-		if (! WC()->session->has_session()) {
-			WC()->session->set_customer_session_cookie(true);
-		}
-
         try {
             $cart = WC()->cart;
             $customer = WC()->customer;
@@ -126,16 +116,8 @@ class AjaxInit {
 	    $order = wc_get_order( $order_id );
 
 		if ( ! $order ) {
-			$this->deny("Order not found");
+			wp_send_json_error([ 'errors' => [ __( 'Not allowed.', \WC_DNA_Payments::$text_domain ) ] ], 403);
 		}
-
-	    $session_token = (string) (WC()->session->get('_dna_session_token') ?? '');
-		$meta_token    = (string) ($order->get_meta('_dna_session_token') ?? '');
-	    $match         = ($session_token !== '' && $meta_token !== '' && hash_equals($meta_token, $session_token));
-
-		if (! $match) {
-			$this->deny("Token mismatch");
-	    }
 
 		try {
             // Check if AJAX order status update is enabled
@@ -155,8 +137,6 @@ class AjaxInit {
 
             $redirect = $this->gateway->paymentDataHelper->get_return_url_from_order( $order, $status === 'failed' );
 
-			WC()->session->__unset('_dna_session_token');
-
 			wp_send_json_success( array(
                 'status'    => $status,
                 'redirect'  => $redirect,
@@ -173,43 +153,9 @@ class AjaxInit {
 		}
     }
 
-	public function bind_dna_session_token($order_id) {
-		$order = wc_get_order($order_id);
-
-		if (! $order) {
-			return;
-		}
-
-		if (! WC()->session->has_session()) {
-			WC()->session->set_customer_session_cookie(true);
-		}
-
-		$existing = (string) $order->get_meta('_dna_session_token');
-
-		if ( $existing !== '' ) {
-			WC()->session->set('_dna_session_token', $existing);
-
-			return;
-		}
-
-		$token = wp_generate_password(32, false);
-
-		WC()->session->set('_dna_session_token', $token);
-
-		$order->update_meta_data('_dna_session_token', $token);
-
-		$order->save();
-	}
-
 	private function is_ajax_update_enabled(): bool {
 		$raw = (string) ($this->gateway->enable_ajax_order_status_update ?? '');
 
 		return wc_string_to_bool($raw);
-	}
-
-	private function deny(string $reason): void {
-		header( 'X-DNA-ERROR-DEBUG: ' . $reason );
-
-		wp_send_json_error([ 'errors' => [ __( 'Not allowed.', \WC_DNA_Payments::$text_domain ) ] ], 403);
 	}
 }

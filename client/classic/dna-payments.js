@@ -153,28 +153,13 @@ jQuery(function ($) {
                     showError(messages, true)
                     paymentData = null
                     authData = null
-                    placeOrderBtn.setAttribute('disabled', 'disabled')
-                } else {
-                    if (!paymentData || shouldFetchPaymentData) {
-                        setFormLoading(true)
-                        try {
-                            await fetchPaymentData()
-                        } catch (error) {
-                            console.error('Error fetching payment data:', error)
-                        } finally {
-                            setFormLoading(false)
-                        }
-                    }
-
-                    // Разблокируем кнопку только если это НЕ PayPal (для PayPal своя кнопка)
-                    if (selectedGateway !== GATEWAY_ID_PAYPAL) {
-                        placeOrderBtn.removeAttribute('disabled')
-                    } else {
-                        placeOrderBtn.setAttribute('disabled', 'disabled')
-                    }
-
-                    renderGoogleOrApplePayComponent(selectedGateway, shouldUpdate)
+                } else if (!paymentData || shouldFetchPaymentData) {
+                    setFormLoading(true)
+                    await fetchPaymentData()
+                    setFormLoading(false)
                 }
+                placeOrderBtn.setAttribute('disabled', 'disabled')
+                renderGoogleOrApplePayComponent(selectedGateway, shouldUpdate)
                 break
             default:
                 placeOrderBtn.removeAttribute('disabled')
@@ -250,17 +235,15 @@ jQuery(function ($) {
 
         const $container = $form.find('#' + paymentMethodId + '_container')
 
-        // Для PayPal: если компонент уже инициализирован (есть дочерние элементы)
-        // и shouldUpdate не установлен, не перерендериваем
+        // For PayPal: If the component is already ready (has child elements)
+        // and shouldUpdate is not set, don't re-render
         const isAlreadyRendered = $container.children().length > 0
         if (!shouldUpdate && isAlreadyRendered) {
             console.log('Skipping render - component already rendered', paymentMethodId, { shouldUpdate, isAlreadyRendered })
             return
         }
 
-        // Проверка на загрузку (старая логика для совместимости с Google/Apple Pay)
         if (!shouldUpdate && paymentMethodObject.isLoading) {
-            console.log('Skipping render - component already loading', paymentMethodId)
             return
         }
 

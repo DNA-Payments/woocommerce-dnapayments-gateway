@@ -7,6 +7,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class AjaxInit {
+	private const NONCE_ACTION = 'dna_update_order_status';
+	private const NONCE_FIELD = '_dna_nonce';
 
 	/**
      * @var WC_DNA_Payments_Gateway
@@ -107,6 +109,8 @@ class AjaxInit {
     }
 
     public function handle_update_order_status() {
+	    check_ajax_referer(self::NONCE_ACTION, self::NONCE_FIELD, true);
+
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
         $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
 
@@ -118,7 +122,7 @@ class AjaxInit {
             }
 
             // Check if AJAX order status update is enabled
-            if ( isset( $this->gateway->enable_ajax_order_status_update ) && $this->gateway->enable_ajax_order_status_update === 'yes' ) {
+            if ($this->is_ajax_update_enabled()) {
                 $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, 'update_order_status' );
                 $status = $result['status'];
                 $message = $result['message'];
@@ -149,4 +153,10 @@ class AjaxInit {
             ], 500);
 		}
     }
+
+	private function is_ajax_update_enabled(): bool {
+		$raw = (string) ($this->gateway->enable_ajax_order_status_update ?? '');
+
+		return wc_string_to_bool($raw);
+	}
 }

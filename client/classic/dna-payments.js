@@ -153,13 +153,28 @@ jQuery(function ($) {
                     showError(messages, true)
                     paymentData = null
                     authData = null
-                } else if (!paymentData || shouldFetchPaymentData) {
-                    setFormLoading(true)
-                    await fetchPaymentData()
-                    setFormLoading(false)
+                    placeOrderBtn.setAttribute('disabled', 'disabled')
+                } else {
+                    if (!paymentData || shouldFetchPaymentData) {
+                        setFormLoading(true)
+                        try {
+                            await fetchPaymentData()
+                        } catch (error) {
+                            console.error('Error fetching payment data:', error)
+                        } finally {
+                            setFormLoading(false)
+                        }
+                    }
+
+                    // Разблокируем кнопку только если это НЕ PayPal (для PayPal своя кнопка)
+                    if (selectedGateway !== GATEWAY_ID_PAYPAL) {
+                        placeOrderBtn.removeAttribute('disabled')
+                    } else {
+                        placeOrderBtn.setAttribute('disabled', 'disabled')
+                    }
+
+                    renderGoogleOrApplePayComponent(selectedGateway, shouldUpdate)
                 }
-                placeOrderBtn.setAttribute('disabled', 'disabled')
-                renderGoogleOrApplePayComponent(selectedGateway, shouldUpdate)
                 break
             default:
                 placeOrderBtn.removeAttribute('disabled')
@@ -232,10 +247,20 @@ jQuery(function ($) {
         })()
 
         if (!paymentMethodObject || !errorMessage) return
-        
+
         const $container = $form.find('#' + paymentMethodId + '_container')
 
+        // Для PayPal: если компонент уже инициализирован (есть дочерние элементы)
+        // и shouldUpdate не установлен, не перерендериваем
+        const isAlreadyRendered = $container.children().length > 0
+        if (!shouldUpdate && isAlreadyRendered) {
+            console.log('Skipping render - component already rendered', paymentMethodId, { shouldUpdate, isAlreadyRendered })
+            return
+        }
+
+        // Проверка на загрузку (старая логика для совместимости с Google/Apple Pay)
         if (!shouldUpdate && paymentMethodObject.isLoading) {
+            console.log('Skipping render - component already loading', paymentMethodId)
             return
         }
 
@@ -248,9 +273,11 @@ jQuery(function ($) {
 
         const events = {
             onClick: () => {
+                console.log('PayPal onClick triggered')
                 setFormLoading(true)
             },
             onBeforeProcessPayment: async () => {
+                console.log('PayPal onBeforeProcessPayment triggered', { isPayForOrderPage, paymentData, authData })
                 if (isPayForOrderPage) {
                     await fetchPaymentData()
                     return {
@@ -266,17 +293,21 @@ jQuery(function ($) {
                 }
                 return await postProcessPayment(paymentMethodId)
             },
-            onPaymentSuccess: (paymentResult) =>
-                completePayment({
+            onPaymentSuccess: (paymentResult) => {
+                console.log('PayPal onPaymentSuccess triggered', paymentResult)
+                return completePayment({
                     paymentResult,
                     redirect: paymentData?.paymentSettings?.returnUrl,
                     setLoading: setFormLoading,
                     setErrors: showError,
-                }),
+                })
+            },
             onCancel: (err) => {
+                console.log('PayPal onCancel triggered', err)
                 setFormLoading(false)
             },
             onError: (err) => {
+                console.error('PayPal onError triggered', err)
                 setFormLoading(false)
                 setLoading($container, false)
 
@@ -291,12 +322,25 @@ jQuery(function ($) {
                 }
             },
             onLoad: () => {
+                console.log('PayPal onLoad triggered')
                 setLoading($container, false)
                 paymentMethodObject.isLoading = false
+                // Убираем pointer-events: none с контейнера для PayPal
+                if (paymentMethodId === GATEWAY_ID_PAYPAL) {
+                    $container.css('pointer-events', 'auto')
+                }
             },
         }
 
         setLoading($container, true)
+        console.log('Initializing PayPal component with:', {
+            paymentMethodId,
+            hasPaymentData: !!paymentData,
+            hasAuthData: !!authData,
+            token: authData ? authData.access_token : tempToken,
+            environment: isTestMode ? 'sandbox' : 'production',
+            terminalId: wc_dna_params.terminal_id,
+        })
         paymentMethodObject.init({
             containerElement: $container[0],
             events,

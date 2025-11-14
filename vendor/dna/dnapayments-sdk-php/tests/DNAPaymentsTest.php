@@ -10,17 +10,33 @@ class DNAPaymentsTest extends TestCase
     public $client_id = '___ENTER_TEST_CLIENT_ID___';
     public $client_secret = '___ENTER_TEST_CLIENT_SECRET___';
 
+    /**
+     * Generate a unique invoice ID for testing
+     * @return string
+     */
+    private function get_invoice_id() {
+        return 'SDK_PHP_' . date('d-m-y h:i:s');
+    }
+
+    /**
+     * Get common test data for DNA Payments operations
+     * @return array
+     */
+    private function get_test_data() {
+        return [
+            'client_id' => $this->client_id,
+            'client_secret' => $this->client_secret,
+            'terminal' => $this->terminal,
+            'currency' => $this->currency,
+            'amount' => 0.01,
+            'invoiceId' => $this->get_invoice_id()
+        ];
+    }
+
     public function test_auth_data() {
         try {
             \DNAPayments\DNAPayments::configure($this->get_config());
-            $auth = \DNAPayments\DNAPayments::auth(array(
-                'client_id' => $this->client_id,
-                'client_secret' => $this->client_secret,
-                'terminal' => $this->terminal,
-                'invoiceId' => date('d-m-y h:i:s'),
-                'amount' => 0.01,
-                'currency' => $this->currency
-            ));
+            $auth = \DNAPayments\DNAPayments::auth($this->get_test_data());
 
             print_r($auth);
             $this->assertTrue(true);
@@ -31,23 +47,14 @@ class DNAPaymentsTest extends TestCase
     }
 
     public function test_generate_url() {
-        $invoice_id = date('d-m-y h:i:s');
-        $amount = 0.01;
+        $test_data = $this->get_test_data();
 
         try {
             \DNAPayments\DNAPayments::configure($this->get_full_config());
 
-            $auth = \DNAPayments\DNAPayments::auth(array(
-                'client_id' => $this->client_id,
-                'client_secret' => $this->client_secret,
-                'terminal' => $this->terminal,
-                'invoiceId' => $invoice_id,
-                'amount' => $amount,
-                'currency' => $this->currency
-            ));
+            $auth = \DNAPayments\DNAPayments::auth($test_data);
 
-
-            $url = \DNAPayments\DNAPayments::generateUrl($this->get_payment_data($invoice_id, $amount), $auth);
+            $url = \DNAPayments\DNAPayments::generateUrl($this->get_payment_data($test_data['invoiceId'], $test_data['amount']), $auth);
 
             print_r($url);
 
@@ -93,19 +100,34 @@ class DNAPaymentsTest extends TestCase
     }
 
     public function test_refund() {
-
         try {
             $dnapayments = new \DNAPayments\DNAPayments($this->get_config());
+            $test_data = $this->get_test_data();
 
-            $result = $dnapayments->refund([
-                'client_id' => $this->client_id,
-                'client_secret' => $this->client_secret,
-                'terminal' => $this->terminal,
+            $result = $dnapayments->refund(array_merge($test_data, [
                 "invoiceId" => "254",
                 "amount" => 21.60,
-                "currency" => "GBP",
                 "transaction_id" => "9a599ca5-5efa-499b-b1d1-be69af20fcec"
-            ]);
+            ]));
+
+            print_r($result);
+
+            $this->assertTrue(true);
+        } catch (Error $e) {
+            echo $e;
+            $this->assertTrue(false);
+        }
+    }
+
+    public function test_recurring() {
+        try {
+            $dnapayments = new \DNAPayments\DNAPayments($this->get_config());
+            $test_data = $this->get_test_data();
+
+            $result = $dnapayments->recurring(array_merge($test_data, [
+                'parentTransactionId' => '8e8accd8-4505-4420-ab99-0c5e11f31aca',
+                'transactionType' => 'AUTH'
+            ]));
 
             print_r($result);
 

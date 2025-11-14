@@ -34,7 +34,6 @@ class WC_Gateway_DNA_Base_Payment_Component extends WC_Gateway_Abstract_Dnapayme
         $this->title        = $this->get_option( 'title' );
         $this->description  = $this->get_option( 'description' );
         $this->enabled      = $this->get_option( 'enabled' );
-        $this->supports     = array( 'products', 'refunds' );
 
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
     }

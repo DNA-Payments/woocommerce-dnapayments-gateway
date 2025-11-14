@@ -31,6 +31,31 @@ These credentials will be provided to you during the onboarding process with DNA
 
 ---
 
+## 🔄 Subscription Support
+
+The DNA Payments Gateway supports recurring payments through the WooCommerce Subscriptions plugin.
+
+### WooCommerce Subscriptions
+- **Plugin**: [WooCommerce Subscriptions](https://woocommerce.com/products/woocommerce-subscriptions/) (Official WooCommerce extension)
+- **Features**: Full support for subscription management, renewals, cancellations, and amount changes
+- **Automatic Detection**: The gateway automatically detects when WooCommerce Subscriptions is active
+
+### How It Works
+1. **Initial Payment**: When a customer purchases a subscription product, the initial payment is processed normally
+2. **Recurring Payments**: The gateway uses the parent order's transaction ID for subsequent renewal payments
+3. **Automatic Processing**: Renewal payments are handled automatically by the subscription plugin
+
+### Supported Features
+- ✅ Subscription creation and initial payment
+- ✅ Automatic recurring payments
+- ✅ Subscription cancellation
+- ✅ Subscription suspension and reactivation
+- ✅ Subscription amount changes
+- ✅ Multiple subscriptions per order
+- ✅ Failed payment handling and retry logic
+
+---
+
 ## 🧪 Local Development
 
 To set up the plugin for local development:

@@ -23,6 +23,11 @@ class PaymentDataHelper {
         $store_card_on_file = isset( $options['store_card_on_file'] ) ? (bool) $options['store_card_on_file'] : false;
         $page = isset( $options['page'] ) ? $options['page'] : 'checkout';
 
+        $merchant_custom_data = array(
+            'orderId' => $order->get_id(),
+            'storeCardOnFile' => $store_card_on_file
+        );
+
         $payment_data = array(
             'invoiceId' => strval( $order->get_order_number() ),
             'description' => $this->gateway->get_option('gatewayOrderDescription'),
@@ -53,13 +58,19 @@ class PaymentDataHelper {
                 'discount' => array('totalAmount' => Helper::number_format($order->get_total_discount()))
             ),
             'orderLines' => $this->get_order_lines_from_order( $order ),
-            'merchantCustomData' => json_encode( array(
-                'orderId' => $order->get_id(),
-                'storeCardOnFile' => $store_card_on_file
-            ) ),
         );
 
+        $has_subscription = $this->gateway->subscriptionHelper->order_contains_subscription( $order );
+        if ($has_subscription) {
+            $payment_data['periodic'] = array(
+                'periodicType' => 'ucof'
+            );
+        }
+
+        $payment_data['merchantCustomData'] = json_encode( $merchant_custom_data );
+
         $this->update_transaction_type( $payment_data );
+
         return $payment_data;
     }
 

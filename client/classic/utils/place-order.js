@@ -1,6 +1,7 @@
 import { debounce } from '../../common/debounce'
 import errors from '../../common/errors'
 import { payHostedFields } from '../../common/pay-hosted-fields'
+import { getSubscriptionPaymentMethods, hasSubscription } from '../../common/subscription'
 import { shouldHideOrderLines } from '../../common/validater'
 import { getGlobalVariables } from './data'
 
@@ -56,8 +57,9 @@ export const createPlaceOrder = ({
             config.autoRedirectDelayInMs = autoRedirectDelayInMs
         }
 
-        if (paymentMethods) {
-            config.paymentMethods = paymentMethods
+        const _paymentMethods = hasSubscription(paymentData) ? getSubscriptionPaymentMethods() : paymentMethods
+        if (_paymentMethods) {
+            config.paymentMethods = _paymentMethods
         }
 
         window.DNAPayments.configure(config)

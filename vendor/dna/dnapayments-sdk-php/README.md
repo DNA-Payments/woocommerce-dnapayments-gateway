@@ -1,10 +1,36 @@
 ## Running Tests
 
-To run the tests, use the following command:
+To run all tests, use the following command:
 
 ```bash
 ./vendor/bin/phpunit ./tests
 ```
+
+### Running Specific Test Methods
+
+To run only a specific test method, use the `--filter` option:
+
+```bash
+# Run a specific test method
+./vendor/bin/phpunit --filter test_auth_data ./tests/DNAPaymentsTest.php
+
+# Run multiple specific methods using regex pattern
+./vendor/bin/phpunit --filter "test_auth_data|test_generate_url" ./tests/DNAPaymentsTest.php
+
+# Run all methods containing a specific word
+./vendor/bin/phpunit --filter "transaction" ./tests/DNAPaymentsTest.php
+
+# Run a specific test class and method
+./vendor/bin/phpunit --filter "DNAPaymentsTest::test_auth_data" ./tests/
+```
+
+Available test methods:
+- `test_auth_data` - Test authentication data
+- `test_generate_url` - Test URL generation
+- `test_get_transactions_by_id` - Test getting transactions by ID
+- `test_get_transactions_by_invoice_id` - Test getting transactions by invoice ID
+- `test_refund` - Test refund functionality
+- `test_recurring` - Test recurring payments
 
 ### Configuration data
 

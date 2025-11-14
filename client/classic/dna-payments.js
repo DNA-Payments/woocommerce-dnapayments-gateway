@@ -34,6 +34,7 @@ let hostedFieldsInstance = null
 let paymentData = null
 let authData = null
 let globalError = null
+let serializedFormData = null
 
 jQuery(function ($) {
     const { isTestMode, gatewayId, isHostedFields, tempToken, terminalConfig, placeOrderButtonText } =
@@ -142,6 +143,7 @@ jQuery(function ($) {
             $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).show()
         }
 
+        serializedFormData = $form.serialize()
         $form.find('.dnapayments-footer').show()
 
         switch (selectedGateway) {
@@ -158,7 +160,7 @@ jQuery(function ($) {
                     setFormLoading(false)
                 }
                 placeOrderBtn.setAttribute('disabled', 'disabled')
-                renderGoogleOrApplePayComponent(selectedGateway, shouldUpdate)
+                renderPaymentComponent(selectedGateway, shouldUpdate)
                 break
             default:
                 placeOrderBtn.removeAttribute('disabled')
@@ -194,7 +196,8 @@ jQuery(function ($) {
     $form.on('change', 'input[name="payment_method"]', () => render({ selectedGateway: $(this).val() }))
     $form.on('change', 'input, textarea, select', function (e) {
         const elem = e.target
-        if (!elem) return
+        // we check form data is changed or not to avoid unnessary rendering. We do not check on event updated_checkout, because it reinserts html part where payment components renrder.
+        if (!elem || (serializedFormData && serializedFormData === $form.serialize())) return
 
         const name = elem.getAttribute('name')
         const isShippingIncluded = $form.find('[name="ship_to_different_address"]').is(':checked')
@@ -217,7 +220,7 @@ jQuery(function ($) {
         render({})
     }
 
-    function renderGoogleOrApplePayComponent(paymentMethodId, shouldUpdate) {
+    function renderPaymentComponent(paymentMethodId, shouldUpdate) {
         const paymentMethodObject =
             paymentMethodId === GATEWAY_ID_APPLE_PAY
                 ? window.DNAPayments.ApplePayComponent

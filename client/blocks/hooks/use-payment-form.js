@@ -15,6 +15,7 @@ import { shouldHideOrderLines } from '../../common/validater'
 import { addGatewayId } from '../../common/utils'
 
 import { TEXT_DOMAIN } from '../../common/constants'
+import { getSubscriptionPaymentMethods, hasSubscription } from '../../common/subscription'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { getValidationErrors } from '../utils/validator'
 
@@ -62,6 +63,15 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
             new Promise((resolve) => {
                 const paymentData = tryParse(paymentDetails.paymentData)
                 const auth = tryParse(paymentDetails.auth)
+                const config = {
+                    isTestMode,
+                    cards,
+                    allowSavingCards,
+                }
+
+                if (hasSubscription(paymentData)) {
+                    config.paymentMethods = getSubscriptionPaymentMethods()
+                }
 
                 if (shouldHideOrderLines(terminalConfig) && paymentData?.orderLines) {
                     delete paymentData.orderLines
@@ -114,9 +124,7 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                     }
                     case 'embedded': {
                         window.DNAPayments.configure({
-                            isTestMode,
-                            cards,
-                            allowSavingCards,
+                            ...config,
                             events: {
                                 cancelled: () =>
                                     resolve({
@@ -136,7 +144,7 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                         break
                     }
                     default: {
-                        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards })
+                        window.DNAPayments.configure(config)
                         window.DNAPayments.openPaymentPage({ ...paymentData, auth })
                     }
                 }

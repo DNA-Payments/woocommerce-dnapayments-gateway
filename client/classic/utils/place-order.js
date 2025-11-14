@@ -1,6 +1,7 @@
 import { debounce } from '../../common/debounce'
 import errors from '../../common/errors'
 import { payHostedFields } from '../../common/pay-hosted-fields'
+import { getSubscriptionPaymentMethods, hasSubscription } from '../../common/subscription'
 import { shouldHideOrderLines } from '../../common/validater'
 import { getGlobalVariables } from './data'
 
@@ -37,7 +38,18 @@ export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, 
                   }
                 : undefined
 
-        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards, events })
+        const config = {
+            isTestMode,
+            cards,
+            allowSavingCards,
+            events,
+        }
+
+        if (hasSubscription(paymentData)) {
+            config.paymentMethods = getSubscriptionPaymentMethods()
+        }
+
+        window.DNAPayments.configure(config)
 
         switch (integrationType) {
             case 'seamless': {

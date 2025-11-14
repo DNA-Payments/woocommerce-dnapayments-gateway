@@ -151,6 +151,7 @@ class WC_DNA_Payments {
 		require_once 'includes/utils/class-analytics-helper.php';
 		require_once 'includes/utils/class-request-helper.php';
 		require_once 'includes/utils/class-config-helper.php';
+		require_once 'includes/utils/class-subscription-helper.php';
 		require_once 'includes/gateways/abstract-wc-gateway-dnapayments.php';
 		require_once 'includes/WC_DNA_Payments_Gateway.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-base-component.php';

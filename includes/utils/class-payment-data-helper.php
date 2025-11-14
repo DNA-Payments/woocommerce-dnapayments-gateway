@@ -20,6 +20,11 @@ class PaymentDataHelper {
     }
 
     public function get_payment_data_from_order( \WC_Order $order, $store_card_on_file = false ) {
+        $merchant_custom_data = array(
+            'orderId' => $order->get_id(),
+            'storeCardOnFile' => $store_card_on_file
+        );
+
         $payment_data = array(
             'invoiceId' => strval( $order->get_order_number() ),
             'description' => $this->gateway->get_option('gatewayOrderDescription'),
@@ -45,13 +50,19 @@ class PaymentDataHelper {
             ],
             'amountBreakdown' => $this->get_amount_breakdown_from_order( $order ),
             'orderLines' => $this->get_order_lines_from_order( $order ),
-            'merchantCustomData' => json_encode( array(
-                'orderId' => $order->get_id(),
-                'storeCardOnFile' => $store_card_on_file
-            ) ),
         );
 
+        $has_subscription = $this->gateway->subscriptionHelper->order_contains_subscription( $order );
+        if ($has_subscription) {
+            $payment_data['periodic'] = array(
+                'periodicType' => 'ucof'
+            );
+        }
+
+        $payment_data['merchantCustomData'] = json_encode( $merchant_custom_data );
+
         $this->update_transaction_type( $payment_data );
+
         return $payment_data;
     }
 

@@ -2,17 +2,17 @@
         "packages": [
                 {
                         "name": "dna/dnapayments-sdk-php",
-                        "version": "2.2.0",
-                        "version_normalized": "2.2.0.0",
+                        "version": "2.2.1",
+                        "version_normalized": "2.2.1.0",
                         "source": {
                                 "type": "git",
                                 "url": "https://github.com/DNA-Payments/dnapayments-sdk-php.git",
-                                "reference": "c56d0726054623f14a568ff8410751e83b2668e5"
+                                "reference": "e83cf58ad079af496ffbe58087be456673b4b5f2"
                         },
                         "dist": {
                                 "type": "zip",
-                                "url": "https://api.github.com/repos/DNA-Payments/dnapayments-sdk-php/zipball/c56d0726054623f14a568ff8410751e83b2668e5",
-                                "reference": "c56d0726054623f14a568ff8410751e83b2668e5",
+                                "url": "https://api.github.com/repos/DNA-Payments/dnapayments-sdk-php/zipball/e83cf58ad079af496ffbe58087be456673b4b5f2",
+                                "reference": "e83cf58ad079af496ffbe58087be456673b4b5f2",
                                 "shasum": ""
                         },
                         "require": {
@@ -22,7 +22,7 @@
                         "require-dev": {
                                 "phpunit/phpunit": "9.6"
                         },
-                        "time": "2024-10-04T08:53:14+00:00",
+                        "time": "2025-09-16T10:39:19+00:00",
                         "type": "library",
                         "installation-source": "dist",
                         "autoload": {
@@ -36,14 +36,14 @@
                         ],
                         "authors": [
                                 {
-                                        "name": "Alikhan Izbergenov",
-                                        "email": "alikhan@dnapayments.com"
+                                        "name": "Nurbol Sarsenbayev",
+                                        "email": "nurbol@dnapayments.com"
                                 }
                         ],
                         "description": "DNA payments library for php",
                         "support": {
                                 "issues": "https://github.com/DNA-Payments/dnapayments-sdk-php/issues",
-                                "source": "https://github.com/DNA-Payments/dnapayments-sdk-php/tree/2.2.0"
+                                "source": "https://github.com/DNA-Payments/dnapayments-sdk-php/tree/2.2.1"
                         },
                         "install-path": "../dna/dnapayments-sdk-php"
                 },

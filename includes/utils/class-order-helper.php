@@ -155,6 +155,7 @@ class OrderHelper {
 
             // Update metadata
             $order->update_meta_data('rrn', $input['rrn'] ?? '');
+            $order->update_meta_data('transaction_id', $transaction_id);
             $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
             $order->update_meta_data('is_finished_payment', $settled ? 'yes' : 'no');
 

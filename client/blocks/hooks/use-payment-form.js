@@ -15,6 +15,7 @@ import { shouldHideOrderLines } from '../../common/validater'
 import { addGatewayId, setNonces } from '../../common/utils'
 
 import { TEXT_DOMAIN } from '../../common/constants'
+import { getSubscriptionPaymentMethods, hasSubscription } from '../../common/subscription'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { getValidationErrors } from '../utils/validator'
 
@@ -85,6 +86,10 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
 
                 if (autoRedirectDelayInMs) {
                     dnaPaymentsConfig.autoRedirectDelayInMs = autoRedirectDelayInMs
+                }
+
+                if (hasSubscription(paymentData)) {
+                    dnaPaymentsConfig.paymentMethods = getSubscriptionPaymentMethods()
                 }
 
                 switch (integrationType) {

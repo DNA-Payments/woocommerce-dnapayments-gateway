@@ -187,6 +187,7 @@ class OrderHelper {
         $order->update_meta_data('_dnapayments_state', $settled ? 'charged' : 'authorized');
         $order->update_meta_data('_dnapayments_transaction_id', $transaction_id);
         $order->update_meta_data('rrn', $input['rrn'] ?? '');
+        $order->update_meta_data('transaction_id', $transaction_id);
         $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
 
         $manage_stock_option = get_option('woocommerce_manage_stock');

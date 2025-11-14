@@ -111,6 +111,12 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
      */
     public $configHelper;
 
+    /**
+     * Subscription helper instance
+     * @var \WCPG_DNA_Payments\Utils\SubscriptionHelper
+     */
+    public $subscriptionHelper;
+
     public function __construct() {
 
         $this->id = 'dnapayments';
@@ -151,8 +157,24 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->analyticsHelper = new WCPG_DNA_Payments\Utils\AnalyticsHelper($this);
         $this->requestHelper = new WCPG_DNA_Payments\Utils\RequestHelper($this);
         $this->configHelper = new WCPG_DNA_Payments\Utils\ConfigHelper($this);
+        $this->subscriptionHelper = new \WCPG_DNA_Payments\Utils\SubscriptionHelper( $this );
 
-        $this->supports = array( 'products', 'refunds' );
+        // Define gateway support features
+        $this->supports = array( 
+            'products', 
+            'refunds',
+            'subscriptions',
+            'subscription_cancellation',
+            'subscription_suspension',
+            'subscription_reactivation',
+            'subscription_amount_changes',
+            'subscription_date_changes',
+            // 'subscription_payment_method_change',
+            // 'subscription_payment_method_change_customer',
+            // 'subscription_payment_method_change_admin',
+            'multiple_subscriptions'
+        );
+        
         if ( $this->enabled_saved_cards ) {
             array_push($this->supports, 'tokenization' );
         }

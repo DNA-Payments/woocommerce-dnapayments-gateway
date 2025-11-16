@@ -7,9 +7,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class AjaxInit {
-	private const NONCE_ACTION = 'dna_update_order_status';
-	private const NONCE_FIELD = '_dna_nonce';
-
 	/**
      * @var WC_DNA_Payments_Gateway
      */
@@ -26,8 +23,22 @@ class AjaxInit {
 		add_action('wp_ajax_get_payment_data_from_cart', array($this, 'handle_get_payment_data_from_cart'));
         add_action('wp_ajax_nopriv_get_payment_data_from_cart', array($this, 'handle_get_payment_data_from_cart'));
 
-        add_action('wp_ajax_' . $this->gateway->id . '_update_order_status', array($this, 'handle_update_order_status'));
-        add_action('wp_ajax_nopriv_' . $this->gateway->id . '_update_order_status', array($this, 'handle_update_order_status'));
+        add_action('wp_ajax_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
+        add_action('wp_ajax_nopriv_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
+    }
+
+    public function get_nonces() {
+        return [
+            $this->get_update_order_status_action() => wp_create_nonce( $this->get_update_order_status_action() ),
+        ];
+    }
+
+    private function get_update_order_status_action() {
+        return $this->gateway->id . '_update_order_status';
+    }
+
+    private function get_nonce_field() {
+        return '_' . $this->gateway->id . '_nonce';
     }
 
 	public function handle_get_payment_and_auth_data() {
@@ -109,7 +120,7 @@ class AjaxInit {
     }
 
     public function handle_update_order_status() {
-	    check_ajax_referer(self::NONCE_ACTION, self::NONCE_FIELD, true);
+	    check_ajax_referer($this->get_update_order_status_action(), $this->get_nonce_field(), true);
 
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
         $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');

@@ -11,3 +11,7 @@ export function addGatewayId(merchantCustomData, gatewayId) {
     customData.gatewayId = gatewayId
     return JSON.stringify(customData)
 }
+
+export function getNonce(action) {
+    return (window.wc_dna_params?.nonces?.[action]) || ''
+}

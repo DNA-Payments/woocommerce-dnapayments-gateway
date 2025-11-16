@@ -17,3 +17,5 @@ export const CONTAINER_IDS = {
     googlepay: GATEWAY_ID_GOOGLE_PAY + '_container',
     applepay: GATEWAY_ID_APPLE_PAY + '_container',
 }
+
+export const NONCE_FIELD = `_${GATEWAY_ID}_nonce`

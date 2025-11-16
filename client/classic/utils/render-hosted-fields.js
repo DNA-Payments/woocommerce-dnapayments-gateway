@@ -1,5 +1,3 @@
-/* global wc_dna_params */
-
 import { normalizeCardSchemeName } from '../../common/card-scheme'
 import { createHostedFields } from '../../common/create-hosted-fields'
 import { createModal } from '../../common/create-modal'
@@ -56,7 +54,7 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError })
             prevScheme = scheme
         })
 
-        hostedFieldsInstance.on('dna-payments-three-d-secure-show', (data) => {
+        hostedFieldsInstance.on('dna-payments-three-d-secure-show', () => {
             setFormLoading(false)
         })
 
@@ -64,7 +62,7 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError })
             setFormLoading(true)
         })
 
-        function onPaymentTokenChange(selected) {
+        const onPaymentTokenChange = (selected) => {
             if (!selected || selected === 'new') {
                 $tokenized_cvc.hide()
                 $card_form.show()

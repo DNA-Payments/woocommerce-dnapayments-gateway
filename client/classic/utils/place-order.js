@@ -1,5 +1,3 @@
-/* global wc_dna_params */
-
 import { debounce } from '../../common/debounce'
 import errors from '../../common/errors'
 import { payHostedFields } from '../../common/pay-hosted-fields'
@@ -42,7 +40,7 @@ export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, 
         window.DNAPayments.configure({ isTestMode, cards, allowSavingCards, events })
 
         switch (integrationType) {
-            case 'seamless':
+            case 'seamless': {
                 const result = await payHostedFields(hostedFieldsInstance, paymentData, auth)
 
                 if (result.error) {
@@ -56,6 +54,7 @@ export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, 
                     setFormLoading(false)
                 }
                 break
+            }
             case 'embedded':
                 window.DNAPayments.openPaymentIframeWidget({ ...paymentData, auth })
                 setFormLoading(false)

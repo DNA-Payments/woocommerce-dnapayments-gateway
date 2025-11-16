@@ -15,13 +15,13 @@ class AjaxInit {
     public function __construct( $gateway ) {
         $this->gateway = $gateway;
 
-		add_action('wp_ajax_get_payment_and_auth_data_for_saving_card', array($this, 'handle_get_payment_and_auth_data_for_saving_card'));
+		add_action('wp_ajax_' . $this->get_payment_and_auth_data_for_saving_card_action(), array($this, 'handle_get_payment_and_auth_data_for_saving_card'));
 
-		add_action('wp_ajax_get_payment_and_auth_data', array($this, 'handle_get_payment_and_auth_data'));
-        add_action('wp_ajax_nopriv_get_payment_and_auth_data', array($this, 'handle_get_payment_and_auth_data'));
+		add_action('wp_ajax_' . $this->get_payment_and_auth_data_action(), array($this, 'handle_get_payment_and_auth_data'));
+        add_action('wp_ajax_nopriv_' . $this->get_payment_and_auth_data_action(), array($this, 'handle_get_payment_and_auth_data'));
 
-		add_action('wp_ajax_get_payment_data_from_cart', array($this, 'handle_get_payment_data_from_cart'));
-        add_action('wp_ajax_nopriv_get_payment_data_from_cart', array($this, 'handle_get_payment_data_from_cart'));
+		add_action('wp_ajax_' . $this->get_payment_data_from_cart_action(), array($this, 'handle_get_payment_data_from_cart'));
+        add_action('wp_ajax_nopriv_' . $this->get_payment_data_from_cart_action(), array($this, 'handle_get_payment_data_from_cart'));
 
         add_action('wp_ajax_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
         add_action('wp_ajax_nopriv_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
@@ -30,6 +30,9 @@ class AjaxInit {
     public function get_nonces() {
         return [
             $this->get_update_order_status_action() => wp_create_nonce( $this->get_update_order_status_action() ),
+            $this->get_payment_and_auth_data_action() => wp_create_nonce( $this->get_payment_and_auth_data_action() ),
+            $this->get_payment_data_from_cart_action() => wp_create_nonce( $this->get_payment_data_from_cart_action() ),
+            $this->get_payment_and_auth_data_for_saving_card_action() => wp_create_nonce( $this->get_payment_and_auth_data_for_saving_card_action() ),
         ];
     }
 
@@ -37,11 +40,24 @@ class AjaxInit {
         return $this->gateway->id . '_update_order_status';
     }
 
+    private function get_payment_and_auth_data_action() {
+        return $this->gateway->id . '_get_payment_and_auth_data';
+    }
+
+    private function get_payment_data_from_cart_action() {
+        return $this->gateway->id . '_get_payment_data_from_cart';
+    }
+
+    private function get_payment_and_auth_data_for_saving_card_action() {
+        return $this->gateway->id . '_get_payment_and_auth_data_for_saving_card';
+    }
+
     private function get_nonce_field() {
         return '_' . $this->gateway->id . '_nonce';
     }
 
 	public function handle_get_payment_and_auth_data() {
+        check_ajax_referer($this->get_payment_and_auth_data_action(), $this->get_nonce_field(), true);
         $order_id     = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
         $total_amount = isset( $_POST['total'] ) ? sanitize_text_field( wp_unslash( $_POST['total'] ) ) : '';
 
@@ -69,6 +85,7 @@ class AjaxInit {
     }
 
 	public function handle_get_payment_data_from_cart() {
+        check_ajax_referer($this->get_payment_data_from_cart_action(), $this->get_nonce_field(), true);
 
         try {
             $cart = WC()->cart;
@@ -98,6 +115,7 @@ class AjaxInit {
     }
 
 	public function handle_get_payment_and_auth_data_for_saving_card() {
+        check_ajax_referer($this->get_payment_and_auth_data_for_saving_card_action(), $this->get_nonce_field(), true);
 
         $user_id    = get_current_user_id();
         $invoice_id = date('d-m-y h:i:s');

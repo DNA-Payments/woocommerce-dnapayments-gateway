@@ -1,7 +1,7 @@
 'use strict'
 
 import 'whatwg-fetch'
-import { request } from '../common/api/request'
+import { requestAction } from '../common/api/request'
 import { renderHostedFields } from './utils/render-hosted-fields'
 import { createCardError, getSelectedPaymentGateway, createSetLoading, wrapMessage } from './utils/ui'
 import { createPlaceOrder } from './utils/place-order'
@@ -23,7 +23,7 @@ jQuery(function ($) {
         cards,
         setFormLoading,
         fetchPaymentData: async () => {
-            const result = await request('/wp-admin/admin-ajax.php?action=get_payment_and_auth_data_for_saving_card')
+            const result = await requestAction('get_payment_and_auth_data_for_saving_card')
             if (result.success) {
                 return result.data
             }

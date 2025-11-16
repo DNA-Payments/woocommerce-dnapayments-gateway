@@ -17,7 +17,7 @@ import { validate } from './utils/validate'
 import { fetchPaymentAndAuthData } from '../common/api/fetch-payment-and-auth-data'
 import { getPaymentComponentErrorMessage, isInitFailed } from '../common/payment-component-helper'
 import { completePayment, getOrderIdFromPaymentData } from '../common/complete-payment'
-import { request } from '../common/api/request'
+import { requestActionWithFormData } from '../common/api/request'
 import { debounce } from '../common/debounce'
 import errors from '../common/errors'
 import { tryParse } from '../common/try-parse'
@@ -25,6 +25,7 @@ import { checkApplePayAvailability } from '../common/validater'
 import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY } from '../common/constants'
 import { addGatewayId } from '../common/utils'
 
+/* global wc_checkout_params */
 /* global wc_dna_params */
 const orderId = Number(wc_dna_params.order_id) || 0
 const isPayForOrderPage = Boolean(orderId)
@@ -281,7 +282,7 @@ jQuery(function ($) {
                     setLoading: setFormLoading,
                     setErrors: showError,
                 }),
-            onCancel: (err) => {
+            onCancel: () => {
                 setFormLoading(false)
             },
             onError: (err) => {
@@ -341,10 +342,7 @@ jQuery(function ($) {
 
         const { success, data } = await (isPayForOrderPage
             ? fetchPaymentAndAuthData(orderId)
-            : request('/wp-admin/admin-ajax.php?action=get_payment_data_from_cart', {
-                  method: 'POST',
-                  body: new FormData($form[0]),
-              }))
+            : requestActionWithFormData('get_payment_data_from_cart', new FormData($form[0])))
 
         if (!success) {
             showError(data.errors, true)

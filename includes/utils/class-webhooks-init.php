@@ -20,19 +20,19 @@ class WebhooksInit {
     }
 
     public function register_routes() {
-        register_rest_route( 'dnapayments', 'success', array(
+        register_rest_route( $this->gateway->id, 'success', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'success_webhook'),
             'permission_callback' => array( $this, 'validate_webhook_permission' )
         ) );
 
-        register_rest_route( 'dnapayments', 'success-add-card', array(
+        register_rest_route( $this->gateway->id, 'success-add-card', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'success_webhook_add_card'),
             'permission_callback' => array( $this, 'validate_webhook_permission' )
         ) );
 
-        register_rest_route( 'dnapayments', 'failure', array(
+        register_rest_route( $this->gateway->id, 'failure', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'fail_webhook'),
             'permission_callback' => array( $this, 'validate_webhook_permission' )

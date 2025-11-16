@@ -34,6 +34,7 @@ let hostedFieldsInstance = null
 let paymentData = null
 let authData = null
 let globalError = null
+let isFirstRender = true
 let serializedFormData = null
 
 jQuery(function ($) {
@@ -106,7 +107,7 @@ jQuery(function ($) {
             }),
     })
 
-    const render = debounce(async ({ selectedGateway, shouldFetchPaymentData, shouldUpdate }) => {
+    const render = debounce(async ({ selectedGateway, shouldFetchPaymentData, shouldUpdate, shouldScrollToError = false }) => {
         if (!selectedGateway) {
             selectedGateway = getSelectedPaymentGateway()
         }
@@ -144,14 +145,16 @@ jQuery(function ($) {
         }
 
         serializedFormData = $form.serialize()
+        isFirstRender = false
         $form.find('.dnapayments-footer').show()
 
         switch (selectedGateway) {
             case GATEWAY_ID_GOOGLE_PAY:
-            case GATEWAY_ID_APPLE_PAY:
+            case GATEWAY_ID_APPLE_PAY: {
                 const messages = validate($form)
                 if (messages.length) {
-                    showError(messages, true)
+                    // scroll to error if rendered payment component disappear because of failed validation
+                    showError(messages, shouldScrollToError || Boolean(paymentData))
                     paymentData = null
                     authData = null
                 } else if (!paymentData || shouldFetchPaymentData) {
@@ -162,6 +165,7 @@ jQuery(function ($) {
                 placeOrderBtn.setAttribute('disabled', 'disabled')
                 renderPaymentComponent(selectedGateway, shouldUpdate)
                 break
+            }
             default:
                 placeOrderBtn.removeAttribute('disabled')
         }
@@ -192,8 +196,16 @@ jQuery(function ($) {
     })
 
     $form.on(isPayForOrderPage ? 'submit' : 'checkout_place_order_dnapayments', onSubmit)
-    $(document.body).on('updated_checkout', () => render({ shouldFetchPaymentData: true, shouldUpdate: true }))
-    $form.on('change', 'input[name="payment_method"]', () => render({ selectedGateway: $(this).val() }))
+
+    // WooCommerce updated_checkout - don't scroll as it triggers blur on all fields
+    $(document.body).on('updated_checkout', () => {
+        render({ shouldFetchPaymentData: true, shouldUpdate: true, shouldScrollToError: isFirstRender })
+    })
+
+    // Payment method change - allow scroll to show validation errors
+    $form.on('change', 'input[name="payment_method"]', function() {
+        render({ selectedGateway: $(this).val(), shouldScrollToError: true })
+    })
     $form.on('change', 'input, textarea, select', function (e) {
         const elem = e.target
         // we check form data is changed or not to avoid unnessary rendering. We do not check on event updated_checkout, because it reinserts html part where payment components renrder.
@@ -206,7 +218,7 @@ jQuery(function ($) {
         const isRequired = (required && required === 'true') || getRequiredFields(isShippingIncluded).includes(name)
 
         if (!isUpdating && isRequired) {
-            render({ shouldFetchPaymentData: name !== 'terms' })
+            render({ shouldFetchPaymentData: name !== 'terms', shouldScrollToError: false })
         }
     })
 
@@ -217,7 +229,7 @@ jQuery(function ($) {
 
     // On the Pay for Order page, ensure initialization
     if (isPayForOrderPage) {
-        render({})
+        render({ shouldScrollToError: isFirstRender})
     }
 
     function renderPaymentComponent(paymentMethodId, shouldUpdate) {
@@ -283,7 +295,7 @@ jQuery(function ($) {
                     $container.html(wrapMessage(errorMessage))
                     $container.css('height', 'auto')
                 } else if (paymentMethodId !== GATEWAY_ID_APPLE_PAY || !isInitFailed(err)) {
-                    showError(message)
+                    showError(message, true)
                 }
             },
             onLoad: () => {
@@ -335,7 +347,7 @@ jQuery(function ($) {
               }))
 
         if (!success) {
-            showError(data.errors)
+            showError(data.errors, true)
             paymentData = null
             authData = null
         } else {

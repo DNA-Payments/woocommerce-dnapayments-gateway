@@ -7,7 +7,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class AjaxInit {
-
 	/**
      * @var WC_DNA_Payments_Gateway
      */
@@ -24,8 +23,22 @@ class AjaxInit {
 		add_action('wp_ajax_get_payment_data_from_cart', array($this, 'handle_get_payment_data_from_cart'));
         add_action('wp_ajax_nopriv_get_payment_data_from_cart', array($this, 'handle_get_payment_data_from_cart'));
 
-        add_action('wp_ajax_' . $this->gateway->id . '_update_order_status', array($this, 'handle_update_order_status'));
-        add_action('wp_ajax_nopriv_' . $this->gateway->id . '_update_order_status', array($this, 'handle_update_order_status'));
+        add_action('wp_ajax_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
+        add_action('wp_ajax_nopriv_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
+    }
+
+    public function get_nonces() {
+        return [
+            $this->get_update_order_status_action() => wp_create_nonce( $this->get_update_order_status_action() ),
+        ];
+    }
+
+    private function get_update_order_status_action() {
+        return $this->gateway->id . '_update_order_status';
+    }
+
+    private function get_nonce_field() {
+        return '_' . $this->gateway->id . '_nonce';
     }
 
 	public function handle_get_payment_and_auth_data() {
@@ -107,6 +120,8 @@ class AjaxInit {
     }
 
     public function handle_update_order_status() {
+	    check_ajax_referer($this->get_update_order_status_action(), $this->get_nonce_field(), true);
+
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
         $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
 
@@ -118,7 +133,7 @@ class AjaxInit {
             }
 
             // Check if AJAX order status update is enabled
-            if ( isset( $this->gateway->enable_ajax_order_status_update ) && $this->gateway->enable_ajax_order_status_update === 'yes' ) {
+            if ($this->is_ajax_update_enabled()) {
                 $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, 'update_order_status' );
                 $status = $result['status'];
                 $message = $result['message'];
@@ -149,4 +164,10 @@ class AjaxInit {
             ], 500);
 		}
     }
+
+	private function is_ajax_update_enabled(): bool {
+		$raw = (string) ($this->gateway->enable_ajax_order_status_update ?? '');
+
+		return wc_string_to_bool($raw);
+	}
 }

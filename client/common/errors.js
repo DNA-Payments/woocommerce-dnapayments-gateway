@@ -46,16 +46,24 @@ const GOOGLE_PAY_INIT_FAIL = {
     message: 'Google Pay is not supported in your current browser.',
 }
 
+const PAYPAL_INIT_FAIL = {
+    code: 'PAYPAL_INIT_FAIL',
+    message: 'Something went wrong while setting up the PayPal button. Please try again later.',
+}
+
 const APPLE_PAY_VALIDATION_FAIL = {
     code: 'APPLE_PAY_VALIDATION_FAIL',
-    message:
-        'Apple Pay button not rendered. Please fill all required fields correctly and try again.',
+    message: 'Apple Pay button not rendered. Please fill all required fields correctly and try again.',
 }
 
 const GOOGLE_PAY_VALIDATION_FAIL = {
     code: 'GOOGLE_PAY_VALIDATION_FAIL',
-    message:
-        'Google Pay button not rendered. Please fill all required fields correctly and try again.',
+    message: 'Google Pay button not rendered. Please fill all required fields correctly and try again.',
+}
+
+const PAYPAL_VALIDATION_FAIL = {
+    code: 'PAYPAL_VALIDATION_FAIL',
+    message: 'PayPal button not rendered. Please fill all required fields correctly and try again.',
 }
 
 const TERMS_NOT_ACCEPTED = {
@@ -143,8 +151,10 @@ export default {
     UNKNOWN_ERROR,
     APPLE_PAY_INIT_FAIL,
     GOOGLE_PAY_INIT_FAIL,
+    PAYPAL_INIT_FAIL,
     APPLE_PAY_VALIDATION_FAIL,
     GOOGLE_PAY_VALIDATION_FAIL,
+    PAYPAL_VALIDATION_FAIL,
     HOSTED_FIELDS_INIT_FAIL,
     CARD_PAYMENT_FAIL,
     CARD_PAYMENT_CANCEL,

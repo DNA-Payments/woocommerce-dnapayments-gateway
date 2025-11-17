@@ -1,4 +1,4 @@
-import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY } from '../../common/constants'
+import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL } from '../../common/constants'
 
 export function getGlobalVariables() {
     /* global wc_dna_params */
@@ -14,6 +14,7 @@ export function getGlobalVariables() {
     const availableSchemes = wc_dna_params.available_schemes || []
     const iconPath = wc_dna_params.card_scheme_icon_path
     const terminalConfig = wc_dna_params.terminal_config
+    const transactionType = wc_dna_params.transaction_type
     const placeOrderButtonText = (wc_dna_params.placeOrderButtonText || '').trim()
 
     return {
@@ -29,11 +30,12 @@ export function getGlobalVariables() {
         iconPath,
         tempToken,
         terminalConfig,
+        transactionType,
         placeOrderButtonText,
     }
 }
 
-export const DNA_PAYMENTS_GATEWAYS = [GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY]
+export const DNA_PAYMENTS_GATEWAYS = [GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL]
 
 export const getRequiredFields = (isShippingIncluded) => {
     const fields = [

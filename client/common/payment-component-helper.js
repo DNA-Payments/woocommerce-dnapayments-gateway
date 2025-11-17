@@ -1,6 +1,6 @@
 import { logError } from './log'
 import errors from './errors'
-import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY } from './constants'
+import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_PAYPAL } from './constants'
 
 export function getPaymentComponentErrorMessage(err, initErrorMessage) {
     logError(err)
@@ -39,6 +39,11 @@ export const getPaymentComponentErrorMessages = (paymentMethodId) => {
                 initErrorMessage: errors.GOOGLE_PAY_INIT_FAIL.message,
                 validationErrorMessage: errors.GOOGLE_PAY_VALIDATION_FAIL.message,
             }
+        case GATEWAY_ID_PAYPAL:
+            return {
+                initErrorMessage: errors.PAYPAL_INIT_FAIL.message,
+                validationErrorMessage: errors.PAYPAL_VALIDATION_FAIL.message,
+            }
         default:
             return {}
     }
@@ -50,6 +55,8 @@ export const getPaymentComponentObject = (paymentMethodId) => {
             return window.DNAPayments.ApplePayComponent
         case GATEWAY_ID_GOOGLE_PAY:
             return window.DNAPayments.GooglePayComponent
+        case GATEWAY_ID_PAYPAL:
+            return window.DNAPayments.PayPalComponent
         default:
             return null
     }

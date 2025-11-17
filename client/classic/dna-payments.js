@@ -22,7 +22,7 @@ import { debounce } from '../common/debounce'
 import errors from '../common/errors'
 import { tryParse } from '../common/try-parse'
 import { checkApplePayAvailability } from '../common/validater'
-import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY } from '../common/constants'
+import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL } from '../common/constants'
 import { addGatewayId } from '../common/utils'
 
 /* global wc_checkout_params */
@@ -122,7 +122,7 @@ jQuery(function ($) {
             originalPlaceOrderText = readButtonText(placeOrderBtn)
         }
 
-        if (![GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY].includes(selectedGateway)) {
+        if (![GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL].includes(selectedGateway)) {
             $form.find('.dnapayments-footer').hide()
             placeOrderBtn.removeAttribute('disabled')
             writeButtonText(placeOrderBtn, originalPlaceOrderText)
@@ -151,7 +151,8 @@ jQuery(function ($) {
 
         switch (selectedGateway) {
             case GATEWAY_ID_GOOGLE_PAY:
-            case GATEWAY_ID_APPLE_PAY: {
+            case GATEWAY_ID_APPLE_PAY:
+            case GATEWAY_ID_PAYPAL: {
                 const messages = validate($form)
                 if (messages.length) {
                     // scroll to error if rendered payment component disappear because of failed validation
@@ -309,6 +310,7 @@ jQuery(function ($) {
             paymentData,
             token: authData ? authData.access_token : tempToken,
             environment: isTestMode ? 'sandbox' : 'production',
+            terminalId: wc_dna_params.terminal_id,
         })
         paymentMethodObject.isLoading = true
         paymentMethodObject.isLoaded = false

@@ -129,6 +129,7 @@ class WC_DNA_Payments {
 		$gateways[] = 'WC_DNA_Payments_Gateway';
 		$gateways[] = 'WC_Gateway_DNA_GooglePay';
 		$gateways[] = 'WC_Gateway_DNA_ApplePay';
+		$gateways[] = 'WC_Gateway_DNA_PayPal';
 
 		return $gateways;
 	}
@@ -155,6 +156,7 @@ class WC_DNA_Payments {
 		require_once 'includes/gateways/class-wc-gateway-dna-base-component.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-googlepay.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-applepay.php';
+		require_once 'includes/gateways/class-wc-gateway-dna-paypal.php';
 		require_once 'includes/admin/handlers.php';
 	}
 
@@ -185,6 +187,7 @@ class WC_DNA_Payments {
 			require_once 'includes/blocks/class-wc-gateway-dnapayments-blocks-support.php';
 			require_once 'includes/blocks/class-wc-gateway-dnapayments-googlepay-blocks-support.php';
 			require_once 'includes/blocks/class-wc-gateway-dnapayments-applepay-blocks-support.php';
+			require_once 'includes/blocks/class-wc-gateway-dnapayments-paypal-blocks-support.php';
 
 			add_action(
 				'woocommerce_blocks_payment_method_type_registration',
@@ -192,6 +195,7 @@ class WC_DNA_Payments {
 					$payment_method_registry->register( new WC_Gateway_DNA_Payments_Blocks_Support() );
 					$payment_method_registry->register( new WC_Gateway_DNA_Payments_GooglePay_Blocks_Support() );
 					$payment_method_registry->register( new WC_Gateway_DNA_Payments_ApplePay_Blocks_Support() );
+					$payment_method_registry->register( new WC_Gateway_DNA_Payments_PayPal_Blocks_Support() );
 				}
 			);
 		}
@@ -213,6 +217,7 @@ class WC_DNA_Payments {
 		wp_register_script( 'dna-hosted-fields', 'https://cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), self::$version, true );
 		wp_register_script( 'dna-google-pay', 'https://pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-apple-pay', 'https://pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), self::$version, true );
+		wp_register_script( 'dna-paypal', 'https://pay.dnapayments.com/components/paypal/paypal-component.js', array('dna-payment-api'), self::$version, true );
 	}
 
 	/**

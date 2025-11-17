@@ -15,7 +15,7 @@ import { getGlobalVariables, getRequiredFields } from './utils/data'
 import { validate } from './utils/validate'
 
 import { fetchPaymentAndAuthData } from '../common/api/fetch-payment-and-auth-data'
-import { getPaymentComponentErrorMessage, isInitFailed } from '../common/payment-component-helper'
+import { getPaymentComponentObject, getPaymentComponentErrorMessages, getPaymentComponentErrorMessage, isInitFailed } from '../common/payment-component-helper'
 import { completePayment, getOrderIdFromPaymentData } from '../common/complete-payment'
 import { requestActionWithFormData } from '../common/api/request'
 import { debounce } from '../common/debounce'
@@ -234,14 +234,8 @@ jQuery(function ($) {
     }
 
     function renderPaymentComponent(paymentMethodId, shouldUpdate) {
-        const paymentMethodObject =
-            paymentMethodId === GATEWAY_ID_APPLE_PAY
-                ? window.DNAPayments.ApplePayComponent
-                : window.DNAPayments.GooglePayComponent
-        const errorMessage =
-            paymentMethodId === GATEWAY_ID_APPLE_PAY
-                ? errors.APPLE_PAY_INIT_FAIL.message
-                : errors.GOOGLE_PAY_INIT_FAIL.message
+        const paymentMethodObject = getPaymentComponentObject(paymentMethodId)
+        const { initErrorMessage, validationErrorMessage } = getPaymentComponentErrorMessages(paymentMethodId)
         const $container = $form.find('#' + paymentMethodId + '_container')
 
         if (!shouldUpdate && paymentMethodObject.isLoading) {
@@ -249,9 +243,12 @@ jQuery(function ($) {
         }
 
         // clear container HTML element
-        $container.css('height', '46px').html('')
+        $container.removeClass('has-error').html('')
 
         if (!paymentData) {
+            paymentMethodObject.isLoading = false
+            paymentMethodObject.isLoaded = false
+            $container.addClass('has-error').html(wrapMessage(validationErrorMessage))
             return
         }
 
@@ -289,18 +286,16 @@ jQuery(function ($) {
                 setFormLoading(false)
                 setLoading($container, false)
 
-                const message = getPaymentComponentErrorMessage(err, errorMessage)
+                const message = getPaymentComponentErrorMessage(err, initErrorMessage)
 
                 if (!paymentMethodObject.isLoaded) {
                     paymentMethodObject.isLoading = false
-                    $container.html(wrapMessage(errorMessage))
-                    $container.css('height', 'auto')
+                    $container.addClass('has-error').html(wrapMessage(initErrorMessage))
                 } else if (paymentMethodId !== GATEWAY_ID_APPLE_PAY || !isInitFailed(err)) {
                     showError(message, true)
                 }
             },
             onLoad: () => {
-                $container.find('div').css('height', '40px')
                 setLoading($container, false)
                 paymentMethodObject.isLoading = false
                 paymentMethodObject.isLoaded = true

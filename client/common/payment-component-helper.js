@@ -1,5 +1,6 @@
 import { logError } from './log'
 import errors from './errors'
+import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY } from './constants'
 
 export function getPaymentComponentErrorMessage(err, initErrorMessage) {
     logError(err)
@@ -25,3 +26,31 @@ export function getPaymentComponentErrorMessage(err, initErrorMessage) {
 export const isInitFailed = (err) => [1002, 1003].includes(err.code) // Failed to initialize / validate the Google / Apple Pay button
 
 export const isProcessFailed = (err) => [1005].includes(err.code) // Failed to process the Google Pay / Apple Pay payment
+
+export const getPaymentComponentErrorMessages = (paymentMethodId) => {
+    switch (paymentMethodId) {
+        case GATEWAY_ID_APPLE_PAY:
+            return {
+                initErrorMessage: errors.APPLE_PAY_INIT_FAIL.message,
+                validationErrorMessage: errors.APPLE_PAY_VALIDATION_FAIL.message,
+            }
+        case GATEWAY_ID_GOOGLE_PAY:
+            return {
+                initErrorMessage: errors.GOOGLE_PAY_INIT_FAIL.message,
+                validationErrorMessage: errors.GOOGLE_PAY_VALIDATION_FAIL.message,
+            }
+        default:
+            return {}
+    }
+}
+
+export const getPaymentComponentObject = (paymentMethodId) => {
+    switch (paymentMethodId) {
+        case GATEWAY_ID_APPLE_PAY:
+            return window.DNAPayments.ApplePayComponent
+        case GATEWAY_ID_GOOGLE_PAY:
+            return window.DNAPayments.GooglePayComponent
+        default:
+            return null
+    }
+}

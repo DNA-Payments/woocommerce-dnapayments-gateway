@@ -41,8 +41,8 @@
 
 /** CLASSIC checkout styles **/
 
-#dnapayments_apple_pay_container,
-#dnapayments_google_pay_container {
+#dnapayments_apple_pay_container:not(.has-error),
+#dnapayments_google_pay_container:not(.has-error) {
     height: 46px !important;
 }
 

@@ -9,7 +9,7 @@ import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
 import { addGatewayId } from '../../common/utils'
 import { GATEWAY_ID_APPLE_PAY } from '../../common/constants'
-import { getPaymentComponentErrorMessage, isInitFailed, isProcessFailed } from '../../common/payment-component-helper'
+import { getPaymentComponentErrorMessage, isInitFailed } from '../../common/payment-component-helper'
 
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
@@ -39,7 +39,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     // resolve and reject of onCheckoutSuccess
     const checkoutPromiseRef = useRef()
 
-    const { tempToken, isTestMode } = dnaPaymentsSettingsData
+    const { tempToken, isTestMode, terminalId } = dnaPaymentsSettingsData
 
     const paymentDataJSON = useMemo(() => {
         try {
@@ -50,14 +50,25 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
         }
     }, [props])
 
-    const rejectCheckoutPromise = useCallback(() => {
-        if (checkoutPromiseRef.current) {
+    const rejectCheckoutPromise = useCallback((msg) => {
+        if (checkoutPromiseRef.current?.status === 'pending') {
             checkoutPromiseRef.current.resolve({
                 type: responseTypes.ERROR,
-                message: errors.CARD_PAYMENT_FAIL.message,
+                message: msg || errors.CARD_PAYMENT_FAIL.message,
                 messageContext: noticeContexts.PAYMENTS,
             })
-            checkoutPromiseRef.current.hasRejected = true
+            checkoutPromiseRef.current.status = 'rejected'
+        }
+    }, [responseTypes, noticeContexts])
+
+    const resolveCheckoutPromise = useCallback((redirect) => {
+        if (checkoutPromiseRef.current) {
+            checkoutPromiseRef.current.resolve({
+                type: responseTypes.SUCCESS,
+                messageContext: noticeContexts.PAYMENTS,
+                redirectUrl: redirect,
+            })
+            checkoutPromiseRef.current.status = 'resolved'
         }
     }, [responseTypes, noticeContexts])
 
@@ -102,11 +113,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                             setErrors,
                         })
                         setLoadingState('done')
-                        checkoutPromiseRef.current?.resolve({
-                            type: responseTypes.SUCCESS,
-                            messageContext: noticeContexts.PAYMENTS,
-                            redirectUrl: redirect,
-                        })
+                        resolveCheckoutPromise(redirect)
                     },
                     onCancel: () => {
                         setLoadingState('done')
@@ -118,8 +125,8 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         if (!notShowError) {
                             setErrors(Array.isArray(message) ? message : [message])
                         }
-                        if (isProcessFailed(err)) {
-                            rejectCheckoutPromise()
+                        if (checkoutPromiseRef.current?.status === 'pending') {
+                            rejectCheckoutPromise(message)
                         }
                     },
                     onLoad: () => {
@@ -129,6 +136,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 },
                 token: tempToken,
                 environment: isTestMode ? 'sandbox' : 'production',
+                terminalId,
             })
         }),
         [componentInstance, rejectCheckoutPromise],
@@ -137,7 +145,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     useEffect(() => {
         const handler = ({ processingResponse: { paymentDetails } }) =>
             new Promise((resolve, reject) => {
-                checkoutPromiseRef.current = { resolve, reject }
+                checkoutPromiseRef.current = { resolve, reject, status: 'pending' }
 
                 const paymentData = tryParse(paymentDetails.paymentData)
                 const auth = tryParse(paymentDetails.auth)
@@ -168,7 +176,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
             const errorMessage = message || messages || errors.CARD_PAYMENT_FAIL.message
 
-            if (!checkoutPromiseRef.current?.hasRejected) {
+            if (checkoutPromiseRef.current?.status === 'pending') {
                 processPromiseRef.current?.reject(errorMessage)
 
                 return {

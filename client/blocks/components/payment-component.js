@@ -8,7 +8,8 @@ import { validatePaymentData } from '../../common/validater'
 import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
 import { addGatewayId } from '../../common/utils'
-import { getPaymentComponentErrorMessage, isProcessFailed } from '../../common/payment-component-helper'
+import { GATEWAY_ID_APPLE_PAY } from '../../common/constants'
+import { getPaymentComponentErrorMessage, isInitFailed, isProcessFailed } from '../../common/payment-component-helper'
 
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
@@ -78,6 +79,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
             containerRef.current.innerHTML = ''
 
+            componentInstance.isLoaded = false
             componentInstance.init({
                 containerElement: containerRef.current,
                 paymentData: draftPaymentDataRef.current,
@@ -110,15 +112,19 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         setLoadingState('done')
                     },
                     onError: (err) => {
+                        const notShowError = isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
                         const message = getPaymentComponentErrorMessage(err, errorMessage)
                         setLoadingState('failed')
-                        setErrors(Array.isArray(message) ? message : [message])
+                        if (!notShowError) {
+                            setErrors(Array.isArray(message) ? message : [message])
+                        }
                         if (isProcessFailed(err)) {
                             rejectCheckoutPromise()
                         }
                     },
                     onLoad: () => {
                         setLoadingState('done')
+                        componentInstance.isLoaded = true
                     },
                 },
                 token: tempToken,

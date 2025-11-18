@@ -39,16 +39,14 @@
     cursor: not-allowed;
 }
 
-/**
- * All payment method icons (Card, Apple Pay, Google Pay, PayPal) must be 24px height
- * across all pages: Checkout, Checkout 2, Pay for Order
- */
-
-/** Block checkout - all payment method icons **/
-.wc-block-checkout__payment-method .wc-block-components-radio-control__label img {
+/** Block checkout - (Card, Apple Pay, Google Pay, PayPal) payment method icons **/
+#radio-control-wc-payment-method-options-dnapayments__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_google_pay__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_apple_pay__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_paypal__label.wc-block-components-radio-control__label img {
     max-height: 24px !important;
     width: auto !important;
-    height: auto !important;
+    height: 24px !important;
     object-fit: contain !important;
     vertical-align: middle !important;
 }
@@ -61,68 +59,22 @@
     height: 46px !important;
 }
 
-/** PayPal button container iframe **/
-#dnapayments_paypal_container iframe {
-    width: 100%;
-    max-height: 46px;
-}
-
 /**
  * Classic checkout - payment method icons (Card, Apple Pay, Google Pay, PayPal)
  * Fixed height: 24px for all icons in payment method selection list
  */
 
 /** DNA Payments gateway icons - specific selectors **/
+/** Classic checkout - (Card, Apple Pay, Google Pay, PayPal) payment method icons **/
 .wc_payment_method.payment_method_dnapayments img,
 .wc_payment_method.payment_method_dnapayments_apple_pay img,
 .wc_payment_method.payment_method_dnapayments_google_pay img,
 .wc_payment_method.payment_method_dnapayments_paypal img {
     max-height: 24px !important;
     width: auto !important;
-    height: auto !important;
+    height: 24px !important;
     display: inline-block !important;
     vertical-align: middle !important;
-    margin: 0 5px 0 0 !important;
-    object-fit: contain !important;
-}
-
-/** Payment method labels - catch any icons inside labels **/
-.wc_payment_method label img,
-#payment .payment_methods .payment_method label img {
-    max-height: 24px !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
-    vertical-align: middle !important;
-}
-
-/** Universal selectors for all payment method icons **/
-.payment_methods img,
-#payment ul.payment_methods img {
-    max-height: 24px !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
-}
-
-/** Theme override reset - prevent theme CSS from breaking icon sizes **/
-.woocommerce-checkout .payment_methods img,
-form.woocommerce-checkout .payment_methods img,
-.woocommerce-page #payment .payment_methods img {
-    max-height: 24px !important;
-    width: auto !important;
-    height: auto !important;
-    position: static !important;
-    transform: none !important;
-    object-fit: contain !important;
-}
-
-/** Pay for Order page **/
-form#order_review .payment_methods img,
-.woocommerce-order-pay .payment_methods img {
-    max-height: 24px !important;
-    width: auto !important;
-    height: auto !important;
     object-fit: contain !important;
 }
 

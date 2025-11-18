@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.0.9
+Stable tag: 4.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,22 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+2025-11-17 - version 4.0.10
+* Security
+    - Fix critical vulnerability in the update order status AJAX request:
+        - Verify the order has a successful transaction.
+        - Confirm the transaction ID in the payload matches the order’s transaction ID.
+        - Verify the transaction amount and currency match the order’s amount and currency.
+        - Verify the transaction account ID belongs to the currently logged-in user.
+    - Add nonce verification to all AJAX actions to improve security.
+* Checkout UI / Payments
+    - Show a user-friendly error when Apple Pay / Google Pay fails to render.
+    - Fix auto-scrolling to validation errors during form input on Checkout 2 page.
+    - Avoid unnecessary re-renders on blur when the form has not changed.
+* Apple Pay
+    - Prevent showing initialization/validation errors if the Apple Pay button is already rendered.
+      (This covers the scenario where clicking the rendered Apple Pay button opens a QR code and the scanning device encounters an issue.)
 
 = 4.0.9 - 2025-10-28 =
 * Added a new "Place order button text" setting in the payment gateway configuration that allows customization of the order button text for both classic and block-based checkout experiences.

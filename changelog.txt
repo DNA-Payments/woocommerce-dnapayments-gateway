@@ -1,5 +1,21 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-11-17 - version 4.0.10
+* Security
+    - Fix critical vulnerability in the update order status AJAX request:
+        - Verify the order has a successful transaction.
+        - Confirm the transaction ID in the payload matches the order’s transaction ID.
+        - Verify the transaction amount and currency match the order’s amount and currency.
+        - Verify the transaction account ID belongs to the currently logged-in user.
+    - Add nonce verification to all AJAX actions to improve security.
+* Checkout UI / Payments
+    - Show a user-friendly error when Apple Pay / Google Pay fails to render.
+    - Fix auto-scrolling to validation errors during form input on Checkout 2 page.
+    - Avoid unnecessary re-renders on blur when the form has not changed.
+* Apple Pay
+    - Prevent showing initialization/validation errors if the Apple Pay button is already rendered.
+      (This covers the scenario where clicking the rendered Apple Pay button opens a QR code and the scanning device encounters an issue.)
+
 2025-10-28 - version 4.0.9
 * Added a new "Place order button text" setting in the payment gateway configuration that allows customization of the order button text for both classic and block-based checkout experiences.
 * Implemented global script registration for DNA Payments to ensure better compatibility with WooCommerce block-based checkout systems.

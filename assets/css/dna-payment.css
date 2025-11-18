@@ -39,11 +39,43 @@
     cursor: not-allowed;
 }
 
+/** Block checkout - (Card, Apple Pay, Google Pay, PayPal) payment method icons **/
+#radio-control-wc-payment-method-options-dnapayments__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_google_pay__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_apple_pay__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_paypal__label.wc-block-components-radio-control__label img {
+    max-height: 24px !important;
+    width: auto !important;
+    height: 24px !important;
+    object-fit: contain !important;
+    vertical-align: middle !important;
+}
+
 /** CLASSIC checkout styles **/
 
 #dnapayments_apple_pay_container:not(.has-error),
-#dnapayments_google_pay_container:not(.has-error) {
+#dnapayments_google_pay_container:not(.has-error),
+#dnapayments_paypal_container:not(.has-error) {
     height: 46px !important;
+}
+
+/**
+ * Classic checkout - payment method icons (Card, Apple Pay, Google Pay, PayPal)
+ * Fixed height: 24px for all icons in payment method selection list
+ */
+
+/** DNA Payments gateway icons - specific selectors **/
+/** Classic checkout - (Card, Apple Pay, Google Pay, PayPal) payment method icons **/
+.wc_payment_method.payment_method_dnapayments img,
+.wc_payment_method.payment_method_dnapayments_apple_pay img,
+.wc_payment_method.payment_method_dnapayments_google_pay img,
+.wc_payment_method.payment_method_dnapayments_paypal img {
+    max-height: 24px !important;
+    width: auto !important;
+    height: 24px !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    object-fit: contain !important;
 }
 
 .wc-classic-dnapayments-card-elements {

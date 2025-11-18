@@ -20,6 +20,11 @@ export function getPaymentComponentErrorMessage(err, initErrorMessage) {
         message = initErrorMessage
     }
 
+    // Replace "Window is closed" error with cancellation message
+    if (message && message.includes('Window is closed')) {
+        message = errors.CARD_PAYMENT_CANCEL.message
+    }
+
     return message
 }
 

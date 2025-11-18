@@ -14,6 +14,7 @@ import { getPaymentComponentErrorMessage, isInitFailed } from '../../common/paym
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { getPaymentData } from '../utils/get-payment-data'
+import { getValidationErrors } from '../utils/validator'
 
 import { ErrorMessage } from './error-message'
 
@@ -99,11 +100,22 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         setLoadingState('loading')
                         return { paymentData: draftPaymentDataRef.current }
                     },
-                    onBeforeProcessPayment: () =>
-                        new Promise((resolve, reject) => {
+                    onBeforeProcessPayment: () => {
+                        const validationErrors = getValidationErrors()
+                        const paymentDataMessages = validatePaymentData(draftPaymentDataRef.current)
+                        const allErrors = [...validationErrors, ...paymentDataMessages]
+
+                        if (allErrors.length) {
+                            setLoadingState('done')
+                            setErrors(allErrors)
+                            return Promise.reject({ message: allErrors[0], name: 'ValidationError' })
+                        }
+
+                        return new Promise((resolve, reject) => {
                             processPromiseRef.current = { resolve, reject }
                             triggerPlaceOrderButtonClick()
-                        }),
+                        })
+                    },
                     onPaymentSuccess: async (paymentResult) => {
                         logData('onPaymentSuccess', paymentResult)
                         const redirect = paymentDataRef.current?.paymentSettings?.returnUrl
@@ -142,7 +154,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 terminalId,
             })
         }),
-        [componentInstance, rejectCheckoutPromise],
+        [componentInstance, rejectCheckoutPromise, resolveCheckoutPromise],
     )
 
     useEffect(() => {

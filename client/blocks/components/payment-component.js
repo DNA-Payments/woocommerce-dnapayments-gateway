@@ -4,7 +4,6 @@ import { __ } from '@wordpress/i18n'
 import errors from '../../common/errors'
 import { logData, logError } from '../../common/log'
 import { tryParse } from '../../common/try-parse'
-import { validatePaymentData } from '../../common/validater'
 import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
 import { addGatewayId } from '../../common/utils'
@@ -14,6 +13,7 @@ import { getPaymentComponentErrorMessage, isInitFailed } from '../../common/paym
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { getPaymentData } from '../utils/get-payment-data'
+import { getValidationErrors } from '../utils/validator'
 
 import { ErrorMessage } from './error-message'
 
@@ -74,7 +74,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
     useEffect(() => {
         const handler = (payload) => {
-            const messages = validatePaymentData(draftPaymentDataRef.current)
+            const messages = getValidationErrors()
             logData('onCheckoutValidation', payload, messages)
             if (messages.length) {
                 processPromiseRef.current?.reject(messages[0])
@@ -86,6 +86,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
     const setupIntegration = useCallback(
         debounce(async () => {
+            setErrors([])
             setLoadingState('loading')
 
             containerRef.current.innerHTML = ''
@@ -96,14 +97,16 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 paymentData: draftPaymentDataRef.current,
                 events: {
                     onClick: () => {
+                        setErrors([])
                         setLoadingState('loading')
                         return { paymentData: draftPaymentDataRef.current }
                     },
-                    onBeforeProcessPayment: () =>
-                        new Promise((resolve, reject) => {
+                    onBeforeProcessPayment: () => {
+                        return new Promise((resolve, reject) => {
                             processPromiseRef.current = { resolve, reject }
                             triggerPlaceOrderButtonClick()
-                        }),
+                        })
+                    },
                     onPaymentSuccess: async (paymentResult) => {
                         logData('onPaymentSuccess', paymentResult)
                         const redirect = paymentDataRef.current?.paymentSettings?.returnUrl
@@ -122,6 +125,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         }
                     },
                     onError: (err) => {
+                        logData('onError', err)
                         const notShowError = isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
                         const message = getPaymentComponentErrorMessage(err, errorMessage)
                         setLoadingState('failed')
@@ -142,7 +146,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 terminalId,
             })
         }),
-        [componentInstance, rejectCheckoutPromise],
+        [componentInstance, rejectCheckoutPromise, resolveCheckoutPromise],
     )
 
     useEffect(() => {

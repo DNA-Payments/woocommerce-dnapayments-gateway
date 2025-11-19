@@ -117,4 +117,10 @@ class Helper {
 
 		return in_array( strtolower( $domain ), $allowed_domains, true );
 	}
+
+    public static function get_current_user_id() {
+        $user_id = (string) get_current_user_id();
+        $is_guest = !isset($user_id) || empty($user_id) || $user_id === '0';
+        return $is_guest ? '' : $user_id;
+    }
 }

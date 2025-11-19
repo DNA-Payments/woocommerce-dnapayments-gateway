@@ -1,5 +1,6 @@
 import { __ } from '@wordpress/i18n'
 import { select } from '@wordpress/data'
+import { TEXT_DOMAIN } from '../../common/constants'
 
 const fieldIds = [
     // Billing fields

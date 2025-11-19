@@ -4,7 +4,6 @@ import { __ } from '@wordpress/i18n'
 import errors from '../../common/errors'
 import { logData, logError } from '../../common/log'
 import { tryParse } from '../../common/try-parse'
-import { validatePaymentData } from '../../common/validater'
 import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
 import { addGatewayId } from '../../common/utils'
@@ -75,7 +74,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
     useEffect(() => {
         const handler = (payload) => {
-            const messages = validatePaymentData(draftPaymentDataRef.current)
+            const messages = getValidationErrors()
             logData('onCheckoutValidation', payload, messages)
             if (messages.length) {
                 processPromiseRef.current?.reject(messages[0])
@@ -87,6 +86,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
     const setupIntegration = useCallback(
         debounce(async () => {
+            setErrors([])
             setLoadingState('loading')
 
             containerRef.current.innerHTML = ''
@@ -97,20 +97,11 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 paymentData: draftPaymentDataRef.current,
                 events: {
                     onClick: () => {
+                        setErrors([])
                         setLoadingState('loading')
                         return { paymentData: draftPaymentDataRef.current }
                     },
                     onBeforeProcessPayment: () => {
-                        const validationErrors = getValidationErrors()
-                        const paymentDataMessages = validatePaymentData(draftPaymentDataRef.current)
-                        const allErrors = [...validationErrors, ...paymentDataMessages]
-
-                        if (allErrors.length) {
-                            setLoadingState('done')
-                            setErrors(allErrors)
-                            return Promise.reject({ message: allErrors[0], name: 'ValidationError' })
-                        }
-
                         return new Promise((resolve, reject) => {
                             processPromiseRef.current = { resolve, reject }
                             triggerPlaceOrderButtonClick()
@@ -134,6 +125,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         }
                     },
                     onError: (err) => {
+                        logData('onError', err)
                         const notShowError = isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
                         const message = getPaymentComponentErrorMessage(err, errorMessage)
                         setLoadingState('failed')

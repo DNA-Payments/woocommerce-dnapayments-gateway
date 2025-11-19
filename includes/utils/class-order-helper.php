@@ -17,7 +17,7 @@ class OrderHelper {
         $this->gateway  = $gateway;
     }
 
-    public function update_status_from_payment_result( $order, $result_string, $source = '' ) {
+    public function update_status_from_payment_result( $order, $result_string, $user_id = '', $source = '' ) {
         $input = json_decode( $result_string, true);
         $order_id = $order->get_id();
 
@@ -29,16 +29,18 @@ class OrderHelper {
             throw new \Exception( __( 'Invalid JSON format', \WC_DNA_Payments::$text_domain ));
         }
 
-        if ( $input['success'] ) {
-            if ( empty($input['id']) ) {
-                throw new \Exception( __( 'Transaction ID is missing or invalid.', \WC_DNA_Payments::$text_domain ) );
-            }
+        if ( empty($input['id']) ) {
+            throw new \Exception( __( 'Transaction ID is missing or invalid.', \WC_DNA_Payments::$text_domain ) );
+        }
 
-            $has_charge = $this->has_transaction_charge($input['id']);
+        $charge_result = $this->has_transaction($order, $input['id'], $user_id);
 
-            if ( ! $has_charge ) {
-                throw new \Exception( __( 'No successful transaction has been processed for this order ID.', \WC_DNA_Payments::$text_domain ) );
-            }
+        if ( $input['success'] && $charge_result !== 'success' ) {
+            throw new \Exception( __( 'No successful transaction has been processed for this order ID.', \WC_DNA_Payments::$text_domain ) );
+        }
+
+        if ( !$input['success'] && $charge_result !== 'failed' ) {
+            throw new \Exception( __( 'No failed transaction has been processed for this order ID.', \WC_DNA_Payments::$text_domain ) );
         }
 
         $settled = $this->determine_settlement_status($input);
@@ -269,30 +271,43 @@ class OrderHelper {
     }
 
     /**
-     * Check if a transaction has a charge or authorization
+     * Check transaction by order and transaction ID, returning tri-state result.
      *
-     * @param string $transaction_id The transaction ID to check
-     * @return bool True if the transaction has a charge or authorization, false otherwise
+     * @param \WC_Order $order The WooCommerce order to check.
+     * @param string $transaction_id The transaction ID to find.
+     * @param string $user_id The user ID to check.
+     * 
+     * @return string One of 'success', 'failed', 'not_found'.
      */
-    public function has_transaction_charge( $transaction_id ) {
+    public function has_transaction( $order, $transaction_id, $user_id = '' ) {
         $client_token = $this->gateway->dnaPayment->get_client_token(
             $this->gateway->client_id,
             $this->gateway->client_secret
         );
 
-        $transactions = $this->gateway->dnaPayment->get_transactions_by_id(
+        $transactions = $this->gateway->dnaPayment->get_transactions_by_invoice_id(
             $client_token['access_token'],
-            $transaction_id
+            (string) $order->get_order_number()
         );
 
-        $has_charge = false;
+        $matched = false;
         foreach ($transactions as $item) {
-            if ( in_array( $item['transactionState'], [ 'CHARGE', 'AUTH' ]) ) {
-                $has_charge = true;
+            $account_id = isset($item['accountId']) && !empty($item['accountId']) ? (string) $item['accountId'] : '';
+
+            if (
+                $item['id'] === $transaction_id &&
+                (float) $item['amount'] === (float) $order->get_total() &&
+                $item['currency'] === $order->get_currency() &&
+                $account_id === $user_id
+            ) {
+                $matched = true;
+                if (in_array($item['transactionState'], ['CHARGE', 'AUTH'])) {
+                    return 'success';
+                }
             }
         }
 
-        return $has_charge;
+        return $matched ? 'failed' : 'not_found';
     }
 
     /**

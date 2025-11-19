@@ -445,7 +445,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                 ); 
             }
 
-            $result = $this->orderHelper->update_status_from_payment_result( $order, $result_string, 'process_payment' );
+            $result = $this->orderHelper->update_status_from_payment_result( $order, $result_string, Helper::get_current_user_id(), 'process_payment' );
 
             if ( $result['status'] === 'failed' ) {
                 throw new \Exception( $result['message'] );

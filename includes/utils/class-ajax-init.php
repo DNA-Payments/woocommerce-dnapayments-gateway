@@ -76,7 +76,7 @@ class AjaxInit {
 		} catch (\Exception $e) {
             // Log the error
             if ( isset( $this->gateway->logger ) ) {
-                $this->gateway->logger->error( 'handle_get_payment_and_auth_data: ' . $e->getMessage() );
+                $this->gateway->logger->error( 'Error in handle_get_payment_and_auth_data for order ' . $order_id . ': ' . $e->getMessage() );
             }
 			wp_send_json_error([
                 'errors' => [ $e->getMessage() ]
@@ -106,7 +106,7 @@ class AjaxInit {
         } catch (\Exception $e) {
             // Log the error
             if ( isset( $this->gateway->logger ) ) {
-                $this->gateway->logger->error( 'handle_get_payment_data_from_cart: ' . $e->getMessage() );
+                $this->gateway->logger->error( 'Error in handle_get_payment_data_from_cart: ' . $e->getMessage() );
             }
             wp_send_json_error([
                 'errors' => [ $e->getMessage() ]
@@ -129,7 +129,7 @@ class AjaxInit {
 		} catch (\Exception $e) {
             // Log the error
             if ( isset( $this->gateway->logger ) ) {
-                $this->gateway->logger->error( 'handle_get_payment_and_auth_data_for_saving_card: ' . $e->getMessage() );
+                $this->gateway->logger->error( 'Error in handle_get_payment_and_auth_data_for_saving_card: ' . $e->getMessage() );
             }
             wp_send_json_error([
                 'errors' => [ $e->getMessage() ]
@@ -152,7 +152,7 @@ class AjaxInit {
 
             // Check if AJAX order status update is enabled
             if ($this->is_ajax_update_enabled()) {
-                $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, 'update_order_status' );
+                $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, Helper::get_current_user_id(), 'update_order_status' );
                 $status = $result['status'];
                 $message = $result['message'];
             } else {
@@ -175,7 +175,7 @@ class AjaxInit {
 		} catch (\Exception $e) {
             // Log the error
             if ( isset( $this->gateway->logger ) ) {
-                $this->gateway->logger->error( 'Error in handle_update_order_status: ' . $e->getMessage() );
+                $this->gateway->logger->error( 'Error in handle_update_order_status for order ' . $order_id . ': ' . $e->getMessage() );
             }
 			wp_send_json_error([
                 'errors' => [ $e->getMessage() ]

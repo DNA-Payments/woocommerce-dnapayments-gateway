@@ -39,7 +39,7 @@ let isFirstRender = true
 let serializedFormData = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, terminalConfig, placeOrderButtonText } =
+    const { isTestMode, gatewayId, isHostedFields, tempToken, placeOrderButtonText } =
         getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
@@ -122,6 +122,16 @@ jQuery(function ($) {
             originalPlaceOrderText = readButtonText(placeOrderBtn)
         }
 
+        if (!(await checkApplePayAvailability())) {
+            $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).hide()
+            if (selectedGateway === GATEWAY_ID_APPLE_PAY) {
+                $('.wc_payment_method.payment_method_dnapayments #payment_method_dnapayments').click()
+                return
+            }
+        } else {
+            $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).show()
+        }
+
         if (![GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL].includes(selectedGateway)) {
             $form.find('.dnapayments-footer').hide()
             placeOrderBtn.removeAttribute('disabled')
@@ -133,16 +143,6 @@ jQuery(function ($) {
         // Our gateway is selected then setting custom label if provided
         if (placeOrderButtonText) {
             writeButtonText(placeOrderBtn, placeOrderButtonText)
-        }
-
-        if (!(await checkApplePayAvailability(terminalConfig))) {
-            $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).hide()
-            if (selectedGateway === GATEWAY_ID_APPLE_PAY) {
-                $('.wc_payment_method.payment_method_dnapayments #payment_method_dnapayments').click()
-                return
-            }
-        } else {
-            $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).show()
         }
 
         serializedFormData = $form.serialize()

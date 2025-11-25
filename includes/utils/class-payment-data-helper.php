@@ -126,6 +126,11 @@ class PaymentDataHelper {
     }
 
     private function update_transaction_type( &$payment_data ) {
+        if ( isset($payment_data['amount']) && floatval($payment_data['amount']) === 0.0 ) {
+            $payment_data['transactionType'] = 'VERIFICATION';
+            return;
+        }
+
         $transactionType = $this->gateway->configHelper->get_transaction_type();
         if ( !empty($transactionType) ) {
             $payment_data['transactionType'] = $transactionType;

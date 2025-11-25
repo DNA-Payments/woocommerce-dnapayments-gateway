@@ -78,21 +78,21 @@ jQuery(function ($) {
         setFormLoading,
         fetchPaymentData: async () => {
             try {
-                if (isPayForOrderPage) {
-                    await fetchPaymentData()
-                    const storeCardOnFile = $(`#wc-${gatewayId}-new-payment-method`).is(':checked')
-                    return {
-                        paymentData: {
-                            ...paymentData,
-                            merchantCustomData: JSON.stringify({
-                                ...(tryParse(paymentData.merchantCustomData) || {}),
-                                storeCardOnFile,
-                                gatewayId,
-                            }),
-                        },
-                        auth: authData,
-                    }
-                }
+                // if (isPayForOrderPage) {
+                //     await fetchPaymentData()
+                //     const storeCardOnFile = $(`#wc-${gatewayId}-new-payment-method`).is(':checked')
+                //     return {
+                //         paymentData: {
+                //             ...paymentData,
+                //             merchantCustomData: JSON.stringify({
+                //                 ...(tryParse(paymentData.merchantCustomData) || {}),
+                //                 storeCardOnFile,
+                //                 gatewayId,
+                //             }),
+                //         },
+                //         auth: authData,
+                //     }
+                // }
 
                 return await postProcessPayment(gatewayId)
             } catch (err) {
@@ -355,7 +355,8 @@ jQuery(function ($) {
     }
 
     async function postProcessPayment(selectedGatewayId) {
-        const response = await fetch(wc_checkout_params.checkout_url, {
+        const url = isPayForOrderPage ? window.location.href : wc_checkout_params.checkout_url
+        const response = await fetch(url, {
             method: 'POST',
             body: new FormData($form[0]),
         })

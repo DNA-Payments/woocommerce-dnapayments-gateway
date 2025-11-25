@@ -160,8 +160,8 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->subscriptionHelper = new \WCPG_DNA_Payments\Utils\SubscriptionHelper( $this );
 
         // Define gateway support features
-        $this->supports = array( 
-            'products', 
+        $this->supports = array(
+            'products',
             'refunds',
             'subscriptions',
             'subscription_cancellation',
@@ -169,12 +169,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'subscription_reactivation',
             'subscription_amount_changes',
             'subscription_date_changes',
-            // 'subscription_payment_method_change',
-            // 'subscription_payment_method_change_customer',
-            // 'subscription_payment_method_change_admin',
+            'subscription_payment_method_change',
+            'subscription_payment_method_change_customer',
             'multiple_subscriptions'
         );
-        
+
         if ( $this->enabled_saved_cards ) {
             array_push($this->supports, 'tokenization' );
         }
@@ -427,6 +426,16 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
     }
 
     public function process_payment( $order_id ) {
+        $this->logger->info( 'process_payment' . $order_id . ' wcs_is_subscription: ' . wcs_is_subscription( $order_id ) ? 'yes' : 'no' );
+
+        $order = wc_get_order( $order_id );
+        $this->logger->info( 'process_payment order_id: ' . $order_id . ' order_data: ' . wc_print_r( $order->get_data(), true ) );
+
+        return array(
+            'result' => 'failure',
+            'messages' => '$order_id: ' . $order_id,
+        );
+
         $this->analyticsHelper->send_analytics();
 
         // Check if this is a block-based checkout (REST API request)

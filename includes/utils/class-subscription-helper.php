@@ -19,6 +19,14 @@ class SubscriptionHelper {
     public $gateway;
 
     /**
+     * List of gateway IDs that support subscription payments.
+     * These gateways will have scheduled subscription payment hooks registered.
+     *
+     * @var string[]
+     */
+    private $supported_gateways = [ 'dnapayments', 'dnapayments_google_pay', 'dnapayments_apple_pay' ];
+
+    /**
      * Constructor
      * 
      * @param WC_DNA_Payments_Gateway $gateway The main gateway instance
@@ -63,24 +71,31 @@ class SubscriptionHelper {
         if ( ! $this->is_subscriptions_active() ) {
             return;
         }
+        foreach ( $this->supported_gateways as $gateway_id ) {
+            add_action( 'woocommerce_scheduled_subscription_payment_' . $gateway_id, array( $this, 'scheduled_subscription_payment_handler' ), 10, 2 );
+        }
+    }
 
-        // Hook for scheduled subscription payments - only hook we need
-        add_action( 'woocommerce_scheduled_subscription_payment_' . $this->gateway->id, array( $this, 'scheduled_subscription_payment' ), 10, 2 );
-        add_action( 'woocommerce_scheduled_subscription_payment_' . 'dnapayments_google_pay', array( $this, 'scheduled_subscription_payment' ), 10, 2 );
-        add_action( 'woocommerce_scheduled_subscription_payment_' . 'dnapayments_apple_pay', array( $this, 'scheduled_subscription_payment' ), 10, 2 );
+    public function scheduled_subscription_payment_handler( $amount_to_charge, $renewal_order ) {
+        $filter = current_filter();
+        $prefix = 'woocommerce_scheduled_subscription_payment_';
+        $gateway_id = substr( $filter, strlen( $prefix ) );
+        return $this->scheduled_subscription_payment( $gateway_id, $amount_to_charge, $renewal_order );
     }
 
     /**
      * Process scheduled subscription payment
      * Called by WooCommerce Subscriptions for automatic renewals
      * Uses parent order transaction ID instead of saved tokens
-     * 
-     * @param float $amount_to_charge The amount to charge
-     * @param WC_Order $renewal_order The renewal order
+     * Invoked by per-gateway wrappers and records the gateway ID
+     *
+     * @param string   $gateway_id       Gateway identifier, sent in merchantCustomData
+     * @param float    $amount_to_charge The amount to charge
+     * @param WC_Order $renewal_order    The renewal order
      */
-    public function scheduled_subscription_payment( $amount_to_charge, $renewal_order ) {
+    public function scheduled_subscription_payment( $gateway_id, $amount_to_charge, $renewal_order ) {
         try {
-            $this->gateway->logger->info( 'Processing scheduled subscription payment for order #' . $renewal_order->get_id() . ' Amount: ' . $amount_to_charge );
+            $this->gateway->logger->info( 'Processing scheduled subscription payment for gateway ' . $gateway_id . ' order #' . $renewal_order->get_id() . ' Amount: ' . $amount_to_charge );
 
             if ( ! function_exists( 'wcs_get_subscriptions_for_renewal_order' ) ) {
                 throw new \Exception( 'WooCommerce Subscriptions function not available' );
@@ -100,7 +115,10 @@ class SubscriptionHelper {
             }
             
             // Get transaction ID from parent order
-            $transaction_id = $parent_order->get_meta( 'transaction_id' );
+            $transaction_id = $parent_order->get_meta( '_dnapayments_transaction_id' );
+            if ( empty( $transaction_id ) ) {
+                $transaction_id = $parent_order->get_meta( 'transaction_id' );
+            }
             if ( empty( $transaction_id ) ) {
                 throw new \Exception( 'No transaction ID found in parent order #' . $parent_order->get_id() );
             }
@@ -118,6 +136,7 @@ class SubscriptionHelper {
                     'orderId' => $renewal_order->get_id(),
                     'parentOrderId' => $parent_order->get_id(),
                     'subscriptionId' => $subscription->get_id(),
+                    'gatewayId' => $gateway_id,
                 ])
             ];
 
@@ -126,7 +145,6 @@ class SubscriptionHelper {
             }
 
             $result = $this->gateway->dnaPayment->recurring($request_data);
-            $this->gateway->logger->info( 'Recurring payment result for order #' . $renewal_order->get_id() . ': ' . json_encode( $result ) );
 
             if ( $result && isset( $result['success'] ) && $result['success'] === true ) {
                 $renewal_order->payment_complete( $result['id'] );

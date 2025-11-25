@@ -154,6 +154,7 @@ class OrderHelper {
             }
 
             // Update metadata
+            $order->update_meta_data('_dnapayments_transaction_id', $transaction_id);
             $order->update_meta_data('rrn', $input['rrn'] ?? '');
             $order->update_meta_data('transaction_id', $transaction_id);
             $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
@@ -188,7 +189,6 @@ class OrderHelper {
             $this->gateway->logger->info('Released processing lock for transaction ' . $transaction_id);
 
             return [ 'status' => $new_status ];
-        
         } catch (\Exception $e) {
             // Make sure to release the lock even if an error occurs
             delete_transient($lock_key);

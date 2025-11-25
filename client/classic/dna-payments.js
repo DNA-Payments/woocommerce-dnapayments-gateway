@@ -201,7 +201,9 @@ jQuery(function ($) {
 
     // WooCommerce updated_checkout - don't scroll as it triggers blur on all fields
     $(document.body).on('updated_checkout', () => {
-        render({ shouldFetchPaymentData: true, shouldUpdate: true, shouldScrollToError: isFirstRender })
+        const currentFormData = $form.serialize()
+        const formDataChanged = serializedFormData !== currentFormData
+        render({ shouldFetchPaymentData: true, shouldUpdate: formDataChanged, shouldScrollToError: false })
     })
 
     // Payment method change - allow scroll to show validation errors
@@ -239,8 +241,18 @@ jQuery(function ($) {
         const { initErrorMessage, validationErrorMessage } = getPaymentComponentErrorMessages(paymentMethodId)
         const $container = $form.find('#' + paymentMethodId + '_container')
 
-        if (!shouldUpdate && paymentMethodObject.isLoading) {
-            return
+
+        // For PayPal, special handling to prevent container removal during render
+        if (paymentMethodId === GATEWAY_ID_PAYPAL) {
+            // If PayPal is loading, always skip to prevent "container removed" error
+            if (paymentMethodObject.isLoading) {
+                return
+            }
+
+            // If button already loaded, skip unless forced update
+            if (paymentMethodObject.isLoaded && !shouldUpdate) {
+                return
+            }
         }
 
         // clear container HTML element

@@ -61,49 +61,15 @@ export function shouldHideOrderLines(terminalConfig) {
     return !isPayPalOrKlarnaActive
 }
 
-export const isApplePayAvailable = () => {
-    try {
-        const ApplePaySession = window.ApplePaySession // it is declared as a class
-        return Boolean(ApplePaySession?.canMakePayments())
-    } catch (e) {
-        console.error('Error in isApplePayAvailable', e)
+export const checkApplePayAvailability = async () => {
+    if (window.DNAPayments?.ApplePayComponent?.isAvailable !== 'function') {
         return false
     }
-}
 
-// @ts-ignore
-export const getApplePaySession = () => window.ApplePaySession
-
-export function loadApplePaySDK() {
-    return new Promise((resolve, reject) => {
-        if (document.getElementById('apple-pay-sdk')) {
-            return resolve()
-        }
-
-        const script = document.createElement('script')
-        script.id = 'apple-pay-sdk'
-        script.src = 'https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js'
-        script.async = true
-        script.setAttribute('crossorigin', 'anonymous')
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error('Failed to load Apple Pay SDK.'))
-
-        document.head.appendChild(script)
-    })
-}
-
-export const checkApplePayAvailability = async (terminalConfig) => {
-    const merchantId = terminalConfig?.merchantId
-
-    if (merchantId && typeof window.DNAPayments?.ApplePayComponent?.isAvailable === 'function') {
-        try {
-            await loadApplePaySDK()
-            return await window.DNAPayments.ApplePayComponent.isAvailable(merchantId)
-        } catch (err) {
-            console.error('Error in checkApplePayAvailability', err)
-            return false
-        }
+    try {
+        return await window.DNAPayments.ApplePayComponent.isAvailable()
+    } catch (err) {
+        console.error('Error in checkApplePayAvailability', err)
+        return false
     }
-
-    return isApplePayAvailable()
 }

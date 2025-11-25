@@ -11,10 +11,9 @@ import { RawHTML } from '@wordpress/element'
  * Internal dependencies
  */
 import errors from '../common/errors'
-import { checkApplePayAvailability, isApplePayAvailable } from '../common/validater'
+import { checkApplePayAvailability } from '../common/validater'
 import { CONTAINER_IDS, GATEWAY_ID_APPLE_PAY, TEXT_DOMAIN } from '../common/constants'
 import { PaymentComponent } from './components/payment-component'
-import { dnaPaymentsSettingsData } from './utils/get-settings'
 
 const settings = getPaymentMethodData(GATEWAY_ID_APPLE_PAY, {})
 const defaultLabel = __('Apple Pay', TEXT_DOMAIN)
@@ -66,10 +65,9 @@ const dnapaymentsApplePayPaymentMethod = {
         features: settings?.supports ?? [],
     },
     placeOrderButtonLabel: label,
-    canMakePayment: isApplePayAvailable,
 }
 
-checkApplePayAvailability(dnaPaymentsSettingsData.terminalConfig).then((isAvailable) => {
+checkApplePayAvailability().then((isAvailable) => {
     if (isAvailable) {
         registerPaymentMethod(dnapaymentsApplePayPaymentMethod)
     }

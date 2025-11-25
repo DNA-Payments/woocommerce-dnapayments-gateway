@@ -39,7 +39,7 @@ let isFirstRender = true
 let serializedFormData = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, terminalConfig, placeOrderButtonText } =
+    const { isTestMode, gatewayId, isHostedFields, tempToken, placeOrderButtonText } =
         getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
@@ -135,7 +135,7 @@ jQuery(function ($) {
             writeButtonText(placeOrderBtn, placeOrderButtonText)
         }
 
-        if (!(await checkApplePayAvailability(terminalConfig))) {
+        if (!(await checkApplePayAvailability())) {
             $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).hide()
             if (selectedGateway === GATEWAY_ID_APPLE_PAY) {
                 $('.wc_payment_method.payment_method_dnapayments #payment_method_dnapayments').click()

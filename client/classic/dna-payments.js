@@ -189,7 +189,9 @@ jQuery(function ($) {
 
     // WooCommerce updated_checkout - don't scroll as it triggers blur on all fields
     $(document.body).on('updated_checkout', () => {
-        render({ shouldFetchPaymentData: true, shouldUpdate: true, shouldScrollToError: isFirstRender })
+        const currentFormData = $form.serialize()
+        const formDataChanged = serializedFormData !== currentFormData
+        render({ shouldFetchPaymentData: true, shouldUpdate: formDataChanged, shouldScrollToError: false })
     })
 
     // Payment method change - allow scroll to show validation errors
@@ -227,8 +229,13 @@ jQuery(function ($) {
         const { initErrorMessage, validationErrorMessage } = getPaymentComponentErrorMessages(paymentMethodId)
         const $container = $form.find('#' + paymentMethodId + '_container')
 
-        if (!shouldUpdate && paymentMethodObject.isLoading) {
-            return
+        // For all payment components, prevent unnecessary re-renders
+        if (paymentMethodObject.isLoading) {
+            return  // Skip if currently loading
+        }
+
+        if (paymentMethodObject.isLoaded && !shouldUpdate) {
+            return  // Skip if already loaded and no data changed
         }
 
         // clear container HTML element

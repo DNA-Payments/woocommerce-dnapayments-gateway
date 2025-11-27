@@ -169,12 +169,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'subscription_reactivation',
             'subscription_amount_changes',
             'subscription_date_changes',
-            // 'subscription_payment_method_change',
-            // 'subscription_payment_method_change_customer',
-            // 'subscription_payment_method_change_admin',
+            'subscription_payment_method_change',
+            'subscription_payment_method_change_customer',
             'multiple_subscriptions'
         );
-        
+
         if ( $this->enabled_saved_cards ) {
             array_push($this->supports, 'tokenization' );
         }
@@ -359,6 +358,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'cards' => WC_DNA_Payments_Order_Client_Helpers::getCardTokens( $current_user_id, $this->id ),
             'placeOrderButtonText' => $this->get_option( 'placeOrderButtonText', '' ),
             'nonces' => $this->ajaxInit->get_nonces(),
+            'page' => $this->paymentDataHelper->get_current_payment_page(),
         );
     }
 
@@ -390,8 +390,13 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         } else {
             wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-paypal', 'dna-payment-api') , \WC_DNA_Payments::$version, true);
 
+
+            $order_id = absint(get_query_var('order-pay'));
             $dna_params = array_merge(
-                array('order_id' => absint(get_query_var('order-pay'))),
+                array(
+                    'order_id' => $order_id,
+                    'page' => $order_id && isset($_GET['change_payment_method']),
+                ),
                 $this->get_settings_for_frontend()
             );
         }
@@ -429,9 +434,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
     public function process_payment( $order_id ) {
         $this->analyticsHelper->send_analytics();
 
-        // Check if this is a block-based checkout (REST API request)
-        $is_block_checkout = WC()->is_rest_api_request();
-
         // Clean up all output buffers to remove unexpected output
         while ( ob_get_level() > 0 ) {
             ob_end_clean();
@@ -441,6 +443,15 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             $order = wc_get_order( $order_id );
             $result_string = Helper::get_posted_value('wc-' . $this->id . '-result');
 
+            // Check if we are on the "Pay for Order" page
+            $is_pay_for_order = is_wc_endpoint_url( 'order-pay' );
+            // Check if the user is changing the payment method for subscription
+            $is_change_payment_method = $is_pay_for_order && isset($_GET['change_payment_method']);
+            // Check if this is a block-based checkout (REST API request)
+            $is_block_checkout = WC()->is_rest_api_request();
+
+
+            // This block is used for shortcode-based checkout
             if ( empty ($result_string) ) {
                 $auth_data = $this->authDataHelper->get_auth_data_from_order( $order );
                 $payment_data = $this->paymentDataHelper->get_payment_data_from_order( $order, $this->save_payment_method_requested() );
@@ -468,7 +479,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                 ); 
             }
 
-            $result = $this->orderHelper->update_status_from_payment_result( $order, $result_string, Helper::get_current_user_id(), 'process_payment' );
+            $result = $this->orderHelper->process_payment_using_payment_result( $order, $result_string, Helper::get_current_user_id(), 'process_payment' );
 
             if ( $result['status'] === 'failed' ) {
                 throw new \Exception( $result['message'] );

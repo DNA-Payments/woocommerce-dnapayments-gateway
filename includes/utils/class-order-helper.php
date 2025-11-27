@@ -17,7 +17,7 @@ class OrderHelper {
         $this->gateway  = $gateway;
     }
 
-    public function update_status_from_payment_result( $order, $result_string, $user_id = '', $source = '' ) {
+    public function process_payment_using_payment_result( $order, $result_string, $user_id = '', $source = '' ) {
         $input = json_decode( $result_string, true);
         $order_id = $order->get_id();
 
@@ -43,9 +43,7 @@ class OrderHelper {
             throw new \Exception( __( 'No failed transaction has been processed for this order ID.', \WC_DNA_Payments::$text_domain ) );
         }
 
-        $settled = $this->determine_settlement_status($input);
-
-        $result = $this->update_status( $order, $input, $settled, $source );
+        $result = $this->process_payment( $order, $input, $source );
         $status = $result['status'];
 
         // Check if there's a code indicating the transaction is already being processed
@@ -66,11 +64,12 @@ class OrderHelper {
         return $result;
     }
 
-    public function update_status( $order, $input, $settled, $source = '' ) {
+    public function process_payment( $order, $input, $source = '' ) {
 
         $transaction_id = $input['id'];
         $order_id       = $order->get_id();
         $status         = $order->get_status();
+        $settled        = $this->determine_settlement_status($input);
 
         // Check if this transaction is already being processed
         $lock_key = 'dnapayments_processing_' . $transaction_id;
@@ -120,57 +119,13 @@ class OrderHelper {
                 $this->gateway->logger->error( 'Order with ID ' . $order_id . ' processed by a different payment method: ' . $order->get_payment_method() . '. But the payment process will continue.' );
             }
 
-            $custom_data = $this->parse_merchant_custom_data( $input );
-            $gateway_id  = $custom_data['gateway_id'];
-
-            // Update payment method if gateway_id is provided in custom data
-            if ( ! empty($gateway_id) && $gateway_id !==  $order->get_payment_method() ) {
-                // Get the actual gateway object
-                $gateway = WC()->payment_gateways->payment_gateways()[ $gateway_id ] ?? null;
-                if ( ! is_null( $gateway ) ) {
-                    $order->set_payment_method( $gateway );
-                    $this->gateway->logger->info('Order with ID ' . $order_id . ' set payment method ' . $gateway->get_title() . 'by webhook before status update');
-                }
-            }
-
-            // Handle settlement
-            if ($settled) {
-                $new_status = $order->needs_processing() ? 'processing' : 'completed';
-                $order->payment_complete( $transaction_id );
-                $order->add_order_note(sprintf(__( 'DNA Payments transaction complete (Transaction ID: %s). Order status changed from %s to %s. Source: %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status), $source ));
-
-                if ($new_status === 'processing' && 'yes' === $this->gateway->get_option('enable_order_complete')) {
-                    $old_status = $order->get_status();
-                    $order->update_status('completed');
-                    $new_status = 'completed';
-                    // Log status change
-                    $order->add_order_note(sprintf(__('DNA Payments updated order status from %s to %s.', \WC_DNA_Payments::$text_domain), ucfirst($old_status), ucfirst($new_status)));
-                }
-            } else {
-                $new_status = 'on-hold';
-                $order->update_status('on-hold');
-                $order->set_transaction_id( $transaction_id );
-                $order->add_order_note(sprintf(__( 'DNA Payments awaiting payment completion (Transaction ID: %s). Order status changed from %s to %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status) ));
-            }
-
-            // Update metadata
-            $order->update_meta_data('rrn', $input['rrn'] ?? '');
-            $order->update_meta_data('transaction_id', $transaction_id);
-            $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
-            $order->update_meta_data('is_finished_payment', $settled ? 'yes' : 'no');
-
             if( ! empty($input['paypalCaptureStatus']) ) {
                 $this->save_pay_pal_order_detail( $order, $input, false );
             }
 
-            $manage_stock_option = get_option('woocommerce_manage_stock');
-            // if the order status changed from pending to processing (on-hold), woocommerce automatically reduces stock
-            if ($manage_stock_option !== 'yes' || $status !== 'pending') {
-                wc_reduce_stock_levels($order_id);
-                $order->add_order_note( sprintf( __( 'DNA Payments reduced order stock by transaction (Transaction ID: %s)', \WC_DNA_Payments::$text_domain ), $transaction_id ) );
-            }
-
-            $order->save();
+            $custom_data = $this->parse_merchant_custom_data( $input );
+            $this->update_payment_method_from_custom_data( $order, $custom_data );
+            $new_status = $this->payment_complete( $order, $input, $settled, $source );
 
             // Handle saving card tokens. Status "on-hold" means that saveCardToken already processed
             $is_processed = $new_status !== $status && $status === 'on-hold';
@@ -182,19 +137,73 @@ class OrderHelper {
                     $this->gateway->logger->info('Card token not saved for order ID ' . $order_id . '. Error: ' . $msg_save_token);
                 }
             }
+
+            if ( isset( $this->gateway->subscriptionHelper ) ) {
+                $this->gateway->subscriptionHelper->save_parent_transaction_to_subscriptions( $order, $transaction_id );
+            }
             
             // Release the transaction lock
             delete_transient($lock_key);
             $this->gateway->logger->info('Released processing lock for transaction ' . $transaction_id);
 
             return [ 'status' => $new_status ];
-        
         } catch (\Exception $e) {
             // Make sure to release the lock even if an error occurs
             delete_transient($lock_key);
             $this->gateway->logger->error('Error updating order status for order ID ' . $order_id . ': ' . $e->getMessage());
             throw $e; // Re-throw the exception to be handled by the caller
         }
+    }
+
+    /**
+     * Mark the order as paid and set its status based on settlement flag.
+     *
+     * @param \WC_Order $order  WooCommerce order object.
+     * @param array     $input  Payment gateway response data.
+     * @param bool      $settled Whether the payment is already settled.
+     * @param string    $source  Origin of the call (e.g., webhook, AJAX).
+     * @return string   New order status after processing.
+     */
+    public function payment_complete( \WC_Order $order, $input, $settled, $source = '' ) {
+        $transaction_id = $input['id'];
+        $order_id       = $order->get_id();
+        $status         = $order->get_status();
+
+        // Handle settlement
+        if ($settled) {
+            $new_status = $order->needs_processing() ? 'processing' : 'completed';
+            $order->payment_complete( $transaction_id );
+            $order->add_order_note(sprintf(__( 'DNA Payments transaction complete (Transaction ID: %s). Order status changed from %s to %s. Source: %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status), $source ));
+
+            if ($new_status === 'processing' && 'yes' === $this->gateway->get_option('enable_order_complete')) {
+                $old_status = $order->get_status();
+                $order->update_status('completed');
+                $new_status = 'completed';
+                // Log status change
+                $order->add_order_note(sprintf(__('DNA Payments updated order status from %s to %s.', \WC_DNA_Payments::$text_domain), ucfirst($old_status), ucfirst($new_status)));
+            }
+        } else {
+            $new_status = 'on-hold';
+            $order->update_status('on-hold');
+            $order->set_transaction_id( $transaction_id );
+            $order->add_order_note(sprintf(__( 'DNA Payments awaiting payment completion (Transaction ID: %s). Order status changed from %s to %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status) ));
+        }
+
+        // Update metadata
+        $order->update_meta_data('_dnapayments_transaction_id', $transaction_id);
+        $order->update_meta_data('rrn', $input['rrn'] ?? '');
+        $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
+        $order->update_meta_data('is_finished_payment', $settled ? 'yes' : 'no');
+
+        $manage_stock_option = get_option('woocommerce_manage_stock');
+        // if the order status changed from pending to processing (on-hold), woocommerce automatically reduces stock
+        if ($manage_stock_option !== 'yes' || $status !== 'pending') {
+            wc_reduce_stock_levels($order_id);
+            $order->add_order_note( sprintf( __( 'DNA Payments reduced order stock by transaction (Transaction ID: %s)', \WC_DNA_Payments::$text_domain ), $transaction_id ) );
+        }
+
+        $order->save();
+        return $new_status;
     }
 
     /**
@@ -272,6 +281,42 @@ class OrderHelper {
     }
 
     /**
+     * Update the order’s payment-method from gateway_id found in merchantCustomData.
+     *
+     * @param \WC_Order $order
+     * @param array     $custom_data Already-decoded merchantCustomData array.
+     * @return \WC_Payment_Gateway|false
+     */
+    public function update_payment_method_from_custom_data( \WC_Order $order, array $custom_data ) {
+        $gateway_id = $custom_data['gateway_id'] ?? '';
+        $old_payment_method = $order->get_payment_method();
+
+        if ( empty( $gateway_id ) || $gateway_id === $old_payment_method ) {
+            return false;
+        }
+
+        $all_gateways = WC()->payment_gateways()->payment_gateways();
+        $target_gateway = $all_gateways[ $gateway_id ] ?? null;
+
+        if ( is_null( $target_gateway ) ) {
+            return false;
+        }
+
+        $order->set_payment_method( $target_gateway );
+        $log = sprintf( 'Payment method changed from %s to %s via webhook of DNA Payments plugin.', $old_payment_method, $target_gateway->id );
+
+        $this->gateway->logger->info(
+            sprintf(
+                'Order ID %s. ',
+                $order->get_id()
+            ) . $log
+        );
+        $order->add_order_note( $log );
+
+        return $target_gateway;
+    }
+
+    /**
      * Check transaction by order and transaction ID, returning tri-state result.
      *
      * @param \WC_Order $order The WooCommerce order to check.
@@ -280,7 +325,7 @@ class OrderHelper {
      * 
      * @return string One of 'success', 'failed', 'not_found'.
      */
-    public function has_transaction( $order, $transaction_id, $user_id = '' ) {
+    public function has_transaction( \WC_Order $order, $transaction_id, $user_id = '' ) {
         $client_token = $this->gateway->dnaPayment->get_client_token(
             $this->gateway->client_id,
             $this->gateway->client_secret
@@ -319,7 +364,7 @@ class OrderHelper {
      */
     public function determine_settlement_status( $input ) {
         $transaction_type = $this->gateway->configHelper->get_transaction_type();
-        $settled = false;
+        $settled = isset($input['settled']) ? (bool)$input['settled'] : false;
 
         if (in_array($transaction_type, ['SALE', 'AUTH'])) {
             $settled = $transaction_type === 'SALE';

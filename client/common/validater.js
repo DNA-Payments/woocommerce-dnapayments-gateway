@@ -6,7 +6,7 @@ export function isValidEmail(email) {
 }
 
 export function isEmpty(value) {
-    return !value || value.toString().trim() === ''
+    return value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
 }
 
 export function validateAddress(address, section) {

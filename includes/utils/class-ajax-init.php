@@ -141,6 +141,8 @@ class AjaxInit {
 	    check_ajax_referer($this->get_update_order_status_action(), $this->get_nonce_field(), true);
 
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
+        $page = isset( $_POST['page'] ) ? sanitize_text_field( wp_unslash( $_POST['page'] ) ) : '';
+
         $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
 
 		try {
@@ -150,9 +152,9 @@ class AjaxInit {
                 throw new \Exception('Order not found for ID: ' . $order_id, 400);
             }
 
-            // Check if AJAX order status update is enabled
-            if ($this->is_ajax_update_enabled()) {
-                $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, Helper::get_current_user_id(), 'update_order_status' );
+            // Check if AJAX order status update is enabled and skip is false
+            if ( $this->is_ajax_update_enabled() && empty( $page ) ) {
+                $result = $this->gateway->orderHelper->process_payment_using_payment_result( $order, $result_string, Helper::get_current_user_id(), 'update_order_status' );
                 $status = $result['status'];
                 $message = $result['message'];
             } else {
@@ -165,7 +167,11 @@ class AjaxInit {
                 $message = __( 'Refreshed order data', \WC_DNA_Payments::$text_domain );
             }
 
-            $redirect = $this->gateway->paymentDataHelper->get_return_url_from_order( $order, $status === 'failed' );
+            if ( empty( $page ) ) {
+                $redirect = $this->gateway->paymentDataHelper->get_return_url_from_order( $order, array( 'is_failure' => $status === 'failed' ) );
+            } else {
+                $redirect = $this->gateway->paymentDataHelper->get_payment_return_url( $order_id, $page, $status === 'failed' );
+            }
 
 			wp_send_json_success( array(
                 'status'    => $status,

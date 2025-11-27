@@ -17,6 +17,8 @@ class WebhooksInit {
         $this->gateway = $gateway;
 
         add_action( 'rest_api_init', array( $this, 'register_routes' ));
+
+        add_action( 'woocommerce_api_' . $this->gateway->id, array( $this, 'handle_payment_return_page' ) );
     }
 
     public function register_routes() {
@@ -29,6 +31,12 @@ class WebhooksInit {
         register_rest_route( $this->gateway->id, 'success-add-card', array(
             'methods'  => \WP_REST_Server::CREATABLE,
             'callback' => array( $this, 'success_webhook_add_card'),
+            'permission_callback' => array( $this, 'validate_webhook_permission' )
+        ) );
+
+        register_rest_route( $this->gateway->id, 'change-payment-method', array(
+            'methods'  => \WP_REST_Server::CREATABLE,
+            'callback' => array( $this, 'subscription_change_payment_method'),
             'permission_callback' => array( $this, 'validate_webhook_permission' )
         ) );
 
@@ -79,7 +87,7 @@ class WebhooksInit {
 
             $this->gateway->logger->info('Processing success webhook for order ID ' . $order_id . ' with status ' . $status);
 
-            $result = $this->gateway->orderHelper->update_status( $order, $input, $input['settled'], 'success_webhook' );
+            $result = $this->gateway->orderHelper->process_payment( $order, $input, 'success_webhook' );
 
             $this->gateway->logger->info('Processed success webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
 
@@ -105,7 +113,7 @@ class WebhooksInit {
             
             $this->gateway->logger->info('Processing failure webhook for order ID ' . $order_id . ' with status ' . $status);
             
-            $result = $this->gateway->orderHelper->update_status( $order, $input, false, 'fail_webhook' );
+            $result = $this->gateway->orderHelper->process_payment( $order, $input, 'fail_webhook' );
             
             $this->gateway->logger->info('Processed failure webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
         
@@ -135,28 +143,136 @@ class WebhooksInit {
         }
     }
 
-    private function parse_webhook_order( $input ) {
-        if ( empty($input['invoiceId']) ) {
-            throw new \Exception('Invoice ID is missing or invalid.', 400);
+    /**
+     * Handle webhook for subscription payment method change
+     *
+     * @param \WP_REST_Request $input Incoming request with payment data
+     * @return \WP_REST_Response|\WP_Error JSON response on success or WP_Error on failure
+     */
+    public function subscription_change_payment_method( \WP_REST_Request $input ) {
+        $data = $input->get_params();
+
+        try {
+            $this->validate_webhook_input( $input, true );
+
+            $subscription = $this->parse_webhook_order( $input, true );
+
+            $this->gateway->subscriptionHelper->change_subscription_payment_method( $subscription, $input );
+
+            return rest_ensure_response([
+                'success' => true,
+                'message' => 'Subscription payment method change processed successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return $this->get_wp_error( $e, 'subscription_change_payment_method', $data );
+        }
+    }
+
+    /**
+     * Handle WooCommerce legacy wc-api endpoint return page for payment flows.
+     *
+     * This method processes the return page after payment flows such as subscription
+     * payment method changes, adding a payment method, or paying for an order.
+     *
+     * URL format: /?wc-api={gateway-id}&page={page}&order_id={order_id}&state={success|failed}
+     *
+     * @return void
+     */
+    public function handle_payment_return_page() {
+        $order_id = absint( $_GET['order_id'] ?? 0 );
+        $state    = sanitize_text_field( $_GET['state'] ?? '' );
+        $page     = sanitize_text_field( $_GET['page'] ?? '' );
+
+        // Handle subscription change-method flow
+        if ( $page === 'change_payment_method' ) {
+            $subscription = wcs_get_subscription( $order_id );
+
+            if ( ! $subscription ) {
+                wp_safe_redirect( wc_get_account_endpoint_url( 'subscriptions' ) );
+                exit;
+            }
+
+            if ( $state === 'failed' ) {
+                wc_add_notice( 'Payment method update failed.', 'error' );
+                wp_safe_redirect( $subscription->get_change_payment_method_url() );
+                exit;
+            }
+
+            wc_add_notice( 'Payment method updated successfully.', 'success' );
+            wp_safe_redirect( $subscription->get_view_order_url() );
+            exit;
         }
 
-        $order_id = $this->gateway->orderHelper->parse_merchant_custom_data( $input )['order_id'];
+        // Handle add-payment-method flow
+        if ( $page === 'add_payment_method' ) {
+            if ( $state === 'failed' ) {
+                wc_add_notice( 'Payment method could not be added.', 'error' );
+            } else {
+                wc_add_notice( 'Payment method added successfully.', 'success' );
+            }
 
-        // Find order ID if not already set
-        if ( empty($order_id) ) {
-            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber($input['invoiceId']);
+            wp_safe_redirect( wc_get_account_endpoint_url( 'payment-methods' ) );
+            exit;
+        }
 
-            if ( empty($order_id) ) {
-                throw new \Exception('Order ID could not be determined for invoiceId: ' . $input['invoiceId'], 400);
+        // Handle pay-for-order flow
+        if ( $page === 'pay_for_order' && $order_id > 0 ) {
+            $order = wc_get_order( $order_id );
+            if ( ! $order ) {
+                wp_safe_redirect( wc_get_account_endpoint_url( 'orders' ) );
+                exit;
+            }
+
+            if ( $state === 'failed' ) {
+                wc_add_notice( 'Payment failed.', 'error' );
+                wp_safe_redirect( $order->get_checkout_payment_url() );
+                exit;
+            }
+
+            wp_safe_redirect( $order->get_checkout_order_received_url() );
+            exit;
+        }
+
+        // No recognized action; terminate to prevent further output
+        exit;
+    }
+
+    /**
+     * Parse the webhook input and return either a WC_Order or a WC_Subscription.
+     *
+     * @param array|\WP_REST_Request $input         Incoming data.
+     * @param bool                   $return_subscription Whether to return a subscription instead of an order.
+     * @return \WC_Order|\WC_Subscription
+     * @throws \Exception If invoice ID is missing, order/subscription not found, or invalid type.
+     */
+    private function parse_webhook_order( $input, $return_subscription = false ) {
+        if ( empty( $input['invoiceId'] ) ) {
+            throw new \Exception( 'Invoice ID is missing or invalid.', 400 );
+        }
+
+        $parsed = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
+        $order_id = $parsed['order_id'] ?? null;
+
+        // Find order/subscription ID if not already set
+        if ( empty( $order_id ) ) {
+            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( $input['invoiceId'] );
+            if ( empty( $order_id ) ) {
+                throw new \Exception( $return_subscription ? 'Subscription' : 'Order' . ' ID could not be determined for invoiceId: ' . $input['invoiceId'], 400 );
             }
         }
 
-        // Fetch order
-        $order = wc_get_order($order_id);
-        if ( ! $order ) {
-            throw new \Exception('Order not found for ID: ' . $order_id, 400);
+        if ( $return_subscription ) {
+            $subscription = $this->gateway->subscriptionHelper->get_subscription( $order_id );
+            if ( ! $subscription ) {
+                throw new \Exception( 'Subscription not found for ID: ' . $order_id, 400 );
+            }
+            return $subscription;
         }
 
+        $order = wc_get_order( $order_id );
+        if ( ! $order ) {
+            throw new \Exception( 'Order not found for ID: ' . $order_id, 400 );
+        }
         return $order;
     }
 

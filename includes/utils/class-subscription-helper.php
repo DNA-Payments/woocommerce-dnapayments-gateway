@@ -9,14 +9,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Subscription Helper Class
  * 
- * Handles all WooCommerce Subscriptions related functionality for DNA Payments Gateway
+ * This class handles all WooCommerce Subscriptions related functionality for DNA Payments Gateway.
+ * It includes methods for initializing subscription hooks, updating subscription meta data, and checking if subscriptions are active.
  */
 class SubscriptionHelper {
 
     /**
      * @var WC_DNA_Payments_Gateway
      */
-    public $gateway;
+    private $gateway;
+
+    /**
+     * List of gateway IDs that support subscription payments.
+     * These gateways will have scheduled subscription payment hooks registered.
+     *
+     * @var string[]
+     */
+    private $supported_gateways = [ 'dnapayments', 'dnapayments_google_pay', 'dnapayments_apple_pay' ];
+
+    /**
+     * Returns the meta key used to store the DNA Payments transaction ID or parent order ID.
+     *
+     * @param string $type Either 'transaction_id' or 'parent_order_id'.
+     * @return string The meta key for the specified storage.
+     */
+    public function get_meta_prop( $type ) {
+
+        switch ( $type ) {
+            case 'parent_transaction_id':
+                return '_' . $this->gateway->id . '_parent_transaction_id';
+            case 'parent_order_id':
+                return '_' . $this->gateway->id . '_parent_order_id';
+            default:
+                return '_' . $this->gateway->id . '_data';
+        }
+    }
 
     /**
      * Constructor
@@ -47,12 +74,41 @@ class SubscriptionHelper {
 	 * @return bool Whether order contains a subscription.
 	 */
 	public function order_contains_subscription( $order ) {
-		if ( ! $this->is_subscriptions_active() || ! function_exists( 'wcs_order_contains_subscription' ) ) {
-			return false;
-		}
-		// Call WooCommerce Subscriptions function if available
-		return call_user_func( 'wcs_order_contains_subscription', $order );
-	}
+        if ( ! $this->is_subscriptions_active() || ! function_exists( 'wcs_order_contains_subscription' ) ) {
+            return false;
+        }
+        return wcs_order_contains_subscription( $order );
+    }
+
+    /**
+	 * Get subscription object from order.
+	 *
+	 * Wrapper function for wcs_get_subscription
+	 *
+	 * @param mixed $order Order object or ID.
+	 * @return \WC_Subscription|false Subscription object or false on failure.
+	 */
+	public function get_subscription( $order ) {
+        if ( ! $this->is_subscriptions_active() || ! function_exists( 'wcs_get_subscription' ) ) {
+            return false;
+        }
+        return wcs_get_subscription( $order );
+    }
+
+    /**
+	 * Whether order is a subscription.
+	 *
+	 * Wrapper function for wcs_is_subscription
+	 *
+	 * @param WC_Order $order Order object.
+	 * @return bool Whether order is a subscription.
+	 */
+	public function order_is_subscription( $order ) {
+        if ( ! $this->is_subscriptions_active() || ! function_exists( 'wcs_is_subscription' ) ) {
+            return false;
+        }
+        return wcs_is_subscription( $order );
+    }
 
     /**
      * Initialize subscription-related hooks
@@ -63,61 +119,60 @@ class SubscriptionHelper {
         if ( ! $this->is_subscriptions_active() ) {
             return;
         }
+        foreach ( $this->supported_gateways as $gateway_id ) {
+            add_action( 'woocommerce_scheduled_subscription_payment_' . $gateway_id, array( $this, 'scheduled_subscription_payment_handler' ), 10, 2 );
+        }
+    }
 
-        // Hook for scheduled subscription payments - only hook we need
-        add_action( 'woocommerce_scheduled_subscription_payment_' . $this->gateway->id, array( $this, 'scheduled_subscription_payment' ), 10, 2 );
-        add_action( 'woocommerce_scheduled_subscription_payment_' . 'dnapayments_google_pay', array( $this, 'scheduled_subscription_payment' ), 10, 2 );
-        add_action( 'woocommerce_scheduled_subscription_payment_' . 'dnapayments_apple_pay', array( $this, 'scheduled_subscription_payment' ), 10, 2 );
+    public function scheduled_subscription_payment_handler( $amount_to_charge, $renewal_order ) {
+        $filter = current_filter();
+        $prefix = 'woocommerce_scheduled_subscription_payment_';
+        $gateway_id = substr( $filter, strlen( $prefix ) );
+        return $this->scheduled_subscription_payment( $gateway_id, $amount_to_charge, $renewal_order );
     }
 
     /**
      * Process scheduled subscription payment
      * Called by WooCommerce Subscriptions for automatic renewals
      * Uses parent order transaction ID instead of saved tokens
+     * Invoked by per-gateway wrappers and records the gateway ID
      * 
-     * @param float $amount_to_charge The amount to charge
-     * @param WC_Order $renewal_order The renewal order
+     * @param string   $gateway_id       Gateway identifier, sent in merchantCustomData
+     * @param float    $amount_to_charge The amount to charge
+     * @param WC_Order $renewal_order    The renewal order
      */
-    public function scheduled_subscription_payment( $amount_to_charge, $renewal_order ) {
+    public function scheduled_subscription_payment( $gateway_id, $amount_to_charge, $renewal_order ) {
         try {
-            $this->gateway->logger->info( 'Processing scheduled subscription payment for order #' . $renewal_order->get_id() . ' Amount: ' . $amount_to_charge );
+            $this->gateway->logger->info( 'Processing scheduled subscription payment for gateway ' . $gateway_id . ' order #' . $renewal_order->get_id() . ' Amount: ' . $amount_to_charge );
 
             if ( ! function_exists( 'wcs_get_subscriptions_for_renewal_order' ) ) {
                 throw new \Exception( 'WooCommerce Subscriptions function not available' );
             }
 
-            $subscriptions = call_user_func( 'wcs_get_subscriptions_for_renewal_order', $renewal_order );
+            $subscriptions = wcs_get_subscriptions_for_renewal_order( $renewal_order );
             if ( empty( $subscriptions ) ) {
-                throw new \Exception( 'No subscription found for renewal order #' . $renewal_order->get_id() );
+                throw new \Exception( 'No subscription found' );
             }
 
             $subscription = array_shift( $subscriptions );
+            $transaction_id = $subscription->get_meta( $this->get_meta_prop( 'parent_transaction_id' ) );
 
-            // Get parent order from subscription
-            $parent_order = $subscription->get_parent();
-            if ( ! $parent_order ) {
-                throw new \Exception( 'No parent order found for subscription #' . $subscription->get_id() );
-            }
-            
-            // Get transaction ID from parent order
-            $transaction_id = $parent_order->get_meta( 'transaction_id' );
             if ( empty( $transaction_id ) ) {
-                throw new \Exception( 'No transaction ID found in parent order #' . $parent_order->get_id() );
+                throw new \Exception( 'No parent transaction ID found in subscription #' . $subscription->get_id() );
             }
-            
-            $this->gateway->logger->info( 'Using parent order #' . $parent_order->get_id() . ' transaction ID: ' . $transaction_id );
 
             $request_data = [
                 'client_id' => $this->gateway->client_id,
                 'client_secret' => $this->gateway->client_secret,
                 'terminal' => $this->gateway->terminal,
                 'invoiceId' => strval($renewal_order->get_order_number()),
-                'amount' => $amount_to_charge,
+                'amount' => (float) $amount_to_charge,
                 'parentTransactionId' => $transaction_id,
                 'merchantCustomData' => json_encode([
-                    'orderId' => $renewal_order->get_id(),
-                    'parentOrderId' => $parent_order->get_id(),
+                    'renewalOrderId' => $renewal_order->get_id(),
+                    'parentOrderId' => $subscription->get_meta( $this->get_meta_prop( 'parent_order_id' ) ),
                     'subscriptionId' => $subscription->get_id(),
+                    'gatewayId' => $gateway_id,
                 ])
             ];
 
@@ -125,12 +180,13 @@ class SubscriptionHelper {
                 $request_data['transactionType'] = $this->gateway->configHelper->get_transaction_type();
             }
 
+            $this->gateway->logger->info( 'Starting payment for subscription #' . $subscription->get_id() . ' renewal order #' . $renewal_order->get_id() . ' with request data: ' . json_encode( $request_data ) );
+
             $result = $this->gateway->dnaPayment->recurring($request_data);
-            $this->gateway->logger->info( 'Recurring payment result for order #' . $renewal_order->get_id() . ': ' . json_encode( $result ) );
 
             if ( $result && isset( $result['success'] ) && $result['success'] === true ) {
-                $renewal_order->payment_complete( $result['id'] );
-                $this->gateway->logger->info( 'Subscription payment completed for order #' . $renewal_order->get_id() );
+                $new_status = $this->gateway->orderHelper->payment_complete( $renewal_order, $result, $result['settled'], 'scheduled_subscription_payment' );
+                $this->gateway->logger->info( 'Payment completed for subscription #' . $subscription->get_id() . ' renewal order #' . $renewal_order->get_id() . ' with transaction ID ' . $result['id'] . ' and new status ' . $new_status );
             } else {
                 $error_message = 'Recurring payment failed';
                 if (isset($result['id'])) {
@@ -147,6 +203,73 @@ class SubscriptionHelper {
         } catch ( \Exception $e ) {
             $this->gateway->logger->error( 'Subscription payment failed for order #' . $renewal_order->get_id() . ': ' . $e->getMessage() );
             $renewal_order->update_status( 'failed', sprintf( __( 'DNA Payments subscription payment failed: %s', \WC_DNA_Payments::$text_domain ), $e->getMessage() ) );
+        }
+    }
+
+    public function save_parent_transaction_to_subscriptions( \WC_Order $order, $transaction_id ) {
+        if ( ! $this->is_subscriptions_active() ) {
+            return;
+        }
+        if ( ! function_exists( 'wcs_get_subscriptions_for_order' ) ) {
+            return;
+        }
+
+        $subscriptions = wcs_get_subscriptions_for_order( $order, array( 'order_type' => 'parent' ) );
+        foreach ( $subscriptions as $subscription ) {
+            $this->save_parent_transaction_to_subscription( $subscription, $transaction_id, $order->get_id() );
+        }
+    }
+
+    private function save_parent_transaction_to_subscription( \WC_Subscription $subscription, $transaction_id, $parent_order_id = null ) {
+        $subscription->update_meta_data( $this->get_meta_prop( 'parent_transaction_id' ), $transaction_id );
+        if ( ! is_null( $parent_order_id ) ) {
+            $subscription->update_meta_data( $this->get_meta_prop( 'parent_order_id' ), $parent_order_id );
+        }
+        $subscription->save();
+        $this->gateway->logger->info( 'Saved subscription transaction ID ' . $transaction_id . ' for subscription #' . $subscription->get_id() );
+    }
+
+    /**
+     * Change the payment method for a subscription.
+     *
+     * @param \WC_Subscription $subscription The subscription object.
+     * @param array             $input       Raw input data (must contain gateway_id).
+     * @throws \Exception If the payment method cannot be changed.
+     */
+    public function change_subscription_payment_method( \WC_Subscription $subscription, array $input ) {
+        $old_payment_method = $subscription->get_payment_method();
+
+        $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
+        $gateway_id  = $custom_data['gateway_id'] ?? '';
+
+        if ( empty( $gateway_id ) ) {
+            throw new \Exception( 'Gateway (Payment method) ID is missing' );
+        }
+
+        if ( $gateway_id === $old_payment_method ) {
+            throw new \Exception( 'New payment method cannot be the same as the current one' );
+        }
+
+        $payment_meta = apply_filters( 'woocommerce_subscription_payment_meta', [], $subscription );
+        if ( isset( $payment_meta[ $gateway_id ] ) ) {
+            $payment_meta = $payment_meta[ $gateway_id ];
+        } else {
+            $payment_meta = [];
+        }
+
+        if ( ! class_exists( 'WC_Subscriptions_Change_Payment_Gateway' )
+            || ! method_exists( 'WC_Subscriptions_Change_Payment_Gateway', 'update_payment_method' )
+        ) {
+            throw new \Exception( 'WC_Subscriptions_Change_Payment_Gateway::update_payment_method does not exist' );
+        }
+
+        \WC_Subscriptions_Change_Payment_Gateway::update_payment_method( $subscription, $gateway_id, $payment_meta );
+
+        $account_id = isset( $input['accountId'] ) ? $input['accountId'] : '';
+        $this->gateway->logger->info('Processed subscription change payment method for account ID ' . $account_id . ', subscription ID ' . $subscription->get_id() . ', transaction ID ' . $input['id']);
+
+        if ( ! empty( $input['id'] ) ) {
+            $this->save_parent_transaction_to_subscription( $subscription, $input['id'] );
         }
     }
 }

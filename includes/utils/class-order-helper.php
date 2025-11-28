@@ -6,6 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+use WCPG_DNA_Payments\Utils\Helper;
+
 class OrderHelper {
 
 	/**
@@ -18,16 +20,8 @@ class OrderHelper {
     }
 
     public function process_payment_using_payment_result( $order, $result_string, $user_id = '', $source = '' ) {
-        $input = json_decode( $result_string, true);
         $order_id = $order->get_id();
-
-        if ( json_last_error() !== JSON_ERROR_NONE ) {
-            throw new \Exception(json_last_error());
-        }
-
-        if ( is_null( $input )) {
-            throw new \Exception( __( 'Invalid JSON format', \WC_DNA_Payments::$text_domain ));
-        }
+        $input = Helper::parse_json_to_array($result_string);
 
         if ( empty($input['id']) ) {
             throw new \Exception( __( 'Transaction ID is missing or invalid.', \WC_DNA_Payments::$text_domain ) );
@@ -138,9 +132,7 @@ class OrderHelper {
                 }
             }
 
-            if ( isset( $this->gateway->subscriptionHelper ) ) {
-                $this->gateway->subscriptionHelper->save_parent_transaction_to_subscriptions( $order, $transaction_id );
-            }
+            $this->gateway->subscriptionHelper->save_payment_meta_to_subscriptions( $order, $input );
             
             // Release the transaction lock
             delete_transient($lock_key);

@@ -40,7 +40,7 @@ let isFirstRender = true
 let serializedFormData = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, placeOrderButtonText } =
+    const { isTestMode, gatewayId, isHostedFields, tempToken, cards, allowSavingCards, placeOrderButtonText } =
         getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
@@ -75,7 +75,9 @@ jQuery(function ($) {
     }
 
     const placeOrder = createPlaceOrder({
+        cards,
         cardError,
+        allowSavingCards,
         setFormLoading,
         fetchPaymentData: async () => {
             try {

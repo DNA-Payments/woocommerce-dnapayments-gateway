@@ -6,6 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+use WCPG_DNA_Payments\Utils\Helper;
+
 class AuthDataHelper {
 
 	/**
@@ -58,12 +60,10 @@ class AuthDataHelper {
         }
     }
 
-    public function get_auth_data_from_order( \WC_Order $order, $total_amount = null ) {
-        $total_amount = floatval( empty($total_amount) ? $order->get_total() : $total_amount );
-
+    public function get_auth_data_from_order( \WC_Order $order ) {
         return $this->get_auth_data(
             strval( $order->get_order_number() ),
-            $total_amount,
+            floatval( $order->get_total() ),
             $order->get_currency()
         );
     }
@@ -99,7 +99,7 @@ class AuthDataHelper {
      * @return string|null Authentication token or null if request fails
      */
     public function fetch_temp_token() {
-        return $this->get_auth_data_with_try( date('d-m-y h:i:s'), 0, 'GBP' )['access_token'];
+        return $this->get_auth_data_with_try( Helper::build_invoice_id_with_prefix('temp'), 0, 'GBP' )['access_token'];
     }
 
     /**

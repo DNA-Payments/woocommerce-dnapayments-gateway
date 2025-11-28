@@ -6,6 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+use WCPG_DNA_Payments\Utils\Helper;
+
 class WebhooksInit {
 
 	/**
@@ -13,12 +15,23 @@ class WebhooksInit {
      */
     public $gateway;
 
+    private static $hooks_initialized = false;
+
     public function __construct( $gateway ) {
         $this->gateway = $gateway;
+        $this->init_hooks();
+    }
+
+    private function init_hooks() {
+        if ( self::$hooks_initialized ) {
+            return;
+        }
 
         add_action( 'rest_api_init', array( $this, 'register_routes' ));
 
         add_action( 'woocommerce_api_' . $this->gateway->id, array( $this, 'handle_payment_return_page' ) );
+
+        self::$hooks_initialized = true;
     }
 
     public function register_routes() {
@@ -157,7 +170,7 @@ class WebhooksInit {
 
             $subscription = $this->parse_webhook_order( $input, true );
 
-            $this->gateway->subscriptionHelper->change_subscription_payment_method( $subscription, $input );
+            $this->gateway->subscriptionHelper->change_subscription_payment_method( $subscription, $data );
 
             return rest_ensure_response([
                 'success' => true,
@@ -233,6 +246,27 @@ class WebhooksInit {
             exit;
         }
 
+        // Handle checkout flow
+        if ( $page === 'checkout' && $order_id > 0 ) {
+            $order = wc_get_order( $order_id );
+            if ( ! $order ) {
+                wp_safe_redirect( wc_get_endpoint_url( 'order-received', '', wc_get_checkout_url() ) );
+                exit;
+            }
+
+            $return_url = $this->gateway->get_option( $state === 'failed' ? 'failureBackLink' : 'backLink' );
+            if ( ! empty($return_url ) ) {
+                wp_safe_redirect( Helper::is_url_absolute($return_url) ? $return_url : get_site_url(null, $return_url) );
+                exit;
+            }
+
+            if ( $state === 'failed' ) {
+                wc_add_notice( 'Payment failed.', 'error' );
+            }
+            wp_safe_redirect( $order->get_checkout_order_received_url() );
+            exit;
+        }
+
         // No recognized action; terminate to prevent further output
         exit;
     }
@@ -255,7 +289,7 @@ class WebhooksInit {
 
         // Find order/subscription ID if not already set
         if ( empty( $order_id ) ) {
-            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( $input['invoiceId'] );
+            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( Helper::extract_prefix_from_invoice_id( $input['invoiceId'] ) );
             if ( empty( $order_id ) ) {
                 throw new \Exception( $return_subscription ? 'Subscription' : 'Order' . ' ID could not be determined for invoiceId: ' . $input['invoiceId'], 400 );
             }

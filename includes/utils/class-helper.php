@@ -97,6 +97,27 @@ class Helper {
     }
 
     /**
+     * Safely decode a JSON string to an associative array.
+     *
+     * @param string $result_string Raw JSON string.
+     * @return array Decoded array.
+     * @throws \Exception If JSON decoding fails or result is null.
+     */
+    public static function parse_json_to_array( $result_string ) {
+        $input = json_decode( $result_string, true );
+
+        if ( json_last_error() !== JSON_ERROR_NONE ) {
+            throw new \Exception( json_last_error() );
+        }
+
+        if ( is_null( $input ) ) {
+            throw new \Exception( __( 'Invalid JSON format', \WC_DNA_Payments::$text_domain ) );
+        }
+
+        return $input;
+    }
+
+    /**
 	 * Check if current user has DNA email domain
 	 * 
 	 * @return bool
@@ -122,5 +143,30 @@ class Helper {
         $user_id = (string) get_current_user_id();
         $is_guest = !isset($user_id) || empty($user_id) || $user_id === '0';
         return $is_guest ? '' : $user_id;
+    }
+
+    public static function build_invoice_id_with_prefix($prefix) {
+        $delimiter = '|';
+        $unique = function_exists('wp_generate_uuid4') ? wp_generate_uuid4() : date('d-m-y h:i:s');
+        $prefix_str = trim(strval($prefix));
+
+        // If prefix is empty, return only the unique part without delimiter
+        if (empty($prefix_str)) {
+            return $unique;
+        }
+
+        return $prefix_str . $delimiter . $unique;
+    }
+
+    public static function extract_prefix_from_invoice_id($invoice_id) {
+        $delimiter = '|';
+        $parts = explode($delimiter, strval($invoice_id), 2);
+
+        // If no delimiter is found, return empty string as prefix
+        if (count($parts) === 1) {
+            return '';
+        }
+
+        return $parts[0];
     }
 }

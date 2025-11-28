@@ -6,14 +6,25 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+use WCPG_DNA_Payments\Utils\Helper;
+
 class AjaxInit {
 	/**
      * @var WC_DNA_Payments_Gateway
      */
     public $gateway;
 
+    private static $hooks_initialized = false;
+
     public function __construct( $gateway ) {
         $this->gateway = $gateway;
+        $this->init_hooks();
+    }
+
+    private function init_hooks() {
+        if ( self::$hooks_initialized ) {
+            return;
+        }
 
 		add_action('wp_ajax_' . $this->get_payment_and_auth_data_for_saving_card_action(), array($this, 'handle_get_payment_and_auth_data_for_saving_card'));
 
@@ -25,6 +36,8 @@ class AjaxInit {
 
         add_action('wp_ajax_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
         add_action('wp_ajax_nopriv_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
+
+        self::$hooks_initialized = true;
     }
 
     public function get_nonces() {
@@ -58,16 +71,22 @@ class AjaxInit {
 
 	public function handle_get_payment_and_auth_data() {
         check_ajax_referer($this->get_payment_and_auth_data_action(), $this->get_nonce_field(), true);
-        $order_id     = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
-        $total_amount = isset( $_POST['total'] ) ? sanitize_text_field( wp_unslash( $_POST['total'] ) ) : '';
+
+        $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
 
 		try {
-			$order 			= wc_get_order( $order_id );
-			$total_amount 	= floatval( empty($total_amount) || $total_amount === 'null' ? $order->get_total() : $total_amount );
+			$order = wc_get_order( $order_id );
+            $page = $this->gateway->paymentDataHelper->get_current_payment_page();
+            $invoice_id = Helper::build_invoice_id_with_prefix($order->get_order_number());
 
-			$auth_data      = $this->gateway->authDataHelper->get_auth_data_from_order( $order, $total_amount );
-			$payment_data   = $this->gateway->paymentDataHelper->get_payment_data_from_order( $order );
-			$payment_data['amount'] = $total_amount;
+			$auth_data = $page === 'change_payment_method'
+                ? $this->gateway->authDataHelper->get_auth_data( $invoice_id, 0.0, $order->get_currency() ) 
+                : $this->gateway->authDataHelper->get_auth_data_from_order( $order );
+
+			$payment_data = $this->gateway->paymentDataHelper->get_payment_data_from_order( $order, array(
+                'invoice_id' => $invoice_id,
+                'page' => $page,
+            ) );
 
 			wp_send_json_success( array(
 				'auth'			=> $auth_data,
@@ -118,7 +137,7 @@ class AjaxInit {
         check_ajax_referer($this->get_payment_and_auth_data_for_saving_card_action(), $this->get_nonce_field(), true);
 
         $user_id    = get_current_user_id();
-        $invoice_id = date('d-m-y h:i:s');
+        $invoice_id = Helper::build_invoice_id_with_prefix($user_id);
 		$customer 	= new \WC_Customer( $user_id );
 
 		try {
@@ -141,9 +160,10 @@ class AjaxInit {
 	    check_ajax_referer($this->get_update_order_status_action(), $this->get_nonce_field(), true);
 
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
-        $page = isset( $_POST['page'] ) ? sanitize_text_field( wp_unslash( $_POST['page'] ) ) : '';
+        $page = isset( $_POST['page'] ) ? sanitize_text_field( wp_unslash( $_POST['page'] ) ) : 'checkout';
 
         $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
+        $input = Helper::parse_json_to_array($result_string);
 
 		try {
 			$order 	= wc_get_order( $order_id );
@@ -153,25 +173,25 @@ class AjaxInit {
             }
 
             // Check if AJAX order status update is enabled and skip is false
-            if ( $this->is_ajax_update_enabled() && empty( $page ) ) {
+            if ( $this->is_ajax_update_enabled() && $page === 'checkout' ) {
                 $result = $this->gateway->orderHelper->process_payment_using_payment_result( $order, $result_string, Helper::get_current_user_id(), 'update_order_status' );
                 $status = $result['status'];
                 $message = $result['message'];
             } else {
                 // Wait for 2 seconds
                 sleep(2);
-                
+
                 // Refresh order data
                 $order = wc_get_order( $order_id );
                 $status = $order->get_status();
                 $message = __( 'Refreshed order data', \WC_DNA_Payments::$text_domain );
             }
 
-            if ( empty( $page ) ) {
-                $redirect = $this->gateway->paymentDataHelper->get_return_url_from_order( $order, array( 'is_failure' => $status === 'failed' ) );
-            } else {
-                $redirect = $this->gateway->paymentDataHelper->get_payment_return_url( $order_id, $page, $status === 'failed' );
+            $success = $status !== 'failed';
+            if ( $page === 'change_payment_method') {
+                $success = $this->gateway->subscriptionHelper->is_same_payment_string( $order, $input );
             }
+            $redirect = $this->gateway->paymentDataHelper->get_payment_return_url( $order_id, $page, $success );
 
 			wp_send_json_success( array(
                 'status'    => $status,

@@ -107,6 +107,9 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                             },
                             auth,
                         ).then((result) => {
+                            if (result.data && !result.data.paymentMethod) {
+                                result.data.paymentMethod = 'card'
+                            }
                             completePayment({
                                 paymentResult: result.data,
                                 redirect: result.redirect,

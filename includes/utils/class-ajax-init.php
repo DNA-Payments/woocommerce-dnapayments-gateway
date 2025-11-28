@@ -73,10 +73,10 @@ class AjaxInit {
         check_ajax_referer($this->get_payment_and_auth_data_action(), $this->get_nonce_field(), true);
 
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
+        $page = isset( $_POST['page'] ) ? sanitize_text_field( wp_unslash( $_POST['page'] ) ) : 'checkout';
 
 		try {
 			$order = wc_get_order( $order_id );
-            $page = $this->gateway->paymentDataHelper->get_current_payment_page();
             $invoice_id = Helper::build_invoice_id_with_prefix($order->get_order_number());
 
 			$auth_data = $page === 'change_payment_method'

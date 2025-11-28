@@ -106,6 +106,7 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                             completePayment({
                                 paymentResult: result.data,
                                 redirect: result.redirect,
+                                page: 'checkout',
                             }).finally(() => {
                                 resolve(
                                     !result.error

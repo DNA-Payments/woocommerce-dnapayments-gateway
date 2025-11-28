@@ -350,7 +350,7 @@ class PaymentDataHelper {
      * for a subscription, or paying for a specific order.  Returns a canonical string
      * identifier that can be used to branch logic elsewhere in the gateway.
      *
-     * @return string  One of: 'add_payment_method', 'change_payment_method', 'pay_for_order', or empty string.
+     * @return string  One of: 'add_payment_method', 'change_payment_method', 'pay_for_order', 'checkout', 'cart', or empty string.
      */
     public function get_current_payment_page() {
         if ( is_add_payment_method_page() ) {
@@ -359,6 +359,14 @@ class PaymentDataHelper {
 
         if ( is_wc_endpoint_url( 'order-pay' ) ) {
             return isset( $_GET['change_payment_method'] ) ? 'change_payment_method' : 'pay_for_order';
+        }
+
+        if ( is_checkout() ) {
+            return 'checkout';
+        }
+
+        if ( is_cart() ) {
+            return 'cart';
         }
 
         return '';

@@ -5,9 +5,17 @@ import { getSubscriptionPaymentMethods, hasSubscription } from '../../common/sub
 import { shouldHideOrderLines } from '../../common/validater'
 import { getGlobalVariables } from './data'
 
-export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, onComplete }) =>
+export const createPlaceOrder = ({
+    setFormLoading,
+    allowSavingCards,
+    cards,
+    paymentMethods,
+    cardError,
+    fetchPaymentData,
+    onComplete,
+}) =>
     debounce(async (hostedFieldsInstance) => {
-        const { isTestMode, integrationType, cards, allowSavingCards, terminalConfig } = getGlobalVariables()
+        const { isTestMode, integrationType, terminalConfig } = getGlobalVariables()
 
         setFormLoading(true)
 
@@ -45,8 +53,9 @@ export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, 
             events,
         }
 
-        if (hasSubscription(paymentData)) {
-            config.paymentMethods = getSubscriptionPaymentMethods()
+        const _paymentMethods = hasSubscription(paymentData) ? getSubscriptionPaymentMethods() : paymentMethods
+        if (_paymentMethods) {
+            config.paymentMethods = _paymentMethods
         }
 
         window.DNAPayments.configure(config)

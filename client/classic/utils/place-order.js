@@ -1,7 +1,7 @@
 import { debounce } from '../../common/debounce'
 import errors from '../../common/errors'
 import { payHostedFields } from '../../common/pay-hosted-fields'
-import { getSubscriptionPaymentMethods, hasSubscription } from '../../common/subscription'
+import { getSubscriptionPaymentMethods, hasSubscription, getSubscriptionVerificationConfig } from '../../common/subscription'
 import { shouldHideOrderLines } from '../../common/validater'
 import { getGlobalVariables } from './data'
 
@@ -60,6 +60,11 @@ export const createPlaceOrder = ({
         const _paymentMethods = hasSubscription(paymentData) ? getSubscriptionPaymentMethods() : paymentMethods
         if (_paymentMethods) {
             config.paymentMethods = _paymentMethods
+        }
+
+        if (page === 'change_payment_method') {
+            const verificationConfig = getSubscriptionVerificationConfig()
+            Object.assign(config, verificationConfig);
         }
 
         window.DNAPayments.configure(config)

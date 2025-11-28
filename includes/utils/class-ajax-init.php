@@ -77,9 +77,14 @@ class AjaxInit {
 
 		try {
 			$order = wc_get_order( $order_id );
+            $invoice_id = Helper::build_invoice_id_with_prefix($order->get_order_number());
 
-            $auth_data = $this->gateway->authDataHelper->get_auth_data_from_order( $order );
-            $payment_data = $this->gateway->paymentDataHelper->get_payment_data_from_order( $order, array(
+			$auth_data = $page === 'change_payment_method'
+                ? $this->gateway->authDataHelper->get_auth_data( $invoice_id, 0.0, $order->get_currency() ) 
+                : $this->gateway->authDataHelper->get_auth_data_from_order( $order );
+
+			$payment_data = $this->gateway->paymentDataHelper->get_payment_data_from_order( $order, array(
+                'invoice_id' => $invoice_id,
                 'page' => $page,
             ) );
 

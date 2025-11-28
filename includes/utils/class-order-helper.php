@@ -134,9 +134,7 @@ class OrderHelper {
                 }
             }
 
-            if ( isset( $this->gateway->subscriptionHelper ) ) {
-                $this->gateway->subscriptionHelper->save_parent_transaction_to_subscriptions( $order, $transaction_id );
-            }
+            $this->gateway->subscriptionHelper->save_payment_meta_to_subscriptions( $order, $input );
             
             // Release the transaction lock
             delete_transient($lock_key);

@@ -89,14 +89,18 @@ jQuery(function ($) {
                 showError(err.message, true)
             }
         },
-        onComplete: (result) =>
+        onComplete: (result) => {
+            if (result.data && !result.data.paymentMethod) {
+                result.data.paymentMethod = 'card'
+            }
             completePayment({
                 paymentResult: result.data,
                 redirect: result.redirect,
                 setLoading: setFormLoading,
                 setErrors: showError,
                 page,
-            }),
+            })
+        },
     })
 
     const render = async ({ selectedGateway, shouldFetchPaymentData, shouldScrollToError = false }) => {

@@ -3,9 +3,8 @@
 import 'whatwg-fetch'
 import { requestAction } from '../common/api/request'
 import { renderHostedFields } from './utils/render-hosted-fields'
-import { createCardError, getSelectedPaymentGateway, createSetLoading, wrapMessage } from './utils/ui'
+import { createCardError, getSelectedPaymentGateway, createSetLoading } from './utils/ui'
 import { createPlaceOrder } from './utils/place-order'
-import { getQueryParam } from './utils/url-helper'
 import { getGlobalVariables } from './utils/data'
 
 let hostedFieldsInstance = null
@@ -13,14 +12,15 @@ let hostedFieldsInstance = null
 jQuery(function ($) {
     const $form = $('form#add_payment_method')
     const cardError = createCardError()
-    const message = createMessage()
     const setFormLoading = createSetLoading($form)
 
     const { gatewayId, isHostedFields, cards } = getGlobalVariables()
 
     const placeOrder = createPlaceOrder({
         cardError,
-        cards,
+        cards: [],
+        allowSavingCards: false,
+        paymentMethods: ['BankCard'],
         setFormLoading,
         fetchPaymentData: async () => {
             const result = await requestAction('get_payment_and_auth_data_for_saving_card')
@@ -49,16 +49,6 @@ jQuery(function ($) {
                 onError: (errMsg) => cardError.show(errMsg),
             })
         }
-    } else {
-        const result = getQueryParam('result', true)
-
-        if (!result) {
-            message.hide()
-        } else if (result === 'success') {
-            message.success('Successfully added payment method to your account.')
-        } else if (result === 'failure') {
-            message.error('Unable to add payment method to your account.')
-        }
     }
 
     function onSubmit(e) {
@@ -66,27 +56,6 @@ jQuery(function ($) {
             e.preventDefault()
             placeOrder(hostedFieldsInstance)
             return false
-        }
-    }
-
-    function createMessage() {
-        let $woo = $('#content #primary').prev('.woocommerce')
-        if (!$woo.length) {
-            $woo = $(`<div class="woocommerce"></div>`)
-            $('#content #primary').prepend($woo)
-        }
-
-        const hide = () => $woo.html('')
-        return {
-            hide: hide,
-            success: (msg) => {
-                hide()
-                $woo.html(wrapMessage(msg, true))
-            },
-            error: (msg) => {
-                hide()
-                $woo.html(wrapMessage(msg, false))
-            },
         }
     }
 })

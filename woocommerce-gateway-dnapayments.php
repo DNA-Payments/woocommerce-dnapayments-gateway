@@ -144,6 +144,7 @@ class WC_DNA_Payments {
 		require_once 'includes/utils/class-logger.php';
 		require_once 'includes/utils/class-ajax-init.php';
 		require_once 'includes/utils/class-webhooks-init.php';
+		require_once 'includes/utils/class-action-handlers.php';
 		require_once 'includes/utils/class-payment-data-helper.php';
 		require_once 'includes/utils/class-auth-data-helper.php';
 		require_once 'includes/utils/class-order-helper.php';
@@ -158,7 +159,6 @@ class WC_DNA_Payments {
 		require_once 'includes/gateways/class-wc-gateway-dna-googlepay.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-applepay.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-paypal.php';
-		require_once 'includes/admin/handlers.php';
 	}
 
 	/**

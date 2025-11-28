@@ -117,6 +117,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
      */
     public $subscriptionHelper;
 
+    /**
+     * @var \WCPG_DNA_Payments\Utils\ActionHandlers
+     */
+    public $actionHandler;
+
     public function __construct() {
 
         $this->id = 'dnapayments';
@@ -154,6 +159,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->orderHelper = new WCPG_DNA_Payments\Utils\OrderHelper( $this );
         $this->ajaxInit = new WCPG_DNA_Payments\Utils\AjaxInit( $this );
         $this->webhooksInit = new WCPG_DNA_Payments\Utils\WebhooksInit( $this );
+        $this->actionHandler = new WCPG_DNA_Payments\Utils\ActionHandlers( $this );
         $this->analyticsHelper = new WCPG_DNA_Payments\Utils\AnalyticsHelper($this);
         $this->requestHelper = new WCPG_DNA_Payments\Utils\RequestHelper($this);
         $this->configHelper = new WCPG_DNA_Payments\Utils\ConfigHelper($this);
@@ -443,18 +449,18 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             $order = wc_get_order( $order_id );
             $result_string = Helper::get_posted_value('wc-' . $this->id . '-result');
 
-            // Check if we are on the "Pay for Order" page
-            $is_pay_for_order = is_wc_endpoint_url( 'order-pay' );
-            // Check if the user is changing the payment method for subscription
-            $is_change_payment_method = $is_pay_for_order && isset($_GET['change_payment_method']);
             // Check if this is a block-based checkout (REST API request)
             $is_block_checkout = WC()->is_rest_api_request();
+            $page = $this->paymentDataHelper->get_current_payment_page();
 
 
             // This block is used for shortcode-based checkout
             if ( empty ($result_string) ) {
                 $auth_data = $this->authDataHelper->get_auth_data_from_order( $order );
-                $payment_data = $this->paymentDataHelper->get_payment_data_from_order( $order, $this->save_payment_method_requested() );
+                $payment_data = $this->paymentDataHelper->get_payment_data_from_order( $order, array(
+                    'store_card_on_file' => $this->save_payment_method_requested(),
+                    'page' => $page,
+                ) );
 
                 if ( ! $is_block_checkout ) {
                     $posted_data = WC()->checkout()->get_posted_data();
@@ -489,7 +495,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             // Return thankyou redirect
             return array(
                 'result' 	=> 'success',
-                'redirect'	=> $this->paymentDataHelper->get_return_url_from_order( $order )
+                'redirect'	=> $this->paymentDataHelper->get_payment_return_url( $order_id, $page, true )
             );
         } catch (Exception $e) {
             $this->logger->error('Error in process_payment: ' . $e->getMessage());

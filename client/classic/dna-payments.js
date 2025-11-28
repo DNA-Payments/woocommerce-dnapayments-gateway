@@ -42,7 +42,8 @@ let isApplePayAvailable = null
 let pendingRenderRequest = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, placeOrderButtonText } = getGlobalVariables()
+    const { isTestMode, gatewayId, isHostedFields, tempToken, cards, allowSavingCards, placeOrderButtonText } =
+        getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
     const cardError = createCardError()
@@ -76,7 +77,9 @@ jQuery(function ($) {
     }
 
     const placeOrder = createPlaceOrder({
+        cards,
         cardError,
+        allowSavingCards,
         setFormLoading,
         fetchPaymentData: async () => {
             try {
@@ -317,7 +320,7 @@ jQuery(function ($) {
         }
 
         const { success, data } = await (isPayForOrderPage
-            ? fetchPaymentAndAuthData(orderId)
+            ? fetchPaymentAndAuthData(orderId, page)
             : requestActionWithFormData('get_payment_data_from_cart', new FormData($form[0])))
 
         if (!success) {

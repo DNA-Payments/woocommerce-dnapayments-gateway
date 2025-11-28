@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class SubscriptionHelper {
 
+    private static $hooks_initialized = false;
+
     /**
      * @var WC_DNA_Payments_Gateway
      */
@@ -33,16 +35,54 @@ class SubscriptionHelper {
      * @param string $type Either 'transaction_id' or 'parent_order_id'.
      * @return string The meta key for the specified storage.
      */
-    public function get_meta_prop( $type ) {
+    public function get_meta_key( $type ) {
 
         switch ( $type ) {
             case 'parent_transaction_id':
                 return '_' . $this->gateway->id . '_parent_transaction_id';
             case 'parent_order_id':
                 return '_' . $this->gateway->id . '_parent_order_id';
+            case 'payment_method':
+                return '_' . $this->gateway->id . '_payment_method';
+            case 'card_token_id':
+                return '_' . $this->gateway->id . '_card_token_id';
             default:
                 return '_' . $this->gateway->id . '_data';
         }
+    }
+
+    /**
+     * Check if the payment details in the input match those stored on the subscription.
+     *
+     * Used to prevent changing a subscription’s payment method to the same one.
+     *
+     * @param \WC_Subscription $subscription The subscription to compare against.
+     * @param array             $input       Raw gateway input containing payment details.
+     * @return bool True when gateway, payment method and card token all match the subscription.
+     */
+    public function is_same_payment_string( \WC_Subscription $subscription, array $input ): bool {
+        $subscription_gateway_id = $subscription->get_payment_method() ?? '';
+        $subscription_payment_method = (string) $subscription->get_meta( $this->get_meta_key( 'payment_method' ) );
+        $subscription_card_token_id = (string) $subscription->get_meta( $this->get_meta_key( 'card_token_id' ) );
+
+        $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
+        $input_gateway_id = $custom_data['gateway_id'] ?? '';
+        $input_payment_method = $input['paymentMethod'] ?? '';
+        $input_card_token_id = $input['cardTokenId'] ?? '';
+
+        $subscription_string = implode( '_', array_filter( [
+            $subscription_gateway_id,
+            $subscription_payment_method,
+            $subscription_card_token_id
+        ] ) );
+
+        $input_string = implode( '_', array_filter( [
+            $input_gateway_id,
+            $input_payment_method,
+            $input_card_token_id
+        ] ) );
+
+        return $subscription_string === $input_string;
     }
 
     /**
@@ -77,7 +117,7 @@ class SubscriptionHelper {
         if ( ! $this->is_subscriptions_active() || ! function_exists( 'wcs_order_contains_subscription' ) ) {
             return false;
         }
-        return wcs_order_contains_subscription( $order );
+        return wcs_order_contains_subscription( $order, array( 'parent', 'resubscribe', 'switch', 'renewal' ) );
     }
 
     /**
@@ -119,9 +159,13 @@ class SubscriptionHelper {
         if ( ! $this->is_subscriptions_active() ) {
             return;
         }
+        if ( self::$hooks_initialized ) {
+            return;
+        }
         foreach ( $this->supported_gateways as $gateway_id ) {
             add_action( 'woocommerce_scheduled_subscription_payment_' . $gateway_id, array( $this, 'scheduled_subscription_payment_handler' ), 10, 2 );
         }
+        self::$hooks_initialized = true;
     }
 
     public function scheduled_subscription_payment_handler( $amount_to_charge, $renewal_order ) {
@@ -155,7 +199,7 @@ class SubscriptionHelper {
             }
 
             $subscription = array_shift( $subscriptions );
-            $transaction_id = $subscription->get_meta( $this->get_meta_prop( 'parent_transaction_id' ) );
+            $transaction_id = $subscription->get_meta( $this->get_meta_key( 'parent_transaction_id' ) );
 
             if ( empty( $transaction_id ) ) {
                 throw new \Exception( 'No parent transaction ID found in subscription #' . $subscription->get_id() );
@@ -170,7 +214,7 @@ class SubscriptionHelper {
                 'parentTransactionId' => $transaction_id,
                 'merchantCustomData' => json_encode([
                     'renewalOrderId' => $renewal_order->get_id(),
-                    'parentOrderId' => $subscription->get_meta( $this->get_meta_prop( 'parent_order_id' ) ),
+                    'parentOrderId' => $subscription->get_meta( $this->get_meta_key( 'parent_order_id' ) ),
                     'subscriptionId' => $subscription->get_id(),
                     'gatewayId' => $gateway_id,
                 ])
@@ -206,7 +250,7 @@ class SubscriptionHelper {
         }
     }
 
-    public function save_parent_transaction_to_subscriptions( \WC_Order $order, $transaction_id ) {
+    public function save_payment_meta_to_subscriptions( \WC_Order $order, $input ) {
         if ( ! $this->is_subscriptions_active() ) {
             return;
         }
@@ -216,17 +260,22 @@ class SubscriptionHelper {
 
         $subscriptions = wcs_get_subscriptions_for_order( $order, array( 'order_type' => 'parent' ) );
         foreach ( $subscriptions as $subscription ) {
-            $this->save_parent_transaction_to_subscription( $subscription, $transaction_id, $order->get_id() );
+            $this->save_payment_meta_to_subscription( $subscription, $input, $order->get_id() );
         }
     }
 
-    private function save_parent_transaction_to_subscription( \WC_Subscription $subscription, $transaction_id, $parent_order_id = null ) {
-        $subscription->update_meta_data( $this->get_meta_prop( 'parent_transaction_id' ), $transaction_id );
+    private function save_payment_meta_to_subscription( \WC_Subscription $subscription, $input, $parent_order_id = null ) {
+        $subscription->update_meta_data( $this->get_meta_key( 'parent_transaction_id' ), $input['id'] );
+        $subscription->update_meta_data( $this->get_meta_key( 'payment_method' ), empty( $input['paymentMethod'] ) ? '' : $input['paymentMethod'] );
+        $subscription->update_meta_data( $this->get_meta_key( 'card_token_id' ), empty( $input['cardTokenId'] ) ? '' : $input['cardTokenId'] );
+
+        // Do not update parent_order_id here; it should remain the original parent order
         if ( ! is_null( $parent_order_id ) ) {
-            $subscription->update_meta_data( $this->get_meta_prop( 'parent_order_id' ), $parent_order_id );
+            $subscription->update_meta_data( $this->get_meta_key( 'parent_order_id' ), $parent_order_id );
         }
+
         $subscription->save();
-        $this->gateway->logger->info( 'Saved subscription transaction ID ' . $transaction_id . ' for subscription #' . $subscription->get_id() );
+        $this->gateway->logger->info( 'Saved subscription parent transaction ID ' . $input['id'] . ' for subscription #' . $subscription->get_id() );
     }
 
     /**
@@ -237,8 +286,6 @@ class SubscriptionHelper {
      * @throws \Exception If the payment method cannot be changed.
      */
     public function change_subscription_payment_method( \WC_Subscription $subscription, array $input ) {
-        $old_payment_method = $subscription->get_payment_method();
-
         $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
         $gateway_id  = $custom_data['gateway_id'] ?? '';
 
@@ -246,7 +293,7 @@ class SubscriptionHelper {
             throw new \Exception( 'Gateway (Payment method) ID is missing' );
         }
 
-        if ( $gateway_id === $old_payment_method ) {
+        if ( $this->is_same_payment_string( $subscription, $input ) ) {
             throw new \Exception( 'New payment method cannot be the same as the current one' );
         }
 
@@ -264,12 +311,9 @@ class SubscriptionHelper {
         }
 
         \WC_Subscriptions_Change_Payment_Gateway::update_payment_method( $subscription, $gateway_id, $payment_meta );
+        $this->save_payment_meta_to_subscription( $subscription, $input );
 
         $account_id = isset( $input['accountId'] ) ? $input['accountId'] : '';
         $this->gateway->logger->info('Processed subscription change payment method for account ID ' . $account_id . ', subscription ID ' . $subscription->get_id() . ', transaction ID ' . $input['id']);
-
-        if ( ! empty( $input['id'] ) ) {
-            $this->save_parent_transaction_to_subscription( $subscription, $input['id'] );
-        }
     }
 }

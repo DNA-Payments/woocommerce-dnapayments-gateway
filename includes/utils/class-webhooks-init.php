@@ -21,7 +21,7 @@ class WebhooksInit {
         $this->gateway = $gateway;
         $this->init_hooks();
     }
-    
+
     private function init_hooks() {
         if ( self::$hooks_initialized ) {
             return;
@@ -189,7 +189,7 @@ class WebhooksInit {
 
             $subscription = $this->parse_webhook_order( $input, true );
 
-            $this->gateway->subscriptionHelper->change_subscription_payment_method( $subscription, $input );
+            $this->gateway->subscriptionHelper->change_subscription_payment_method( $subscription, $data );
 
             return rest_ensure_response([
                 'success' => true,
@@ -340,7 +340,7 @@ class WebhooksInit {
 
         // Find order/subscription ID if not already set
         if ( empty( $order_id ) ) {
-            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( $input['invoiceId'] );
+            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( Helper::extract_prefix_from_invoice_id( $input['invoiceId'] ) );
             if ( empty( $order_id ) ) {
                 throw new \Exception( $return_subscription ? 'Subscription' : 'Order' . ' ID could not be determined for invoiceId: ' . $input['invoiceId'], 400 );
             }

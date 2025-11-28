@@ -21,12 +21,12 @@ class PaymentDataHelper {
 
     public function get_payment_data_from_order( \WC_Order $order, $options = array() ) {
         $store_card_on_file = isset( $options['store_card_on_file'] ) ? (bool) $options['store_card_on_file'] : false;
+        $invoice_id = isset( $options['invoice_id'] ) ? $options['invoice_id'] : null;
         $page = isset( $options['page'] ) ? $options['page'] : 'checkout';
-        $is_change_payment_method = $this->gateway->subscriptionHelper->order_is_subscription( $order );
-        
+        $is_change_payment_method = $page === 'change_payment_method';
+
         $payment_data = array_merge(
             array(
-                'invoiceId' => strval( $order->get_order_number() ),
                 'currency' => $order->get_currency(),
                 'language' => 'en-gb',
                 'customerDetails' => [
@@ -46,17 +46,19 @@ class PaymentDataHelper {
             ),
             $is_change_payment_method
                 ? array(
+                    'invoiceId' => $invoice_id,
                     'amount' => 0.0,
                     'description' => 'Subscription payment method change',
                     'transactionType' => 'VERIFICATION',
                     'paymentSettings' => array(
                         'terminalId' => $this->gateway->terminal,
                         'callbackUrl' => get_rest_url(null, 'dnapayments/change-payment-method'),
-                        'returnUrl' => $this->get_payment_return_url( $order, 'change_payment_method', true ),
-                        'failureReturnUrl' => $this->get_payment_return_url( $order, 'change_payment_method', false ),
+                        'returnUrl' => $this->get_payment_return_url( $order->get_id(), 'change_payment_method', true ),
+                        'failureReturnUrl' => $this->get_payment_return_url( $order->get_id(), 'change_payment_method', false ),
                     ),
                 )
                 : array(
+                    'invoiceId' => strval( $order->get_order_number() ),
                     'amount' => floatval( $order->get_total() ),
                     'description' => $this->gateway->get_option('gatewayOrderDescription'),
                     'amountBreakdown' => array(
@@ -69,8 +71,8 @@ class PaymentDataHelper {
                     'paymentSettings' => array_merge(
                         $this->get_payment_settings(),
                         array(
-                            'returnUrl' => $this->get_return_url_from_order($order),
-                            'failureReturnUrl' => $this->get_return_url_from_order($order, array('is_failure' => true)),
+                            'returnUrl' => $this->get_payment_return_url($order->get_id(), $page, true),
+                            'failureReturnUrl' => $this->get_payment_return_url($order->get_id(), $page, false),
                         ),
                     ),
                 )
@@ -314,40 +316,6 @@ class PaymentDataHelper {
     }
 
     /**
-     * Build the return URL for an order
-     *
-     * @param \WC_Order $order   The WooCommerce order.
-     * @param array     $options {
-     *     Optional. Additional flags.
-     *
-     *     @type bool $is_failure          Whether this is a failure URL.
-     *     @type bool $skip_gateway_option Whether to skip gateway-level backLink/failureBackLink options.
-     * }
-     * @return string The fully-qualified return URL.
-     */
-    public function get_return_url_from_order( \WC_Order $order, $options = array() ) {
-        $is_failure = isset( $options['is_failure'] ) ? (bool) $options['is_failure'] : false;
-        $skip_gateway_option = isset( $options['skip_gateway_option'] ) ? (bool) $options['skip_gateway_option'] : false;
-
-        $return_url = '';
-
-        if ( ! $skip_gateway_option ) {
-            $return_url = $this->gateway->get_option( $is_failure ? 'failureBackLink' : 'backLink' );
-        }
-
-        if ( empty($return_url ) ) {
-            $return_url = $this->gateway->get_return_url( $order );
-            return $is_failure ? add_query_arg( 'status', 'failed', $return_url ) : $return_url;
-        }
-
-        if ( Helper::is_url_absolute($return_url) ) {
-            return $return_url;
-        }
-
-        return get_site_url(null, $return_url);
-    }
-
-    /**
      * Build the return URL for a payment flow.
      *
      * @param int    $order_id The order (or subscription) ID.
@@ -377,7 +345,7 @@ class PaymentDataHelper {
      * for a subscription, or paying for a specific order.  Returns a canonical string
      * identifier that can be used to branch logic elsewhere in the gateway.
      *
-     * @return string  One of: 'add_payment_method', 'change_payment_method', 'pay_for_order', or empty string.
+     * @return string  One of: 'add_payment_method', 'change_payment_method', 'pay_for_order', 'checkout', 'cart', or empty string.
      */
     public function get_current_payment_page() {
         if ( is_add_payment_method_page() ) {

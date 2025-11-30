@@ -260,9 +260,6 @@ class WebhooksInit {
                 exit;
             }
 
-            if ( $state === 'failed' ) {
-                wc_add_notice( 'Payment failed.', 'error' );
-            }
             wp_safe_redirect( $order->get_checkout_order_received_url() );
             exit;
         }

@@ -312,7 +312,7 @@ jQuery(function ($) {
         }
 
         const { success, data } = await (isPayForOrderPage
-            ? fetchPaymentAndAuthData(orderId)
+            ? fetchPaymentAndAuthData(orderId, page)
             : requestActionWithFormData('get_payment_data_from_cart', new FormData($form[0])))
 
         if (!success) {

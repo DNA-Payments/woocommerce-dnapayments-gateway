@@ -11,18 +11,17 @@ import {
 } from './utils/ui'
 import { createPlaceOrder } from './utils/place-order'
 import { renderHostedFields } from './utils/render-hosted-fields'
-import { getGlobalVariables, getRequiredFields } from './utils/data'
+import { DNA_PAYMENTS_GATEWAYS, getGlobalVariables, getRequiredFields } from './utils/data'
 import { validate } from './utils/validate'
+import { initPaymentComponent } from './utils/payment-component'
 
 import { fetchPaymentAndAuthData } from '../common/api/fetch-payment-and-auth-data'
-import { getPaymentComponentObject, getPaymentComponentErrorMessages, getPaymentComponentErrorMessage, isInitFailed } from '../common/payment-component-helper'
+import { isInitFailed } from '../common/payment-component-helper'
 import { completePayment, getOrderIdFromPaymentData } from '../common/complete-payment'
 import { requestActionWithFormData } from '../common/api/request'
-import { debounce } from '../common/debounce'
-import errors from '../common/errors'
 import { tryParse } from '../common/try-parse'
 import { checkApplePayAvailability } from '../common/validater'
-import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL } from '../common/constants'
+import { GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL } from '../common/constants'
 import { addGatewayId } from '../common/utils'
 
 /* global wc_checkout_params */
@@ -36,11 +35,13 @@ let paymentData = null
 let authData = null
 let globalError = null
 let isFirstRender = true
+let isRendering = false
 let serializedFormData = null
+let isApplePayAvailable = null
+let pendingRenderRequest = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, placeOrderButtonText } =
-        getGlobalVariables()
+    const { isTestMode, gatewayId, isHostedFields, tempToken, placeOrderButtonText } = getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
     const cardError = createCardError()
@@ -108,10 +109,11 @@ jQuery(function ($) {
             }),
     })
 
-    const render = debounce(async ({ selectedGateway, shouldFetchPaymentData, shouldUpdate, shouldScrollToError = false }) => {
+    const render = async ({ selectedGateway, shouldFetchPaymentData, shouldScrollToError = false }) => {
         if (!selectedGateway) {
             selectedGateway = getSelectedPaymentGateway()
         }
+
         const placeOrderBtn = document.getElementById('place_order')
         if (!placeOrderBtn) {
             return
@@ -122,7 +124,11 @@ jQuery(function ($) {
             originalPlaceOrderText = readButtonText(placeOrderBtn)
         }
 
-        if (!(await checkApplePayAvailability())) {
+        if (isApplePayAvailable === null) {
+            isApplePayAvailable = await checkApplePayAvailability()
+        }
+
+        if (!isApplePayAvailable) {
             $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).hide()
             if (selectedGateway === GATEWAY_ID_APPLE_PAY) {
                 $('.wc_payment_method.payment_method_dnapayments #payment_method_dnapayments').click()
@@ -132,11 +138,16 @@ jQuery(function ($) {
             $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).show()
         }
 
-        if (![GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL].includes(selectedGateway)) {
+        if (!DNA_PAYMENTS_GATEWAYS.includes(selectedGateway)) {
             $form.find('.dnapayments-footer').hide()
             placeOrderBtn.removeAttribute('disabled')
             writeButtonText(placeOrderBtn, originalPlaceOrderText)
+            pendingRenderRequest = null
+            return
+        }
 
+        if (isRendering) {
+            pendingRenderRequest = () => render({ selectedGateway, shouldFetchPaymentData, shouldScrollToError })
             return
         }
 
@@ -146,43 +157,54 @@ jQuery(function ($) {
         }
 
         serializedFormData = $form.serialize()
+        isRendering = true
         isFirstRender = false
         $form.find('.dnapayments-footer').show()
 
-        switch (selectedGateway) {
-            case GATEWAY_ID_GOOGLE_PAY:
-            case GATEWAY_ID_APPLE_PAY:
-            case GATEWAY_ID_PAYPAL: {
-                const messages = validate($form)
-                if (messages.length) {
-                    // scroll to error if rendered payment component disappear because of failed validation
-                    showError(messages, shouldScrollToError || Boolean(paymentData))
-                    paymentData = null
-                    authData = null
-                } else if (!paymentData || shouldFetchPaymentData) {
-                    setFormLoading(true)
-                    await fetchPaymentData()
-                    setFormLoading(false)
+        try {
+            switch (selectedGateway) {
+                case GATEWAY_ID_GOOGLE_PAY:
+                case GATEWAY_ID_APPLE_PAY:
+                case GATEWAY_ID_PAYPAL: {
+                    const messages = validate($form)
+                    if (messages.length) {
+                        // scroll to error if rendered payment component disappear because of failed validation
+                        showError(messages, shouldScrollToError || Boolean(paymentData))
+                        paymentData = null
+                        authData = null
+                    } else if (!paymentData || shouldFetchPaymentData) {
+                        setFormLoading(true)
+                        await fetchPaymentData()
+                        setFormLoading(false)
+                    }
+                    placeOrderBtn.setAttribute('disabled', 'disabled')
+                    await renderPaymentComponent(selectedGateway)
+                    break
                 }
-                placeOrderBtn.setAttribute('disabled', 'disabled')
-                renderPaymentComponent(selectedGateway, shouldUpdate)
-                break
+                default:
+                    placeOrderBtn.removeAttribute('disabled')
             }
-            default:
-                placeOrderBtn.removeAttribute('disabled')
+
+            if (isHostedFields) {
+                await renderHostedFields({
+                    setFormLoading,
+                    onSuccess: (instance) => {
+                        hostedFieldsInstance = instance
+                        cardError.hide()
+                    },
+                    onError: (errMsg) => cardError.show(errMsg),
+                })
+            }
+        } catch (err) {
+            console.error('render error', err)
         }
 
-        if (isHostedFields) {
-            renderHostedFields({
-                setFormLoading,
-                onSuccess: (instance) => {
-                    hostedFieldsInstance = instance
-                    cardError.hide()
-                },
-                onError: (errMsg) => cardError.show(errMsg),
-            })
+        isRendering = false
+        if (pendingRenderRequest) {
+            pendingRenderRequest()
+            pendingRenderRequest = null
         }
-    })
+    }
 
     // Detect WooCommerce AJAX calls
     $(document).ajaxSend((event, xhr, settings) => {
@@ -201,17 +223,20 @@ jQuery(function ($) {
 
     // WooCommerce updated_checkout - don't scroll as it triggers blur on all fields
     $(document.body).on('updated_checkout', () => {
-        render({ shouldFetchPaymentData: true, shouldUpdate: true, shouldScrollToError: isFirstRender })
+        render({ shouldFetchPaymentData: true, shouldScrollToError: isFirstRender })
     })
 
     // Payment method change - allow scroll to show validation errors
-    $form.on('change', 'input[name="payment_method"]', function() {
+    $form.on('change', 'input[name="payment_method"]', function () {
         render({ selectedGateway: $(this).val(), shouldScrollToError: true })
     })
     $form.on('change', 'input, textarea, select', function (e) {
         const elem = e.target
+
+        // Skip processing if the element is missing, or if it's a radio/checkbox that isn't the "terms" checkbox
+        if (!elem || ((elem.type === 'radio' || elem.type === 'checkbox') && elem.name !== 'terms')) return
         // we check form data is changed or not to avoid unnessary rendering. We do not check on event updated_checkout, because it reinserts html part where payment components renrder.
-        if (!elem || (serializedFormData && serializedFormData === $form.serialize())) return
+        if (serializedFormData && serializedFormData === $form.serialize()) return
 
         const name = elem.getAttribute('name')
         const isShippingIncluded = $form.find('[name="ship_to_different_address"]').is(':checked')
@@ -231,27 +256,14 @@ jQuery(function ($) {
 
     // On the Pay for Order page, ensure initialization
     if (isPayForOrderPage) {
-        render({ shouldScrollToError: isFirstRender})
+        render({ shouldScrollToError: isFirstRender })
     }
 
-    function renderPaymentComponent(paymentMethodId, shouldUpdate) {
-        const paymentMethodObject = getPaymentComponentObject(paymentMethodId)
-        const { initErrorMessage, validationErrorMessage } = getPaymentComponentErrorMessages(paymentMethodId)
+    async function renderPaymentComponent(paymentMethodId) {
         const $container = $form.find('#' + paymentMethodId + '_container')
-
-        if (!shouldUpdate && paymentMethodObject.isLoading) {
-            return
-        }
 
         // clear container HTML element
         $container.removeClass('has-error').html('')
-
-        if (!paymentData) {
-            paymentMethodObject.isLoading = false
-            paymentMethodObject.isLoaded = false
-            $container.addClass('has-error').html(wrapMessage(validationErrorMessage))
-            return
-        }
 
         const events = {
             onClick: () => {
@@ -283,37 +295,32 @@ jQuery(function ($) {
             onCancel: () => {
                 setFormLoading(false)
             },
-            onError: (err) => {
+            onError: (message) => {
                 setFormLoading(false)
-                setLoading($container, false)
-
-                const message = getPaymentComponentErrorMessage(err, initErrorMessage)
-
-                if (!paymentMethodObject.isLoaded) {
-                    paymentMethodObject.isLoading = false
-                    $container.addClass('has-error').html(wrapMessage(initErrorMessage))
-                } else if (paymentMethodId !== GATEWAY_ID_APPLE_PAY || !isInitFailed(err)) {
+                if (paymentMethodId !== GATEWAY_ID_APPLE_PAY || !isInitFailed(err)) {
                     showError(message, true)
                 }
-            },
-            onLoad: () => {
-                setLoading($container, false)
-                paymentMethodObject.isLoading = false
-                paymentMethodObject.isLoaded = true
             },
         }
 
         setLoading($container, true)
-        paymentMethodObject.init({
-            containerElement: $container[0],
-            events,
-            paymentData,
-            token: authData ? authData.access_token : tempToken,
-            environment: isTestMode ? 'sandbox' : 'production',
-            terminalId: wc_dna_params.terminal_id,
-        })
-        paymentMethodObject.isLoading = true
-        paymentMethodObject.isLoaded = false
+        try {
+            await initPaymentComponent(
+                paymentMethodId,
+                {
+                    containerElement: $container[0],
+                    events,
+                    paymentData,
+                    token: authData ? authData.access_token : tempToken,
+                    environment: isTestMode ? 'sandbox' : 'production',
+                    terminalId: wc_dna_params.terminal_id,
+                },
+                { paymentData, $form },
+            )
+        } catch (errMessage) {
+            $container.addClass('has-error').html(wrapMessage(errMessage))
+        }
+        setLoading($container, false)
     }
 
     function onSubmit(e) {

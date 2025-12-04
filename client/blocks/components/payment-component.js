@@ -182,10 +182,9 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
             } = params
 
             const errorMessage = message || messages || errors.CARD_PAYMENT_FAIL.message
+            processPromiseRef.current?.reject(errorMessage)
 
             if (checkoutPromiseRef.current?.status === 'pending') {
-                processPromiseRef.current?.reject(errorMessage)
-
                 return {
                     type: responseTypes.FAIL,
                     message: errorMessage,

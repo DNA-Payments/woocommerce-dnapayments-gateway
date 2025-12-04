@@ -4,16 +4,17 @@ import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_PAYPAL } from '
 
 export function getPaymentComponentErrorMessage(err, initErrorMessage) {
     logError(err)
-
-    let message = errors.CARD_PAYMENT_FAIL.message
-
-    if (err.message) {
-        message = err.message
-    }
+    let message = ''
 
     // TODO: rejected text in additionalInfo
-    if (err.additionalInfo?.message) {
+    if (typeof err.additionalInfo === 'string') {
+        message = err.additionalInfo
+    } else if (err.additionalInfo?.message) {
         message = err.additionalInfo.message
+    }
+
+    if (!message?.trim() || ['rejected', 'unknown error'].includes(message.trim().toLocaleLowerCase())) {
+        message = err.message || errors.CARD_PAYMENT_FAIL.message
     }
 
     if (initErrorMessage && isInitFailed(err)) {

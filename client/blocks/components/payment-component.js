@@ -6,7 +6,7 @@ import { logData, logError } from '../../common/log'
 import { tryParse } from '../../common/try-parse'
 import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
-import { addGatewayId } from '../../common/utils'
+import { addGatewayId, setNonces } from '../../common/utils'
 import { GATEWAY_ID_APPLE_PAY } from '../../common/constants'
 import { getPaymentComponentErrorMessage, isInitFailed } from '../../common/payment-component-helper'
 
@@ -156,6 +156,9 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
                 const paymentData = tryParse(paymentDetails.paymentData)
                 const auth = tryParse(paymentDetails.auth)
+                const nonces = tryParse(paymentDetails.nonces)
+
+                setNonces(nonces)
 
                 if (paymentData && auth) {
                     paymentData.merchantCustomData = addGatewayId(paymentData.merchantCustomData, gatewayId)

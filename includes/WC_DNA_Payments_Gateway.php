@@ -443,6 +443,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                     'paymentData'   => json_encode($payment_data),
                     'auth'          => json_encode($auth_data),
                     'token'         => $auth_data['access_token'],
+                    'nonces'        => json_encode($this->ajaxInit->get_nonces()),
                 ); 
             }
 

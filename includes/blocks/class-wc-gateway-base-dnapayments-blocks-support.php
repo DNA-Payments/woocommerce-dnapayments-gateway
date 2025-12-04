@@ -118,7 +118,6 @@ abstract class WC_Gateway_Base_DNA_Payments_Blocks_Support extends AbstractPayme
 				'description'		=> $this->get_setting( 'description' ),
 				'supports'          => $this->get_supported_features(),
 				'ajax_url'          => admin_url( 'admin-ajax.php' ),
-				'nonces' 			=> [],
 				'icon' 				=> $this->gateway->icon
 			),
 			$this->gateway->get_settings_for_frontend()

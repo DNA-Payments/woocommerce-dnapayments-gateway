@@ -15,3 +15,9 @@ export function addGatewayId(merchantCustomData, gatewayId) {
 export function getNonce(action) {
     return (window.wc_dna_params?.nonces?.[action]) || ''
 }
+
+export function setNonces(nonces) {
+    if (nonces && window.wc_dna_params) {
+        window.wc_dna_params.nonces = nonces    
+    }
+}

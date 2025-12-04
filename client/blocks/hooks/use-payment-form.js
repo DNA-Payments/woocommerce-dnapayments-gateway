@@ -12,7 +12,7 @@ import { payHostedFields } from '../../common/pay-hosted-fields'
 import errors from '../../common/errors'
 import { completePayment } from '../../common/complete-payment'
 import { shouldHideOrderLines } from '../../common/validater'
-import { addGatewayId } from '../../common/utils'
+import { addGatewayId, setNonces } from '../../common/utils'
 
 import { TEXT_DOMAIN } from '../../common/constants'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
@@ -62,6 +62,9 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
             new Promise((resolve) => {
                 const paymentData = tryParse(paymentDetails.paymentData)
                 const auth = tryParse(paymentDetails.auth)
+                const nonces = tryParse(paymentDetails.nonces)
+
+                setNonces(nonces)
 
                 if (shouldHideOrderLines(terminalConfig) && paymentData?.orderLines) {
                     delete paymentData.orderLines

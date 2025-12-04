@@ -22,7 +22,7 @@ import { requestActionWithFormData } from '../common/api/request'
 import { tryParse } from '../common/try-parse'
 import { checkApplePayAvailability } from '../common/validater'
 import { GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL } from '../common/constants'
-import { addGatewayId } from '../common/utils'
+import { addGatewayId, setNonces } from '../common/utils'
 
 /* global wc_checkout_params */
 /* global wc_dna_params */
@@ -385,6 +385,9 @@ jQuery(function ($) {
             if (typeof result.auth === 'string') {
                 result.auth = JSON.parse(result.auth)
             }
+            if (typeof result.nonces === 'string') {
+                result.nonces = JSON.parse(result.nonces)
+            }
         } catch (err) {
             console.error(err)
         }
@@ -393,6 +396,7 @@ jQuery(function ($) {
 
         paymentData = result.paymentData
         authData = result.auth
+        setNonces(result.nonces)
 
         return result
     }

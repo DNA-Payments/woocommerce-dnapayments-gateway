@@ -85,7 +85,6 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                             isTestMode,
                             cards,
                             allowSavingCards,
-                            events: { ... },
                             ...verificationConfig
                         })
 

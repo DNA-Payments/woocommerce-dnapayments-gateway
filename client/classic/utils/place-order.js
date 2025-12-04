@@ -37,7 +37,8 @@ export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, 
                   }
                 : undefined
 
-        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards, events })
+        const verificationConfig = wc_dna_params.verificationPaymentConfig || {};
+        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards, events, ...verificationConfig })
 
         switch (integrationType) {
             case 'seamless': {

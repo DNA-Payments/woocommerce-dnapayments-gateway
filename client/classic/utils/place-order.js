@@ -46,11 +46,14 @@ export const createPlaceOrder = ({
                   }
                 : undefined
 
+        const verificationConfig = wc_dna_params.verificationPaymentConfig || {};
+
         const config = {
             isTestMode,
             cards,
             allowSavingCards,
             events,
+            ...verificationConfig
         }
 
         const _paymentMethods = hasSubscription(paymentData) ? getSubscriptionPaymentMethods() : paymentMethods

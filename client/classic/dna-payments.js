@@ -280,6 +280,7 @@ jQuery(function ($) {
 
         setLoading($container, true)
         try {
+            const verificationConfig = wc_dna_params.verificationPaymentConfig || null;
             await initPaymentComponent(
                 paymentMethodId,
                 {
@@ -289,6 +290,7 @@ jQuery(function ($) {
                     token: authData ? authData.access_token : tempToken,
                     environment: isTestMode ? 'sandbox' : 'production',
                     terminalId: wc_dna_params.terminal_id,
+                    ...(verificationConfig ? { verificationConfig } : {}),
                 },
                 { paymentData, $form },
             )

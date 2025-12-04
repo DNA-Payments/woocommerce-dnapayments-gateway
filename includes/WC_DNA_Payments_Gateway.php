@@ -346,8 +346,37 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
     public function get_settings_for_frontend() {
         $current_user_id = get_current_user_id();
         $is_guest = !isset($current_user_id) || empty($current_user_id) || $current_user_id === '0';
+        $is_change_payment_method =
+            isset($_GET['change_payment_method']) ||
+            ( function_exists('wcs_is_subscription_change_payment') && wcs_is_subscription_change_payment() );
 
-        return array(
+        $verification_config = [];
+
+        if ( $is_change_payment_method ) {
+            $verification_config = [
+                'verificationPaymentConfig' => [
+                    'paymentMethods' => [
+                        [ 'name' => 'BankCard' ],
+                        [ 'name' => 'GooglePay' ],
+                        [ 'name' => 'ApplePay' ],
+                    ],
+                    'paymentMethodsSettings' => [
+                        'applepay' => [
+                            'allowVerification' => true,
+                        ],
+                        'bankCard' => [
+                            'allowVerification' => true,
+                            'allowSavedCardVerification' => true,
+                        ],
+                        'googlepay' => [
+                            'allowVerification' => true,
+                        ],
+                    ],
+                ],
+            ];
+        }
+
+        $base = [
             'is_test_mode' => $this->is_test_mode,
             'integration_type' => $this->integration_type,
             'temp_token' => $this->authDataHelper->get_temp_token(),
@@ -365,7 +394,9 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'placeOrderButtonText' => $this->get_option( 'placeOrderButtonText', '' ),
             'nonces' => $this->ajaxInit->get_nonces(),
             'page' => $this->paymentDataHelper->get_current_payment_page(),
-        );
+            ];
+
+        return array_merge($base, $verification_config);
     }
 
     /**

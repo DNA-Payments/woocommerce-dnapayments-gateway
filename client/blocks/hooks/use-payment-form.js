@@ -90,7 +90,13 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
 
                 switch (integrationType) {
                     case 'seamless': {
-                        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards })
+                        const verificationConfig = wc_dna_params.verificationPaymentConfig || {};
+                        window.DNAPayments.configure({
+                            isTestMode,
+                            cards,
+                            allowSavingCards,
+                            ...verificationConfig
+                        })
 
                         payHostedFields(
                             hostedFieldsInstance,
@@ -124,6 +130,8 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                         break
                     }
                     case 'embedded': {
+                        const verificationConfig = wc_dna_params.verificationPaymentConfig || {};
+
                         window.DNAPayments.configure({
                             ...config,
                             events: {
@@ -139,13 +147,21 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                                         message: __(errors.CARD_PAYMENT_FAIL.message, TEXT_DOMAIN),
                                     }),
                             },
+                            ...verificationConfig
                         })
 
                         window.DNAPayments.openPaymentIframeWidget({ ...paymentData, auth })
                         break
                     }
                     default: {
-                        window.DNAPayments.configure(config)
+                        const verificationConfig = wc_dna_params.verificationPaymentConfig || {};
+
+                        window.DNAPayments.configure({
+                            isTestMode,
+                            cards,
+                            allowSavingCards,
+                            ...verificationConfig
+                        });
                         window.DNAPayments.openPaymentPage({ ...paymentData, auth })
                     }
                 }

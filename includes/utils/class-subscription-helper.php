@@ -82,6 +82,8 @@ class SubscriptionHelper {
             $input_card_token_id
         ] ) );
 
+        $this->gateway->logger->info( 'Subscription string: ' . $subscription_string . 'Input string: ' . $input_string );
+        
         return $subscription_string === $input_string;
     }
 

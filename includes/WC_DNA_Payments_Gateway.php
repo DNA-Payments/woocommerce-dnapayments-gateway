@@ -401,7 +401,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             $dna_params = array_merge(
                 array(
                     'order_id' => $order_id,
-                    'page' => $order_id && isset($_GET['change_payment_method']),
                 ),
                 $this->get_settings_for_frontend()
             );

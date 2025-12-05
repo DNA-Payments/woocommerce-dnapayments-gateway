@@ -1,5 +1,11 @@
 *** WooCommerce DNA Payments Gateway Changelog ***
 
+2025-11-06 - version 4.1.0
+* Added PayPal button payment integration via DNA Payments.
+* Improved Apple Pay, Google Pay, and PayPal component rendering and availability checks.
+* Enhanced clarity of user-facing error messages.
+* Updated process_payment to refresh AJAX nonces and prevent 403 errors after guest-to-account session changes.
+
 2025-11-17 - version 4.0.10
 * Security
     - Fix critical vulnerability in the update order status AJAX request:

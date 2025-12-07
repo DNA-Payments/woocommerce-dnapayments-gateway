@@ -43,7 +43,12 @@ class PaymentDataHelper {
                     'deliveryAddress' => $this->get_address_from_order( $order, 'shipping' ),
                 ]
             ],
-            'amountBreakdown' => $this->get_amount_breakdown_from_order( $order ),
+            'amountBreakdown' => array(
+                'itemTotal' => array('totalAmount' => Helper::number_format($order->get_subtotal())),
+                'shipping' => array('totalAmount' => Helper::number_format($order->get_shipping_total())),
+                'taxTotal' => array('totalAmount' => Helper::number_format($order->get_total_tax())),
+                'discount' => array('totalAmount' => Helper::number_format($order->get_total_discount()))
+            ),
             'orderLines' => $this->get_order_lines_from_order( $order ),
             'merchantCustomData' => json_encode( array(
                 'orderId' => $order->get_id(),
@@ -56,10 +61,13 @@ class PaymentDataHelper {
     }
 
     public function get_payment_data_from_cart( \WC_Checkout $checkout, \WC_Cart $cart, \WC_Customer $customer ) {
+        // Force WooCommerce to run all price hooks
+        $cart->calculate_totals();
+
         $posted_data = $checkout->get_posted_data();
         $payment_data = [
             'description' => $this->gateway->get_option('gatewayOrderDescription'),
-            'amount' => floatval($cart->total),
+            'amount' => floatval($cart->get_total('edit')),
             'currency' => get_woocommerce_currency(),
             'language' => 'en-gb',
             'paymentSettings' => $this->get_payment_settings(),
@@ -73,7 +81,12 @@ class PaymentDataHelper {
                     'deliveryAddress' => $this->get_address_from_post_data( $posted_data, 'shipping' ),
                 ]
             ],
-            'amountBreakdown' => $this->get_amount_breakdown_from_cart( $cart ),
+            'amountBreakdown' => array(
+                'itemTotal' => array('totalAmount' => Helper::number_format($cart->get_subtotal())),
+                'shipping' => array('totalAmount' => Helper::number_format($cart->get_shipping_total())),
+                'taxTotal' => array('totalAmount' => Helper::number_format($cart->get_total_tax())),
+                'discount' => array('totalAmount' => Helper::number_format($cart->get_discount_total())),
+            ),
             'orderLines' => $this->get_order_lines_from_cart( $cart ),
         ];
 
@@ -126,24 +139,6 @@ class PaymentDataHelper {
             'terminalId' => $this->gateway->terminal,
             'callbackUrl' => get_rest_url(null, 'dnapayments/success'),
             'failureCallbackUrl' => get_rest_url(null, 'dnapayments/failure'),
-        );
-    }
-
-    private function get_amount_breakdown_from_cart( \WC_Cart $cart ) {
-        return array(
-            'itemTotal' => array('totalAmount' => Helper::number_format($cart->get_subtotal())),
-            'shipping' => array('totalAmount' => Helper::number_format($cart->get_shipping_total())),
-            'taxTotal' => array('totalAmount' => Helper::number_format($cart->get_taxes_total())),
-            'discount' => array('totalAmount' => Helper::number_format($cart->get_discount_total()))
-        );
-    }
-
-    private function get_amount_breakdown_from_order( \WC_Abstract_order $order ) {
-        return array(
-            'itemTotal' => array('totalAmount' => Helper::number_format($order->get_subtotal())),
-            'shipping' => array('totalAmount' => Helper::number_format($order->get_shipping_total())),
-            'taxTotal' => array('totalAmount' => Helper::number_format($order->get_total_tax())),
-            'discount' => array('totalAmount' => Helper::number_format($order->get_total_discount()))
         );
     }
 

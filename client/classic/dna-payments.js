@@ -303,7 +303,7 @@ jQuery(function ($) {
             },
         }
 
-        setLoading($container, true)
+        setLoading($container.parent(), true)
         try {
             await initPaymentComponent(
                 paymentMethodId,
@@ -320,7 +320,7 @@ jQuery(function ($) {
         } catch (errMessage) {
             $container.addClass('has-error').html(wrapMessage(errMessage))
         }
-        setLoading($container, false)
+        setLoading($container.parent(), false)
     }
 
     function onSubmit(e) {

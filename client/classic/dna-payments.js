@@ -241,8 +241,16 @@ jQuery(function ($) {
         const name = elem.getAttribute('name')
         const isShippingIncluded = $form.find('[name="ship_to_different_address"]').is(':checked')
 
-        const required = elem.getAttribute('aria-required')
-        const isRequired = (required && required === 'true') || getRequiredFields(isShippingIncluded).includes(name)
+        // Check multiple ways a field can be marked as required in WooCommerce
+        const ariaRequired = elem.getAttribute('aria-required')
+        const hasRequiredAttr = elem.hasAttribute('required')
+        const hasValidateRequiredClass = $(elem).closest('.form-row').hasClass('validate-required')
+
+        const isRequired =
+            (ariaRequired && ariaRequired === 'true') ||
+            hasRequiredAttr ||
+            hasValidateRequiredClass ||
+            getRequiredFields(isShippingIncluded).includes(name)
 
         if (!isUpdating && isRequired) {
             render({ shouldFetchPaymentData: name !== 'terms', shouldScrollToError: false })

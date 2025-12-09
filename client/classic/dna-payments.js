@@ -37,7 +37,6 @@ let globalError = null
 let isFirstRender = true
 let isRendering = false
 let serializedFormData = null
-let isApplePayAvailable = null
 let pendingRenderRequest = null
 
 jQuery(function ($) {
@@ -124,11 +123,7 @@ jQuery(function ($) {
             originalPlaceOrderText = readButtonText(placeOrderBtn)
         }
 
-        if (isApplePayAvailable === null) {
-            isApplePayAvailable = await checkApplePayAvailability()
-        }
-
-        if (!isApplePayAvailable) {
+        if (!(await checkApplePayAvailability())) {
             $('.wc_payment_method.payment_method_' + GATEWAY_ID_APPLE_PAY).hide()
             if (selectedGateway === GATEWAY_ID_APPLE_PAY) {
                 $('.wc_payment_method.payment_method_dnapayments #payment_method_dnapayments').click()

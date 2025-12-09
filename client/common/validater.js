@@ -61,15 +61,30 @@ export function shouldHideOrderLines(terminalConfig) {
     return !isPayPalOrKlarnaActive
 }
 
+// Determines Apple Pay availability using a single-flight promise stored on `window`.
+// Ensures `window.DNAPayments.ApplePayComponent.isAvailable` is invoked only once across bundles,
+// and all concurrent callers share the same result. Subsequent calls return the cached value.
 export const checkApplePayAvailability = async () => {
     if (typeof window.DNAPayments?.ApplePayComponent?.isAvailable !== 'function') {
         return false
     }
 
-    try {
-        return await window.DNAPayments.ApplePayComponent.isAvailable()
-    } catch (err) {
-        console.error('Error in checkApplePayAvailability', err)
-        return false
+    if (typeof window.__dnaApplePayAvailabilityCached !== 'undefined') {
+        return window.__dnaApplePayAvailabilityCached
     }
+
+    if (!window.__dnaApplePayAvailabilityPromise) {
+        window.__dnaApplePayAvailabilityPromise = Promise.resolve(window.DNAPayments.ApplePayComponent.isAvailable())
+            .then((available) => {
+                window.__dnaApplePayAvailabilityCached = Boolean(available)
+                return window.__dnaApplePayAvailabilityCached
+            })
+            .catch((err) => {
+                console.error('WooCommerce: Error in checkApplePayAvailability', err)
+                window.__dnaApplePayAvailabilityCached = false
+                return false
+            })
+    }
+
+    return window.__dnaApplePayAvailabilityPromise
 }

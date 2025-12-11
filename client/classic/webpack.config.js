@@ -1,37 +1,11 @@
 const path = require('path')
 
 module.exports = (env, argv) => {
-    return {
+    const base = {
         mode: argv.watch ? 'development' : 'production',
-        entry: {
-            'dna-payments': path.resolve(__dirname, 'dna-payments.js'),
-            'dna-payments-add-card': path.resolve(__dirname, 'dna-payments-add-card.js'),
-        },
         output: {
             path: path.resolve(__dirname, '..', '..', 'assets', 'js', 'classic'),
             filename: '[name].js',
-        },
-        module: {
-            rules: [
-                {
-                    test: /\.js$/,
-                    exclude: /node_modules/,
-                    use: {
-                        loader: 'babel-loader',
-                        options: {
-                            presets: [
-                                [
-                                    '@babel/preset-env',
-                                    {
-                                        useBuiltIns: 'usage',
-                                        corejs: 3,
-                                    },
-                                ],
-                            ],
-                        },
-                    },
-                },
-            ],
         },
         resolve: {
             extensions: ['.js'],
@@ -43,4 +17,48 @@ module.exports = (env, argv) => {
         },
         watch: argv.watch || false,
     }
+
+    const babelRules = [
+        {
+            test: /\.js$/,
+            exclude: /node_modules/,
+            use: {
+                loader: 'babel-loader',
+                options: {
+                    presets: [
+                        [
+                            '@babel/preset-env',
+                            {
+                                useBuiltIns: 'usage',
+                                corejs: 3,
+                            },
+                        ],
+                    ],
+                },
+            },
+        },
+    ]
+
+    const mainConfig = {
+        ...base,
+        entry: {
+            'dna-payments': path.resolve(__dirname, 'dna-payments.js'),
+            'dna-payments-add-card': path.resolve(__dirname, 'dna-payments-add-card.js'),
+        },
+        module: {
+            rules: babelRules,
+        },
+    }
+
+    const preloaderConfig = {
+        ...base,
+        entry: {
+            'dnapayments-preloader': path.resolve(__dirname, 'dnapayments-preloader.js'),
+        },
+        module: {
+            rules: [],
+        },
+    }
+
+    return [mainConfig, preloaderConfig]
 }

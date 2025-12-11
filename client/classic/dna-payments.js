@@ -8,6 +8,7 @@ import {
     wrapMessage,
     scrollToNotices,
     setLoading,
+    getPlaceOrderButton,
 } from './utils/ui'
 import { createPlaceOrder } from './utils/place-order'
 import { renderHostedFields } from './utils/render-hosted-fields'
@@ -113,7 +114,7 @@ jQuery(function ($) {
             selectedGateway = getSelectedPaymentGateway()
         }
 
-        const placeOrderBtn = document.getElementById('place_order')
+        const placeOrderBtn = getPlaceOrderButton()
         if (!placeOrderBtn) {
             return
         }
@@ -253,6 +254,8 @@ jQuery(function ($) {
     if (isPayForOrderPage) {
         render({ shouldScrollToError: isFirstRender })
     }
+
+    window.__dnapaymentsReady = true
 
     async function renderPaymentComponent(paymentMethodId) {
         const $container = $form.find('#' + paymentMethodId + '_container')

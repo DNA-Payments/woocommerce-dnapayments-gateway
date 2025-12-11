@@ -44,6 +44,10 @@ export function getSelectedPaymentGateway() {
     return jQuery('input[name="payment_method"]:checked').val() || null
 }
 
+export function getPlaceOrderButton() {
+    return document.getElementById('place_order')
+}
+
 export function scrollToNotices($form) {
     let scrollElement = jQuery('.woocommerce-NoticeGroup-updateOrderReview, .woocommerce-NoticeGroup-checkout')
 

@@ -358,8 +358,10 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         }
 
         wp_register_style( 'dna_styles', plugins_url( 'assets/css/dna-payment.css', WC_DNA_MAIN_FILE ), [], \WC_DNA_Payments::$version );
-		wp_enqueue_style( 'dna_styles' );
+        wp_enqueue_style( 'dna_styles' );
 
+        wp_register_script( 'woocommerce_dnapayments_preloader', plugins_url( 'assets/js/classic/dnapayments-preloader.js', WC_DNA_MAIN_FILE ), [], \WC_DNA_Payments::$version, false );
+        wp_enqueue_script( 'woocommerce_dnapayments_preloader' );
 
         if (is_add_payment_method_page()) {
             wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments-add-card.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-payment-api', 'dna-hosted-fields') , \WC_DNA_Payments::$version, true);

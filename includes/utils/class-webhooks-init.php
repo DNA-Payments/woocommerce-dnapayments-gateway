@@ -6,6 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+use WCPG_DNA_Payments\Utils\Helper;
+
 class WebhooksInit {
 
 	/**
@@ -144,7 +146,7 @@ class WebhooksInit {
 
         // Find order ID if not already set
         if ( empty($order_id) ) {
-            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber($input['invoiceId']);
+            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( Helper::extract_prefix_from_invoice_id( $input['invoiceId'] ) );
 
             if ( empty($order_id) ) {
                 throw new \Exception('Order ID could not be determined for invoiceId: ' . $input['invoiceId'], 400);

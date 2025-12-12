@@ -123,4 +123,29 @@ class Helper {
         $is_guest = !isset($user_id) || empty($user_id) || $user_id === '0';
         return $is_guest ? '' : $user_id;
     }
+
+    public static function build_invoice_id_with_prefix($prefix) {
+        $delimiter = '|';
+        $unique = function_exists('wp_generate_uuid4') ? wp_generate_uuid4() : date('d-m-y h:i:s');
+        $prefix_str = trim(strval($prefix));
+
+        // If prefix is empty, return only the unique part without delimiter
+        if (empty($prefix_str)) {
+            return $unique;
+        }
+
+        return $prefix_str . $delimiter . $unique;
+    }
+
+    public static function extract_prefix_from_invoice_id($invoice_id) {
+        $delimiter = '|';
+        $parts = explode($delimiter, strval($invoice_id), 2);
+
+        // If no delimiter is found, return empty string as prefix
+        if (count($parts) === 1) {
+            return '';
+        }
+
+        return $parts[0];
+    }
 }

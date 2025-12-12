@@ -6,6 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+use WCPG_DNA_Payments\Utils\Helper;
+
 class AjaxInit {
 	/**
      * @var WC_DNA_Payments_Gateway
@@ -118,7 +120,7 @@ class AjaxInit {
         check_ajax_referer($this->get_payment_and_auth_data_for_saving_card_action(), $this->get_nonce_field(), true);
 
         $user_id    = get_current_user_id();
-        $invoice_id = date('d-m-y h:i:s');
+        $invoice_id = Helper::build_invoice_id_with_prefix($user_id);
 		$customer 	= new \WC_Customer( $user_id );
 
 		try {

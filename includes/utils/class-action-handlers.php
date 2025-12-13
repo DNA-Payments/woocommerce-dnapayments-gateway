@@ -1,17 +1,51 @@
 <?php
+
+namespace WCPG_DNA_Payments\Utils;
+
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+
 
 /**
  * Handles and process orders from asyncronous flows.
  *
  */
-class WC_DNA_Payments_Order_Handler extends WC_DNA_Payments_Gateway {
-    public function __construct() {
+class ActionHandlers {
+    /**
+     * @var \WC_DNA_Payments_Gateway
+     */
+    public $gateway;
+
+    /**
+     * Prevent duplicate hook registration.
+     *
+     * @var bool
+     */
+    private static $hooks_initialized = false;
+
+    /**
+     * Initialize with gateway and register hooks.
+     *
+     * @param \WC_DNA_Payments_Gateway $gateway
+     */
+    public function __construct( $gateway ) {
+        $this->gateway = $gateway;
+        $this->init_hooks();
+    }
+
+    /**
+     * Register WooCommerce hooks once.
+     */
+    private function init_hooks() {
+        if ( self::$hooks_initialized ) {
+            return;
+        }
+
         add_action( 'woocommerce_order_status_changed', array( $this, 'capture_payment' ), 10, 3 );
         add_action( 'woocommerce_order_status_cancelled', array( $this, 'cancel_payment' ) );
-        parent::__construct();
+
+        self::$hooks_initialized = true;
     }
 
     /**
@@ -21,7 +55,6 @@ class WC_DNA_Payments_Order_Handler extends WC_DNA_Payments_Gateway {
      */
     public function capture_payment( $order_id, $previous_status, $next_status ) {
         $order = wc_get_order( $order_id );
-        $logger = wc_get_logger();
 
         $complete_statuses = [
             'processing',
@@ -29,14 +62,14 @@ class WC_DNA_Payments_Order_Handler extends WC_DNA_Payments_Gateway {
         ];
 
         if (
-            WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order) &&
+            \WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order) &&
             in_array($next_status, $complete_statuses) &&
             !in_array($previous_status, $complete_statuses)
         ) {
 
             $paymentMethod = $order->get_meta( 'payment_method', true );
 
-            if($paymentMethod === 'paypal' && !WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order)) {
+            if($paymentMethod === 'paypal' && !\WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order)) {
                 $paypalCaptureStatus = $order->get_meta( 'paypal_capture_status', true );
                 $order->add_order_note( sprintf( __('DNA Paypal payment could not be captured with status: %s', 'woocommerce-gateway-dna'), $paypalCaptureStatus) );
                 return;
@@ -53,10 +86,10 @@ class WC_DNA_Payments_Order_Handler extends WC_DNA_Payments_Gateway {
                 }
 
                 try {
-                    $result = $this->dnaPayment->charge([
-                        'client_id' => $this->client_id,
-                        'client_secret' => $this->client_secret,
-                        'terminal' => $this->terminal,
+                    $result = $this->gateway->dnaPayment->charge([
+                        'client_id' => $this->gateway->client_id,
+                        'client_secret' => $this->gateway->client_secret,
+                        'terminal' => $this->gateway->terminal,
                         'invoiceId' => strval($order->get_order_number()),
                         'amount' => $order_total,
                         'currency' => $order->get_currency(),
@@ -75,7 +108,7 @@ class WC_DNA_Payments_Order_Handler extends WC_DNA_Payments_Gateway {
                         return true;
                     }
                 } catch (\Exception $e) {
-                    $logger->error('Error in capture_payment; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+                    $this->gateway->logger->error('Error in capture_payment; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
                 }
 
                 return false;
@@ -92,23 +125,18 @@ class WC_DNA_Payments_Order_Handler extends WC_DNA_Payments_Gateway {
         $order = wc_get_order( $order_id );
         $is_finished = $order->get_meta( 'is_finished_payment', true ) === 'yes';
 
-        if ( WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order) ) {
+        if ( \WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order) ) {
             $paymentMethod = $order->get_meta( 'payment_method', true );
 
-            if($paymentMethod === 'paypal' && !WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order)) {
+            if($paymentMethod === 'paypal' && !\WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order)) {
                 $paypalCaptureStatus = $order->get_meta( 'paypal_capture_status', true );
                 $order->add_order_note( sprintf( __( 'DNA Paypal payment could not be refund/cancel with status: %s', 'woocommerce-gateway-dna' ), $paypalCaptureStatus) );
                 return;
             }
 
             if(!$is_finished) {
-                $this->process_refund( $order_id );
+                $this->gateway->process_refund( $order_id );
             }
         }
     }
 }
-
-// Initialize the order handler on init hook to ensure translations are loaded properly
-add_action( 'init', function() {
-    new WC_DNA_Payments_Order_Handler();
-}, 20 );

@@ -337,6 +337,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'cards' => WC_DNA_Payments_Order_Client_Helpers::getCardTokens( $current_user_id, $this->id ),
             'placeOrderButtonText' => $this->get_option( 'placeOrderButtonText', '' ),
             'nonces' => $this->ajaxInit->get_nonces(),
+            'page' => $this->paymentDataHelper->get_current_payment_page(),
         );
     }
 
@@ -409,9 +410,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
     public function process_payment( $order_id ) {
         $this->analyticsHelper->send_analytics();
 
-        // Check if this is a block-based checkout (REST API request)
-        $is_block_checkout = WC()->is_rest_api_request();
-
         // Clean up all output buffers to remove unexpected output
         while ( ob_get_level() > 0 ) {
             ob_end_clean();
@@ -421,9 +419,17 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             $order = wc_get_order( $order_id );
             $result_string = Helper::get_posted_value('wc-' . $this->id . '-result');
 
+            // Check if this is a block-based checkout (REST API request)
+            $is_block_checkout = WC()->is_rest_api_request();
+            $page = $this->paymentDataHelper->get_current_payment_page();
+
+            // This block is used for shortcode-based checkout
             if ( empty ($result_string) ) {
                 $auth_data = $this->authDataHelper->get_auth_data_from_order( $order );
-                $payment_data = $this->paymentDataHelper->get_payment_data_from_order( $order, $this->save_payment_method_requested() );
+                $payment_data = $this->paymentDataHelper->get_payment_data_from_order( $order, array(
+                    'store_card_on_file' => $this->save_payment_method_requested(),
+                    'page' => $page,
+                ) );
 
                 if ( ! $is_block_checkout ) {
                     $posted_data = WC()->checkout()->get_posted_data();
@@ -449,7 +455,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                 ); 
             }
 
-            $result = $this->orderHelper->update_status_from_payment_result( $order, $result_string, Helper::get_current_user_id(), 'process_payment' );
+            $result = $this->orderHelper->process_payment_using_payment_result( $order, $result_string, Helper::get_current_user_id(), 'process_payment' );
 
             if ( $result['status'] === 'failed' ) {
                 throw new \Exception( $result['message'] );
@@ -458,7 +464,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             // Return thankyou redirect
             return array(
                 'result' 	=> 'success',
-                'redirect'	=> $this->paymentDataHelper->get_return_url_from_order( $order )
+                'redirect'	=> $this->paymentDataHelper->get_payment_return_url( $order_id, $page, true )
             );
         } catch (Exception $e) {
             $this->logger->error('Error in process_payment: ' . $e->getMessage());

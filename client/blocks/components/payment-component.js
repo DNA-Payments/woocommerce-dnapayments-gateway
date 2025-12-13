@@ -50,27 +50,33 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
         }
     }, [props])
 
-    const rejectCheckoutPromise = useCallback((msg) => {
-        if (checkoutPromiseRef.current?.status === 'pending') {
-            checkoutPromiseRef.current.resolve({
-                type: responseTypes.ERROR,
-                message: msg || errors.CARD_PAYMENT_FAIL.message,
-                messageContext: noticeContexts.PAYMENTS,
-            })
-            checkoutPromiseRef.current.status = 'rejected'
-        }
-    }, [responseTypes, noticeContexts])
+    const rejectCheckoutPromise = useCallback(
+        (msg) => {
+            if (checkoutPromiseRef.current?.status === 'pending') {
+                checkoutPromiseRef.current.resolve({
+                    type: responseTypes.ERROR,
+                    message: msg || errors.CARD_PAYMENT_FAIL.message,
+                    messageContext: noticeContexts.PAYMENTS,
+                })
+                checkoutPromiseRef.current.status = 'rejected'
+            }
+        },
+        [responseTypes, noticeContexts],
+    )
 
-    const resolveCheckoutPromise = useCallback((redirect) => {
-        if (checkoutPromiseRef.current) {
-            checkoutPromiseRef.current.resolve({
-                type: responseTypes.SUCCESS,
-                messageContext: noticeContexts.PAYMENTS,
-                redirectUrl: redirect,
-            })
-            checkoutPromiseRef.current.status = 'resolved'
-        }
-    }, [responseTypes, noticeContexts])
+    const resolveCheckoutPromise = useCallback(
+        (redirect) => {
+            if (checkoutPromiseRef.current) {
+                checkoutPromiseRef.current.resolve({
+                    type: responseTypes.SUCCESS,
+                    messageContext: noticeContexts.PAYMENTS,
+                    redirectUrl: redirect,
+                })
+                checkoutPromiseRef.current.status = 'resolved'
+            }
+        },
+        [responseTypes, noticeContexts],
+    )
 
     useEffect(() => {
         const handler = (payload) => {
@@ -114,6 +120,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                             paymentResult,
                             redirect,
                             setErrors,
+                            page: 'checkout',
                         })
                         setLoadingState('done')
                         resolveCheckoutPromise(redirect)
@@ -126,7 +133,8 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                     },
                     onError: (err) => {
                         logData('onError', err)
-                        const notShowError = isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
+                        const notShowError =
+                            isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
                         const message = getPaymentComponentErrorMessage(err, errorMessage)
                         setLoadingState('failed')
                         if (!notShowError) {

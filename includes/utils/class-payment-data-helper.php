@@ -19,7 +19,10 @@ class PaymentDataHelper {
         $this->gateway = $gateway;
     }
 
-    public function get_payment_data_from_order( \WC_Order $order, $store_card_on_file = false ) {
+    public function get_payment_data_from_order( \WC_Order $order, $options = array() ) {
+        $store_card_on_file = isset( $options['store_card_on_file'] ) ? (bool) $options['store_card_on_file'] : false;
+        $page = isset( $options['page'] ) ? $options['page'] : 'checkout';
+
         $payment_data = array(
             'invoiceId' => strval( $order->get_order_number() ),
             'description' => $this->gateway->get_option('gatewayOrderDescription'),
@@ -29,8 +32,8 @@ class PaymentDataHelper {
             'paymentSettings' => array_merge(
                 $this->get_payment_settings(),
                 array(
-                    'returnUrl' => $this->get_return_url_from_order($order),
-                    'failureReturnUrl' => $this->get_return_url_from_order($order, true),
+                    'returnUrl' => $this->get_payment_return_url($order->get_id(), $page, true),
+                    'failureReturnUrl' => $this->get_payment_return_url($order->get_id(), $page, false),
                 ),
             ),
             'customerDetails' => [
@@ -94,13 +97,14 @@ class PaymentDataHelper {
         return $payment_data;
     }
 
+    /**
+     * Generate payment data for adding a new payment method (card) to a customer.
+     *
+     * @param \WC_Customer $customer   The WooCommerce customer object.
+     * @param string       $invoice_id Unique invoice identifier for the verification transaction.
+     * @return array Payment data payload used to initiate the card-addition flow.
+     */
     public function get_payment_data_from_customer( \WC_Customer $customer, $invoice_id ) {
-
-        function get_return_url($success) {
-            $return_url = wc_get_endpoint_url('payment-methods', '', wc_get_page_permalink('myaccount'));
-            return add_query_arg('result', $success ? 'success' : 'failure', $return_url);
-        }
-
         return [
             'transactionType'   => 'VERIFICATION',
             'invoiceId'         => $invoice_id,
@@ -110,9 +114,10 @@ class PaymentDataHelper {
             'language'          => 'en-gb',
             'paymentSettings' => [
                 'terminalId'        => $this->gateway->terminal,
-                'returnUrl'         => get_return_url(true),
-                'failureReturnUrl'  => get_return_url(false),
                 'callbackUrl'       => get_rest_url(null, 'dnapayments/success-add-card'),
+                'returnUrl'         => $this->get_payment_return_url( 0, 'add_payment_method', true ),
+                'failureReturnUrl'  => $this->get_payment_return_url( 0, 'add_payment_method', false ),
+                
             ],
             'customerDetails' => [
                 'email'             => $customer->get_billing_email(),
@@ -281,18 +286,55 @@ class PaymentDataHelper {
         ] );
     }
 
-    public function get_return_url_from_order( \WC_Abstract_order $order, $is_failure = false ) {
-        $return_url = $this->gateway->get_option( $is_failure ? 'failureBackLink' : 'backLink' );
+    /**
+     * Build the return URL for a payment flow.
+     *
+     * @param int    $order_id The order (or subscription) ID.
+     * @param string $page     Page identifier. Can be: change_payment_method, add_payment_method, pay_for_order
+     * @param bool   $success  Whether the flow succeeded.
+     * @return string The fully-qualified return URL.
+     */
+    public function get_payment_return_url( $order_id, $page, $success ) {
+        // Build the base API URL for the gateway
+        $base = WC()->api_request_url( $this->gateway->id );
+        // Append query parameters to indicate order, page and state
+        $url  = add_query_arg(
+            [
+                'order_id' => $order_id,
+                'page'     => $page,
+                'state'    => $success ? 'success' : 'failed',
+            ],
+            $base
+        );
+        return $url;
+    }
 
-        if ( empty($return_url ) ) {
-            $return_url = $this->gateway->get_return_url( $order );
-            return $is_failure ? add_query_arg( 'status', 'failed', $return_url ) : $return_url;
+    /**
+     * Determine the current payment-related page context.
+     *
+     * Detects whether the shopper is on “Add Payment Method”, changing the payment method
+     * for a subscription, or paying for a specific order.  Returns a canonical string
+     * identifier that can be used to branch logic elsewhere in the gateway.
+     *
+     * @return string  One of: 'add_payment_method', 'pay_for_order', 'checkout', 'cart', or empty string.
+     */
+    public function get_current_payment_page() {
+        if ( is_add_payment_method_page() ) {
+            return 'add_payment_method';
         }
 
-        if ( Helper::is_url_absolute($return_url) ) {
-            return $return_url;
+        if ( is_wc_endpoint_url( 'order-pay' ) ) {
+            return 'pay_for_order';
         }
 
-        return get_site_url(null, $return_url);
+        if ( is_checkout() ) {
+            return 'checkout';
+        }
+
+        if ( is_cart() ) {
+            return 'cart';
+        }
+
+        return '';
     }
 }

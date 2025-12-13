@@ -19,6 +19,8 @@ class WebhooksInit {
         $this->gateway = $gateway;
 
         add_action( 'rest_api_init', array( $this, 'register_routes' ));
+
+        add_action( 'woocommerce_api_' . $this->gateway->id, array( $this, 'handle_payment_return_page' ) );
     }
 
     public function register_routes() {
@@ -81,7 +83,7 @@ class WebhooksInit {
 
             $this->gateway->logger->info('Processing success webhook for order ID ' . $order_id . ' with status ' . $status);
 
-            $result = $this->gateway->orderHelper->update_status( $order, $input, $input['settled'], 'success_webhook' );
+            $result = $this->gateway->orderHelper->process_payment( $order, $input, 'success_webhook' );
 
             $this->gateway->logger->info('Processed success webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
 
@@ -107,7 +109,7 @@ class WebhooksInit {
             
             $this->gateway->logger->info('Processing failure webhook for order ID ' . $order_id . ' with status ' . $status);
             
-            $result = $this->gateway->orderHelper->update_status( $order, $input, false, 'fail_webhook' );
+            $result = $this->gateway->orderHelper->process_payment( $order, $input, 'fail_webhook' );
             
             $this->gateway->logger->info('Processed failure webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
         
@@ -137,17 +139,87 @@ class WebhooksInit {
         }
     }
 
+    /**
+     * Handle WooCommerce legacy wc-api endpoint return page for payment flows.
+     *
+     * This method processes the return page after payment flows such as adding a payment method, or paying for an order, or checkout.
+     *
+     * URL format: /?wc-api={gateway-id}&page={page}&order_id={order_id}&state={success|failed}
+     *
+     * @return void
+     */
+    public function handle_payment_return_page() {
+        $order_id = absint( $_GET['order_id'] ?? 0 );
+        $state    = sanitize_text_field( $_GET['state'] ?? '' );
+        $page     = sanitize_text_field( $_GET['page'] ?? '' );
+
+        // Handle add-payment-method flow
+        if ( $page === 'add_payment_method' ) {
+            if ( $state === 'failed' ) {
+                wc_add_notice( 'Payment method could not be added.', 'error' );
+            } else {
+                wc_add_notice( 'Payment method added successfully.', 'success' );
+            }
+
+            wp_safe_redirect( wc_get_account_endpoint_url( 'payment-methods' ) );
+            exit;
+        }
+
+        // Handle pay-for-order flow
+        if ( $page === 'pay_for_order' && $order_id > 0 ) {
+            $order = wc_get_order( $order_id );
+            if ( ! $order ) {
+                wp_safe_redirect( wc_get_account_endpoint_url( 'orders' ) );
+                exit;
+            }
+
+            if ( $state === 'failed' ) {
+                wc_add_notice( 'Payment failed.', 'error' );
+                wp_safe_redirect( $order->get_checkout_payment_url() );
+                exit;
+            }
+
+            wp_safe_redirect( $order->get_checkout_order_received_url() );
+            exit;
+        }
+
+        // Handle checkout flow
+        if ( $page === 'checkout' && $order_id > 0 ) {
+            $order = wc_get_order( $order_id );
+            if ( ! $order ) {
+                wp_safe_redirect( wc_get_endpoint_url( 'order-received', '', wc_get_checkout_url() ) );
+                exit;
+            }
+
+            $return_url = $this->gateway->get_option( $state === 'failed' ? 'failureBackLink' : 'backLink' );
+            if ( ! empty($return_url ) ) {
+                wp_safe_redirect( Helper::is_url_absolute($return_url) ? $return_url : get_site_url(null, $return_url) );
+                exit;
+            }
+
+            $redirect_url = $order->get_checkout_order_received_url();
+            if ( $state === 'failed' ) {
+                $redirect_url = add_query_arg( 'status', 'failed', $redirect_url );
+            }
+            wp_safe_redirect( $redirect_url );
+            exit;
+        }
+
+        // No recognized action; terminate to prevent further output
+        exit;
+    }
+
     private function parse_webhook_order( $input ) {
         if ( empty($input['invoiceId']) ) {
             throw new \Exception('Invoice ID is missing or invalid.', 400);
         }
 
-        $order_id = $this->gateway->orderHelper->parse_merchant_custom_data( $input )['order_id'];
+        $parsed = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
+        $order_id = $parsed['order_id'] ?? null;
 
         // Find order ID if not already set
         if ( empty($order_id) ) {
             $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( Helper::extract_prefix_from_invoice_id( $input['invoiceId'] ) );
-
             if ( empty($order_id) ) {
                 throw new \Exception('Order ID could not be determined for invoiceId: ' . $input['invoiceId'], 400);
             }

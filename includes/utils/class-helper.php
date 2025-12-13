@@ -97,6 +97,27 @@ class Helper {
     }
 
     /**
+     * Safely decode a JSON string to an associative array.
+     *
+     * @param string $result_string Raw JSON string.
+     * @return array Decoded array.
+     * @throws \Exception If JSON decoding fails or result is null.
+     */
+    public static function parse_json_to_array( $result_string ) {
+        $input = json_decode( $result_string, true );
+
+        if ( json_last_error() !== JSON_ERROR_NONE ) {
+            throw new \Exception( json_last_error() );
+        }
+
+        if ( is_null( $input ) ) {
+            throw new \Exception( __( 'Invalid JSON format', \WC_DNA_Payments::$text_domain ) );
+        }
+
+        return $input;
+    }
+
+    /**
 	 * Check if current user has DNA email domain
 	 * 
 	 * @return bool

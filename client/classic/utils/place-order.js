@@ -4,9 +4,17 @@ import { payHostedFields } from '../../common/pay-hosted-fields'
 import { shouldHideOrderLines } from '../../common/validater'
 import { getGlobalVariables } from './data'
 
-export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, onComplete }) =>
+export const createPlaceOrder = ({
+    setFormLoading,
+    allowSavingCards,
+    cards,
+    paymentMethods,
+    cardError,
+    fetchPaymentData,
+    onComplete,
+}) =>
     debounce(async (hostedFieldsInstance) => {
-        const { isTestMode, integrationType, cards, allowSavingCards, terminalConfig } = getGlobalVariables()
+        const { isTestMode, integrationType, terminalConfig } = getGlobalVariables()
 
         setFormLoading(true)
 
@@ -37,7 +45,18 @@ export const createPlaceOrder = ({ setFormLoading, cardError, fetchPaymentData, 
                   }
                 : undefined
 
-        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards, events })
+        const config = {
+            isTestMode,
+            cards,
+            allowSavingCards,
+            events,
+        }
+
+        if (paymentMethods) {
+            config.paymentMethods = paymentMethods
+        }
+
+        window.DNAPayments.configure(config)
 
         switch (integrationType) {
             case 'seamless': {

@@ -5,7 +5,13 @@ import { tryParse } from './try-parse'
  * Completes the payment process and handles redirection
  * Keeps loading state active during page navigation
  */
-export async function completePayment({ paymentResult, redirect, setLoading = () => {}, setErrors = () => {} }) {
+export async function completePayment({
+    paymentResult,
+    redirect,
+    setLoading = () => {},
+    setErrors = () => {},
+    page = 'checkout',
+}) {
     // Helper function to handle redirects while keeping loading state active
     const handleRedirect = (url) => {
         setLoading(true)
@@ -23,7 +29,7 @@ export async function completePayment({ paymentResult, redirect, setLoading = ()
         setLoading(true)
         try {
             const orderId = getOrderIdFromPaymentData(paymentResult)
-            const { success, data } = await updateOrderStatus(orderId, paymentResult)
+            const { success, data } = await updateOrderStatus(orderId, paymentResult, page)
 
             if (success) {
                 handleRedirect(data.redirect)

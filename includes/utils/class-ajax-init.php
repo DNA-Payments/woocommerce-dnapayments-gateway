@@ -60,16 +60,17 @@ class AjaxInit {
 
 	public function handle_get_payment_and_auth_data() {
         check_ajax_referer($this->get_payment_and_auth_data_action(), $this->get_nonce_field(), true);
-        $order_id     = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
-        $total_amount = isset( $_POST['total'] ) ? sanitize_text_field( wp_unslash( $_POST['total'] ) ) : '';
+
+        $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
+        $page = isset( $_POST['page'] ) ? sanitize_text_field( wp_unslash( $_POST['page'] ) ) : 'checkout';
 
 		try {
-			$order 			= wc_get_order( $order_id );
-			$total_amount 	= floatval( empty($total_amount) || $total_amount === 'null' ? $order->get_total() : $total_amount );
+			$order = wc_get_order( $order_id );
 
-			$auth_data      = $this->gateway->authDataHelper->get_auth_data_from_order( $order, $total_amount );
-			$payment_data   = $this->gateway->paymentDataHelper->get_payment_data_from_order( $order );
-			$payment_data['amount'] = $total_amount;
+            $auth_data = $this->gateway->authDataHelper->get_auth_data_from_order( $order );
+            $payment_data = $this->gateway->paymentDataHelper->get_payment_data_from_order( $order, array(
+                'page' => $page,
+            ) );
 
 			wp_send_json_success( array(
 				'auth'			=> $auth_data,
@@ -143,6 +144,8 @@ class AjaxInit {
 	    check_ajax_referer($this->get_update_order_status_action(), $this->get_nonce_field(), true);
 
         $order_id = isset( $_POST['order_id'] ) ? sanitize_text_field( wp_unslash( $_POST['order_id'] ) ) : '';
+        $page = isset( $_POST['page'] ) ? sanitize_text_field( wp_unslash( $_POST['page'] ) ) : 'checkout';
+
         $result_string = Helper::get_posted_value('wc-' . $this->gateway->id . '-result');
 
 		try {
@@ -152,22 +155,23 @@ class AjaxInit {
                 throw new \Exception('Order not found for ID: ' . $order_id, 400);
             }
 
-            // Check if AJAX order status update is enabled
-            if ($this->is_ajax_update_enabled()) {
-                $result = $this->gateway->orderHelper->update_status_from_payment_result( $order, $result_string, Helper::get_current_user_id(), 'update_order_status' );
+            // Check if AJAX order status update is enabled and skip is false
+            if ( $this->is_ajax_update_enabled() && $page === 'checkout' ) {
+                $result = $this->gateway->orderHelper->process_payment_using_payment_result( $order, $result_string, Helper::get_current_user_id(), 'update_order_status' );
                 $status = $result['status'];
                 $message = $result['message'];
             } else {
                 // Wait for 2 seconds
                 sleep(2);
-                
+
                 // Refresh order data
                 $order = wc_get_order( $order_id );
                 $status = $order->get_status();
                 $message = __( 'Refreshed order data', \WC_DNA_Payments::$text_domain );
             }
 
-            $redirect = $this->gateway->paymentDataHelper->get_return_url_from_order( $order, $status === 'failed' );
+            $success = $status !== 'failed';
+            $redirect = $this->gateway->paymentDataHelper->get_payment_return_url( $order_id, $page, $success );
 
 			wp_send_json_success( array(
                 'status'    => $status,

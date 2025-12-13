@@ -29,6 +29,7 @@ import { addGatewayId, setNonces } from '../common/utils'
 /* global wc_dna_params */
 const orderId = Number(wc_dna_params.order_id) || 0
 const isPayForOrderPage = Boolean(orderId)
+const page = wc_dna_params.page || ''
 
 let isUpdating = false // is event updated_checkout will be triggered
 let hostedFieldsInstance = null
@@ -41,7 +42,8 @@ let serializedFormData = null
 let pendingRenderRequest = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, placeOrderButtonText } = getGlobalVariables()
+    const { isTestMode, gatewayId, isHostedFields, tempToken, cards, allowSavingCards, placeOrderButtonText } =
+        getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
     const cardError = createCardError()
@@ -75,27 +77,13 @@ jQuery(function ($) {
     }
 
     const placeOrder = createPlaceOrder({
+        cards,
         cardError,
+        allowSavingCards,
         setFormLoading,
         fetchPaymentData: async () => {
             try {
-                if (isPayForOrderPage) {
-                    await fetchPaymentData()
-                    const storeCardOnFile = $(`#wc-${gatewayId}-new-payment-method`).is(':checked')
-                    return {
-                        paymentData: {
-                            ...paymentData,
-                            merchantCustomData: JSON.stringify({
-                                ...(tryParse(paymentData.merchantCustomData) || {}),
-                                storeCardOnFile,
-                                gatewayId,
-                            }),
-                        },
-                        auth: authData,
-                    }
-                }
-
-                return await postProcessPayment(gatewayId)
+                return await postProcessPayment(gatewayId, $(`#wc-${gatewayId}-new-payment-method`).is(':checked'))
             } catch (err) {
                 showError(err.message, true)
             }
@@ -106,6 +94,7 @@ jQuery(function ($) {
                 redirect: result.redirect,
                 setLoading: setFormLoading,
                 setErrors: showError,
+                page,
             }),
     })
 
@@ -267,28 +256,14 @@ jQuery(function ($) {
             onClick: () => {
                 setFormLoading(true)
             },
-            onBeforeProcessPayment: async () => {
-                if (isPayForOrderPage) {
-                    await fetchPaymentData()
-                    return {
-                        paymentData: {
-                            ...paymentData,
-                            merchantCustomData: JSON.stringify({
-                                ...(tryParse(paymentData.merchantCustomData) || {}),
-                                gatewayId: paymentMethodId,
-                            }),
-                        },
-                        auth: authData,
-                    }
-                }
-                return await postProcessPayment(paymentMethodId)
-            },
+            onBeforeProcessPayment: () => postProcessPayment(paymentMethodId),
             onPaymentSuccess: (paymentResult) =>
                 completePayment({
                     paymentResult,
                     redirect: paymentData?.paymentSettings?.returnUrl,
                     setLoading: setFormLoading,
                     setErrors: showError,
+                    page,
                 }),
             onCancel: () => {
                 setFormLoading(false)
@@ -343,7 +318,7 @@ jQuery(function ($) {
         }
 
         const { success, data } = await (isPayForOrderPage
-            ? fetchPaymentAndAuthData(orderId)
+            ? fetchPaymentAndAuthData(orderId, page)
             : requestActionWithFormData('get_payment_data_from_cart', new FormData($form[0])))
 
         if (!success) {
@@ -359,7 +334,22 @@ jQuery(function ($) {
         return success
     }
 
-    async function postProcessPayment(selectedGatewayId) {
+    async function postProcessPayment(selectedGatewayId, storeCardOnFile = undefined) {
+        if (isPayForOrderPage) {
+            await fetchPaymentData()
+            return {
+                paymentData: {
+                    ...paymentData,
+                    merchantCustomData: JSON.stringify({
+                        ...(tryParse(paymentData.merchantCustomData) || {}),
+                        storeCardOnFile,
+                        gatewayId: selectedGatewayId,
+                    }),
+                },
+                auth: authData,
+            }
+        }
+
         const response = await fetch(wc_checkout_params.checkout_url, {
             method: 'POST',
             body: new FormData($form[0]),

@@ -60,12 +60,10 @@ class AuthDataHelper {
         }
     }
 
-    public function get_auth_data_from_order( \WC_Order $order, $total_amount = null ) {
-        $total_amount = floatval( empty($total_amount) ? $order->get_total() : $total_amount );
-
+    public function get_auth_data_from_order( \WC_Order $order ) {
         return $this->get_auth_data(
             strval( $order->get_order_number() ),
-            $total_amount,
+            floatval( $order->get_total() ),
             $order->get_currency()
         );
     }

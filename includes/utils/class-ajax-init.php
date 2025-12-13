@@ -14,8 +14,17 @@ class AjaxInit {
      */
     public $gateway;
 
+    private static $hooks_initialized = false;
+
     public function __construct( $gateway ) {
         $this->gateway = $gateway;
+        $this->init_hooks();
+    }
+
+    private function init_hooks() {
+        if ( self::$hooks_initialized ) {
+            return;
+        }
 
 		add_action('wp_ajax_' . $this->get_payment_and_auth_data_for_saving_card_action(), array($this, 'handle_get_payment_and_auth_data_for_saving_card'));
 
@@ -27,6 +36,8 @@ class AjaxInit {
 
         add_action('wp_ajax_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
         add_action('wp_ajax_nopriv_' . $this->get_update_order_status_action(), array($this, 'handle_update_order_status'));
+
+        self::$hooks_initialized = true;
     }
 
     public function get_nonces() {

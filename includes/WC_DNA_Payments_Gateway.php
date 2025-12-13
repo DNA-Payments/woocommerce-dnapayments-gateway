@@ -111,6 +111,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
      */
     public $configHelper;
 
+    /**
+     * @var \WCPG_DNA_Payments\Utils\ActionHandlers
+     */
+    public $actionHandler;
+
     public function __construct() {
 
         $this->id = 'dnapayments';
@@ -148,6 +153,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->orderHelper = new WCPG_DNA_Payments\Utils\OrderHelper( $this );
         $this->ajaxInit = new WCPG_DNA_Payments\Utils\AjaxInit( $this );
         $this->webhooksInit = new WCPG_DNA_Payments\Utils\WebhooksInit( $this );
+        $this->actionHandler = new WCPG_DNA_Payments\Utils\ActionHandlers( $this );
         $this->analyticsHelper = new WCPG_DNA_Payments\Utils\AnalyticsHelper($this);
         $this->requestHelper = new WCPG_DNA_Payments\Utils\RequestHelper($this);
         $this->configHelper = new WCPG_DNA_Payments\Utils\ConfigHelper($this);

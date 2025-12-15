@@ -100,6 +100,16 @@ function get_dnapayments_admin_fields() {
             "description" => 'Mark this checkbox to automatically set order status to "Completed" upon successful payment. Valid only for "Sale" transactions.',
             "default" => "no",
         ],
+        "autoRedirectDelayInMs" => [
+            "title"       => __( "Redirect delay after payment (ms)", \WC_DNA_Payments::$text_domain ),
+            "type"        => "number",
+            "description" => __( "Delay in milliseconds before the customer is automatically redirected back to the merchant site after a successful or failed payment. This setting applies only to iFrame Lightbox and Full Redirect integration modes. Minimum value: 1000 ms.", \WC_DNA_Payments::$text_domain ),
+            "default"     => "",
+            "desc_tip"    => true,
+            "custom_attributes" => [
+                "min" => "1000",
+            ],
+        ],
         "failed_attempts_limit" => [
             "title" => __(
                 "Failed payment attempts limit (Hosted Fields only)",
@@ -152,6 +162,6 @@ function get_dnapayments_admin_fields() {
             "description" => __( "Overrides the checkout “Place order” button label when DNA Payments is selected. Leave empty to use the default WooCommerce label.", \WC_DNA_Payments::$text_domain ),
             "default"     => "",
             "desc_tip"    => true,
-        ]
+        ],
     ];
 }

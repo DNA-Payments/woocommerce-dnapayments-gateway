@@ -25,7 +25,8 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
         eventRegistration: { onCheckoutSuccess, onPaymentSetup, onCheckoutValidation },
         shouldSavePayment,
     } = props
-    const { isTestMode, integrationType, allowSavingCards, cards, terminalConfig } = dnaPaymentsSettingsData
+    const { isTestMode, integrationType, allowSavingCards, cards, terminalConfig, autoRedirectDelayInMs } =
+        dnaPaymentsSettingsData
 
     useEffect(() => {
         const handler = () => {
@@ -80,10 +81,15 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                 }
 
                 paymentData.merchantCustomData = addGatewayId(paymentData.merchantCustomData, gatewayId)
+                const dnaPaymentsConfig = { isTestMode, cards, allowSavingCards }
+
+                if (autoRedirectDelayInMs) {
+                    dnaPaymentsConfig.autoRedirectDelayInMs = autoRedirectDelayInMs
+                }
 
                 switch (integrationType) {
                     case 'seamless': {
-                        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards })
+                        window.DNAPayments.configure(dnaPaymentsConfig)
 
                         payHostedFields(
                             hostedFieldsInstance,
@@ -118,9 +124,7 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                     }
                     case 'embedded': {
                         window.DNAPayments.configure({
-                            isTestMode,
-                            cards,
-                            allowSavingCards,
+                            ...dnaPaymentsConfig,
                             events: {
                                 cancelled: () =>
                                     resolve({
@@ -140,7 +144,7 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                         break
                     }
                     default: {
-                        window.DNAPayments.configure({ isTestMode, cards, allowSavingCards })
+                        window.DNAPayments.configure(dnaPaymentsConfig)
                         window.DNAPayments.openPaymentPage({ ...paymentData, auth })
                     }
                 }

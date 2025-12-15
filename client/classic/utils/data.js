@@ -17,6 +17,12 @@ export function getGlobalVariables() {
     const transactionType = wc_dna_params.transaction_type
     const placeOrderButtonText = (wc_dna_params.placeOrderButtonText || '').trim()
 
+    const parsedAutoRedirectDelay = Number(wc_dna_params.auto_redirect_delay_in_ms)
+    const autoRedirectDelayInMs =
+        integrationType !== 'seamless' && Number.isFinite(parsedAutoRedirectDelay) && parsedAutoRedirectDelay >= 1000
+            ? parsedAutoRedirectDelay
+            : undefined
+
     return {
         gatewayId,
         isTestMode,
@@ -32,6 +38,7 @@ export function getGlobalVariables() {
         terminalConfig,
         transactionType,
         placeOrderButtonText,
+        autoRedirectDelayInMs,
     }
 }
 

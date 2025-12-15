@@ -342,6 +342,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'send_callback_every_failed_attempt' => $this->get_option( 'failed_attempts_limit' ),
             'cards' => WC_DNA_Payments_Order_Client_Helpers::getCardTokens( $current_user_id, $this->id ),
             'placeOrderButtonText' => $this->get_option( 'placeOrderButtonText', '' ),
+            'auto_redirect_delay_in_ms' => $this->get_option( 'autoRedirectDelayInMs', '' ),
             'nonces' => $this->ajaxInit->get_nonces(),
             'page' => $this->paymentDataHelper->get_current_payment_page(),
         );

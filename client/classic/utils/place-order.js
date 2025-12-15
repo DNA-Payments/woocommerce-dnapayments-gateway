@@ -14,7 +14,7 @@ export const createPlaceOrder = ({
     onComplete,
 }) =>
     debounce(async (hostedFieldsInstance) => {
-        const { isTestMode, integrationType, terminalConfig } = getGlobalVariables()
+        const { isTestMode, integrationType, terminalConfig, autoRedirectDelayInMs } = getGlobalVariables()
 
         setFormLoading(true)
 
@@ -50,6 +50,10 @@ export const createPlaceOrder = ({
             cards,
             allowSavingCards,
             events,
+        }
+
+        if (autoRedirectDelayInMs) {
+            config.autoRedirectDelayInMs = autoRedirectDelayInMs
         }
 
         if (paymentMethods) {

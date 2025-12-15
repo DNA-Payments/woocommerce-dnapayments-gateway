@@ -40,6 +40,9 @@ class WC_DNA_Payments {
 	// Main DNA Payments gateway id / name
 	public static $id = 'dnapayments';
 
+	// This is the human-readable label shown to merchants and customers
+	public static $name = 'DNA Payments';
+
 	// Plugin version
 	public static $version = '4.1.1-dev';
 

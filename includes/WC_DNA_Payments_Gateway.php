@@ -254,7 +254,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
      */
     public function can_refund_order( $order ) {
         $paymentMethod = $order->get_meta( 'payment_method', true );
-        if($paymentMethod === 'paypal' && !WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order)) {
+        if( $paymentMethod === 'paypal' && !WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order) ) {
             return false;
         }
         return true;
@@ -282,8 +282,8 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             return false;
         }
 
-        if( $order->get_meta('is_finished_payment', true) === 'no' ) {
-            if ($order->get_total() == $amount) {
+        if( $this->orderHelper->get_order_state($order) === 'authorized' ) {
+            if ($order->get_total() == $amount || is_null($amount)) {
                 return $this->process_cancel($order);
             }
 
@@ -297,7 +297,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                 'client_secret' => $this->client_secret,
                 'terminal' => $this->terminal,
                 'invoiceId' => strval($order->get_order_number()),
-                'amount' => $amount,
+                'amount' => is_null($amount) ? $order->get_total() : $amount,
                 'currency' => $order->get_currency(),
                 'transaction_id' => $order->get_transaction_id()
             ]);
@@ -429,7 +429,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             $is_block_checkout = WC()->is_rest_api_request();
             $page = $this->paymentDataHelper->get_current_payment_page();
 
-            // This block is used for shortcode-based checkout
+            // This block is used generate payment data
             if ( empty ($result_string) ) {
                 $auth_data = $this->authDataHelper->get_auth_data_from_order( $order );
                 $payment_data = $this->paymentDataHelper->get_payment_data_from_order( $order, array(
@@ -437,6 +437,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                     'page' => $page,
                 ) );
 
+                // This block is used for shortcode-based checkout
                 if ( ! $is_block_checkout ) {
                     $posted_data = WC()->checkout()->get_posted_data();
 
@@ -451,6 +452,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                         $payment_data['customerDetails']['deliveryDetails']['deliveryAddress']
                     );
                 }
+
+                $order->update_meta_data('_dnapayments_state', 'initiated');
+                $order->add_order_note(__( 'DNA Payments: Payment initiated. Awaiting customer action.', \WC_DNA_Payments::$text_domain ));
+                $order->save();
+                $this->logger->info( 'Payment initiated for order #' . $order->get_id() . ' with amount ' . $order->get_total() . ' ' . $order->get_currency() );
 
                 return array(
                     'result'        => 'success',

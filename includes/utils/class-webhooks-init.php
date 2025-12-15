@@ -28,7 +28,6 @@ class WebhooksInit {
         }
 
         add_action( 'rest_api_init', array( $this, 'register_routes' ));
-
         add_action( 'woocommerce_api_' . $this->gateway->id, array( $this, 'handle_payment_return_page' ) );
 
         self::$hooks_initialized = true;

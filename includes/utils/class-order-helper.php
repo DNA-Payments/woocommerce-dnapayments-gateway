@@ -28,7 +28,7 @@ class OrderHelper {
             throw new \Exception( __( 'Transaction ID is missing or invalid.', \WC_DNA_Payments::$text_domain ) );
         }
 
-        $charge_result = $this->has_transaction($order, $input['id'], $user_id);
+        $charge_result = $this->get_transaction_status($order, $input['id'], $user_id);
 
         if ( $input['success'] && $charge_result !== 'success' ) {
             throw new \Exception( __( 'No successful transaction has been processed for this order ID.', \WC_DNA_Payments::$text_domain ) );
@@ -94,8 +94,10 @@ class OrderHelper {
                     throw new \Exception('Order with ID ' . $order_id . ' is already processed with status: ' . $status, 400);
                 }
 
-                $message = __( 'Could not process payment.', \WC_DNA_Payments::$text_domain );
+                $message = __( 'DNA Payments: Could not process payment. Source: ' . $source, \WC_DNA_Payments::$text_domain );
                 $order->update_status( 'failed', $message );
+                $order->update_meta_data('_dnapayments_state', 'failed');
+                $order->save();
 
                 return [ 'status' => 'failed', 'message' => $message ];
             }
@@ -165,37 +167,56 @@ class OrderHelper {
         if ($settled) {
             $new_status = $order->needs_processing() ? 'processing' : 'completed';
             $order->payment_complete( $transaction_id );
-            $order->add_order_note(sprintf(__( 'DNA Payments transaction complete (Transaction ID: %s). Order status changed from %s to %s. Source: %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status), $source ));
+            $order->add_order_note(sprintf(__( 'DNA Payments: Payment was charged (Transaction ID: %s). Order status updated from %s to %s. Source: %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status), $source ));
 
             if ($new_status === 'processing' && 'yes' === $this->gateway->get_option('enable_order_complete')) {
                 $old_status = $order->get_status();
                 $order->update_status('completed');
                 $new_status = 'completed';
                 // Log status change
-                $order->add_order_note(sprintf(__('DNA Payments updated order status from %s to %s.', \WC_DNA_Payments::$text_domain), ucfirst($old_status), ucfirst($new_status)));
+                $order->add_order_note(sprintf(__('DNA Payments: Order status updated from %s to %s.', \WC_DNA_Payments::$text_domain), ucfirst($old_status), ucfirst($new_status)));
             }
         } else {
             $new_status = 'on-hold';
             $order->update_status('on-hold');
             $order->set_transaction_id( $transaction_id );
-            $order->add_order_note(sprintf(__( 'DNA Payments awaiting payment completion (Transaction ID: %s). Order status changed from %s to %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status) ));
+            $order->add_order_note(sprintf(__( 'DNA Payments: Payment was authorized (Transaction ID: %s). Order status updated from %s to %s. Source: %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status), $source ));
         }
 
         // Update metadata
+        $order->update_meta_data('_dnapayments_state', $settled ? 'charged' : 'authorized');
         $order->update_meta_data('_dnapayments_transaction_id', $transaction_id);
         $order->update_meta_data('rrn', $input['rrn'] ?? '');
         $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
-        $order->update_meta_data('is_finished_payment', $settled ? 'yes' : 'no');
 
         $manage_stock_option = get_option('woocommerce_manage_stock');
         // if the order status changed from pending to processing (on-hold), woocommerce automatically reduces stock
         if ($manage_stock_option !== 'yes' || $status !== 'pending') {
             wc_reduce_stock_levels($order_id);
-            $order->add_order_note( sprintf( __( 'DNA Payments reduced order stock by transaction (Transaction ID: %s)', \WC_DNA_Payments::$text_domain ), $transaction_id ) );
+            $order->add_order_note( sprintf( __( 'DNA Payments: Order stock was reduced (Transaction ID: %s). Source: %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, $source ) );
         }
 
         $order->save();
         return $new_status;
+    }
+
+    /**
+     * Return the current DNA Payments state for an order.
+     *
+     * @param \WC_Order $order WooCommerce order object.
+     * @return string One of: 'charged', 'authorized', 'initiated', 'failed'.
+     */
+    public function get_order_state( \WC_Order $order ) {
+        if ( $order->meta_exists( '_dnapayments_state' ) ) {
+            return $order->get_meta( '_dnapayments_state', true );
+        }
+
+        // TODO: 'is_finished_payment' is deprecated and will be removed in a future version
+        if ( $order->meta_exists( 'is_finished_payment' ) ) {
+            return $order->get_meta( 'is_finished_payment', true ) === 'yes' ? 'charged' : 'authorized';
+        }
+
+        return '';
     }
 
     /**
@@ -237,7 +258,7 @@ class OrderHelper {
             }
 
             if( ! empty($error_text) ) {
-                $order->add_order_note($error_text);
+                $order->add_order_note('DNA Payments: ' . $error_text);
             }
         }
 
@@ -295,7 +316,7 @@ class OrderHelper {
         }
 
         $order->set_payment_method( $target_gateway );
-        $log = sprintf( 'Payment method changed from %s to %s via webhook of DNA Payments plugin.', $old_payment_method, $target_gateway->id );
+        $log = sprintf( 'DNA Payments: Payment method changed from %s to %s via webhook.', $old_payment_method, $target_gateway->id );
 
         $this->gateway->logger->info(
             sprintf(
@@ -309,15 +330,45 @@ class OrderHelper {
     }
 
     /**
-     * Check transaction by order and transaction ID, returning tri-state result.
+     * Get transaction status by order and transaction ID, returning tri-state result.
      *
-     * @param \WC_Order $order The WooCommerce order to check.
-     * @param string $transaction_id The transaction ID to find.
-     * @param string $user_id The user ID to check.
-     * 
-     * @return string One of 'success', 'failed', 'not_found'.
+     * @param \WC_Order $order       The WooCommerce order to check.
+     * @param string      $transaction_id The transaction ID to find (optional).
+     * @param string      $user_id        The user ID to match against accountId (optional).
+     * @return string     Result code. 'success', 'failed', or 'not_found'.
      */
-    public function has_transaction( \WC_Order $order, $transaction_id, $user_id = '' ) {
+    public function get_transaction_status( \WC_Order $order, $transaction_id = null, $user_id = null ) {
+        $info = $this->get_transaction_info($order, $transaction_id, $user_id);
+        $state = $info['state'] ?? '';
+        if (in_array($state, ['charged', 'authorized', 'verified'])) {
+            return 'success';
+        }
+        if ($state === 'not_found') {
+            return 'not_found';
+        }
+        return 'failed';
+    }
+
+    /**
+     * Evaluate DNA transactions for an order with optional filters.
+     *
+     * Precedence rules:
+     * 1. If any transaction has state REFUND or CREDITED, sum refund amounts and
+     *    return 'refunded' for full amount or 'partial_refunded' otherwise.
+     * 2. Else, collect states for transactions matching the order amount/currency and optional filters.
+     * 3. If states include CHARGE or AUTH, return 'charged' or 'authorized' respectively.
+     * 4. If states include TOKENIZED or VERIFIED, return 'verified'.
+     * 5. If any transactions matched but not above states, return 'failed'.
+     * 6. If none matched, return 'not_found'.
+     *
+     * Note: refund amount aggregation assumes invoice currency is consistent.
+     *
+     * @param \WC_Order  $order           The WooCommerce order to check.
+     * @param string|null $transaction_id  Optional specific transaction id to match.
+     * @param string|null $user_id         Optional accountId to match.
+     * @return array                       ['state', 'id', 'paymentMethod', 'rrn']
+     */
+    public function get_transaction_info( $order, $transaction_id = null, $user_id = null ) {
         $client_token = $this->gateway->dnaPayment->get_client_token(
             $this->gateway->client_id,
             $this->gateway->client_secret
@@ -328,24 +379,80 @@ class OrderHelper {
             (string) $order->get_order_number()
         );
 
-        $matched = false;
-        foreach ($transactions as $item) {
-            $account_id = isset($item['accountId']) && !empty($item['accountId']) ? (string) $item['accountId'] : '';
+        $matched_states = [];
+        $refunded_amount = 0;
+        $state_details = [];
+        $default_info = [ 'id' => '', 'paymentMethod' => '', 'rrn' => '' ];
 
-            if (
-                $item['id'] === $transaction_id &&
-                (float) $item['amount'] === (float) $order->get_total() &&
-                $item['currency'] === $order->get_currency() &&
-                $account_id === $user_id
-            ) {
-                $matched = true;
-                if (in_array($item['transactionState'], ['CHARGE', 'AUTH'])) {
-                    return 'success';
+        foreach ( $transactions as $item ) {
+            $state = $item['transactionState'];
+            $info = [
+                'id' => $item['id'] ?? '',
+                'rrn' => $item['rrn'] ?? '',
+                'paymentMethod' => $item['paymentMethod'] ?? '',
+            ];
+
+            if (in_array($state, ['REFUND', 'CREDITED'])) {
+                $refunded_amount += (float) $item['amount'];
+                $state_details['REFUND'] = $info;
+                continue;
+            }
+
+            if ( $item['currency'] !== $order->get_currency() ) {
+                continue;
+            }
+
+            if ( (float) $item['amount'] !== (float) $order->get_total() ) {
+                continue;
+            }
+
+            if (in_array($state, ['CANCEL'])) {
+                return ['state' => 'refunded'] + $info;
+            }
+
+            if ( ! is_null( $transaction_id ) && $item['id'] !== $transaction_id ) {
+                continue;
+            }
+
+            if ( ! is_null( $user_id ) ) {
+                $account_id = isset($item['accountId']) && !empty($item['accountId']) ? (string) $item['accountId'] : '';
+                if ( $account_id !== $user_id ) {
+                    continue;
                 }
             }
+
+            $matched_states[] = $state;
+            $state_details[$state] = $info;
         }
 
-        return $matched ? 'failed' : 'not_found';
+        if ( $refunded_amount > 0 ) {
+            $is_full = $refunded_amount === (float) $order->get_total();
+            $info = $state_details['REFUND'] ?? $default_info;
+            return ['state' => $is_full ? 'refunded' : 'partial_refunded'] + $info;
+        }
+
+        if ( in_array( 'CHARGE', $matched_states, true ) ) {
+            $info = $state_details['CHARGE'] ?? $default_info;
+            return ['state' => 'charged'] + $info;
+        }
+
+        if ( in_array( 'AUTH', $matched_states, true ) ) {
+            $info = $state_details['AUTH'] ?? $default_info;
+            return ['state' => 'authorized'] + $info;
+        }
+
+        if ( array_intersect( $matched_states, ['TOKENIZED', 'VERIFIED'] ) ) {
+            $info = $state_details['VERIFIED'] ?? ($state_details['TOKENIZED'] ?? $default_info);
+            return ['state' => 'verified'] + $info;
+        }
+
+        if (count($matched_states) > 0) {
+            $any_state = $matched_states[0];
+            $info = $state_details[$any_state] ?? $default_info;
+            return ['state' => 'failed'] + $info;
+        }
+
+        return ['state' => 'not_found'] + $default_info;
     }
 
     /**

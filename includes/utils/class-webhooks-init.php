@@ -413,8 +413,10 @@ class WebhooksInit {
     }
 
     private function get_wp_error(\Exception $e, $hook_name, $data) {
-        $this->gateway->logger->error('Error in ' . $hook_name . ': ' . $e->getMessage());
-        $this->gateway->logger->error('Input: ' . json_encode( $this->sanitize_webhook_data_for_logging( $data ) ));
+        $log_context = is_array( $data )
+            ? $this->format_log_context( $this->get_webhook_log_context( $data ) )
+            : '';
+        $this->gateway->logger->error('Error in ' . $hook_name . ': ' . $e->getMessage() . $log_context);
         $this->gateway->logger->error('Stack trace: ' . $e->getTraceAsString());
             
         // Respond with the error message and code
@@ -427,36 +429,5 @@ class WebhooksInit {
                 'stack_trace' => $e->getTraceAsString(),
             )
         );
-    }
-
-    /**
-     * Remove sensitive fields from webhook payloads before logging.
-     *
-     * @param array $data Raw webhook payload.
-     * @return array Sanitized webhook payload safe for logs.
-     */
-    private function sanitize_webhook_data_for_logging( array $data ): array {
-        foreach ( [ 'rrn', 'amount', 'settled', 'accountId', 'currency' ] as $key ) {
-            if ( array_key_exists( $key, $data ) ) {
-                unset( $data[ $key ] );
-            }
-        }
-
-        if ( isset( $data['merchantCustomData'] ) ) {
-            $custom_data = $data['merchantCustomData'];
-
-            if ( is_string( $custom_data ) ) {
-                $decoded = json_decode( $custom_data, true );
-                if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) ) {
-                    unset( $decoded['storeCardOnFile'], $decoded['store_card_on_file'] );
-                    $data['merchantCustomData'] = wp_json_encode( $decoded );
-                }
-            } elseif ( is_array( $custom_data ) ) {
-                unset( $custom_data['storeCardOnFile'], $custom_data['store_card_on_file'] );
-                $data['merchantCustomData'] = $custom_data;
-            }
-        }
-
-        return $data;
     }
 }

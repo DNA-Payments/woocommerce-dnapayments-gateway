@@ -82,7 +82,7 @@ class SubscriptionHelper {
             $input_card_token_id
         ] ) );
 
-        $this->gateway->logger->info( 'Subscription string: ' . $subscription_string . 'Input string: ' . $input_string );
+        $this->gateway->logger->info( 'Subscription string: ' . $subscription_string . ' Input string: ' . $input_string );
         
         return $subscription_string === $input_string;
     }
@@ -226,7 +226,7 @@ class SubscriptionHelper {
                 $request_data['transactionType'] = $this->gateway->configHelper->get_transaction_type();
             }
 
-            $this->gateway->logger->info( 'Starting payment for subscription #' . $subscription->get_id() . ' renewal order #' . $renewal_order->get_id() . ' with request data: ' . json_encode( $request_data ) );
+            $this->gateway->logger->info( 'Starting payment for subscription #' . $subscription->get_id() . ' renewal order #' . $renewal_order->get_id() . ' transaction_id #' . $transaction_id );
 
             $result = $this->gateway->dnaPayment->recurring($request_data);
 

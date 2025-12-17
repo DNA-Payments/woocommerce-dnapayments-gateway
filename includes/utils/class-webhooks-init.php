@@ -97,11 +97,15 @@ class WebhooksInit {
             $order_id = $order->get_id();
             $status = $order->get_status();
 
-            $this->gateway->logger->info('Processing success webhook for order ID ' . $order_id . ' with status ' . $status);
+            $log_context = $this->format_log_context( $this->get_webhook_log_context( $data ) );
+            $this->gateway->logger->info( 'Processing success webhook for order ID ' . $order_id . ' with status ' . $status . $log_context );
 
             $result = $this->gateway->orderHelper->process_payment( $order, $input, 'success_webhook' );
 
-            $this->gateway->logger->info('Processed success webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
+            $new_status = $result['status'] ?? '';
+            $result_context = $this->format_log_context( $this->get_webhook_result_log_context( $result ) );
+            $log_context = $this->format_log_context( $this->get_webhook_log_context( $data ) );
+            $this->gateway->logger->info( 'Processed success webhook for order ID ' . $order_id . ' with new status ' . $new_status . $log_context . $result_context );
 
             return rest_ensure_response([
                 'success' => true,
@@ -123,11 +127,15 @@ class WebhooksInit {
             $order_id = $order->get_id();
             $status = $order->get_status();
             
-            $this->gateway->logger->info('Processing failure webhook for order ID ' . $order_id . ' with status ' . $status);
+            $log_context = $this->format_log_context( $this->get_webhook_log_context( $data ) );
+            $this->gateway->logger->info( 'Processing failure webhook for order ID ' . $order_id . ' with status ' . $status . $log_context );
             
             $result = $this->gateway->orderHelper->process_payment( $order, $input, 'fail_webhook' );
             
-            $this->gateway->logger->info('Processed failure webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
+            $new_status = $result['status'] ?? '';
+            $result_context = $this->format_log_context( $this->get_webhook_result_log_context( $result ) );
+            $log_context = $this->format_log_context( $this->get_webhook_log_context( $data ) );
+            $this->gateway->logger->info( 'Processed failure webhook for order ID ' . $order_id . ' with new status ' . $new_status . $log_context . $result_context );
         
             return rest_ensure_response([
                 'success' => true,
@@ -144,7 +152,12 @@ class WebhooksInit {
         try {
             $this->validate_webhook_input( $input, true );
 
+            $log_context = $this->format_log_context( $this->get_webhook_log_context( $data ) );
+            $this->gateway->logger->info( 'Processing add-card webhook' . $log_context );
+
             \WC_DNA_Payments_Order_Client_Helpers::saveCardToken( $input, $this->gateway->id );
+
+            $this->gateway->logger->info( 'Processed add-card webhook' . $log_context );
 
             return rest_ensure_response([
                 'success' => true,
@@ -169,7 +182,25 @@ class WebhooksInit {
 
             $subscription = $this->parse_webhook_order( $input, true );
 
+            $log_context = $this->format_log_context( array_merge(
+                [
+                    'subscriptionPaymentGatewayId' => $subscription->get_payment_method(),
+                    'subscriptionStatus'           => $subscription->get_status(),
+                ],
+                $this->get_webhook_log_context( $data )
+            ) );
+            $this->gateway->logger->info( 'Processing subscription change payment method webhook for subscription ID ' . $subscription->get_id() . $log_context );
+
             $this->gateway->subscriptionHelper->change_subscription_payment_method( $subscription, $data );
+
+            $log_context = $this->format_log_context( array_merge(
+                [
+                    'subscriptionPaymentGatewayId' => $subscription->get_payment_method(),
+                    'subscriptionStatus'           => $subscription->get_status(),
+                ],
+                $this->get_webhook_log_context( $data )
+            ) );
+            $this->gateway->logger->info( 'Processed subscription change payment method webhook for subscription ID ' . $subscription->get_id() . $log_context );
 
             return rest_ensure_response([
                 'success' => true,
@@ -272,6 +303,57 @@ class WebhooksInit {
     }
 
     /**
+     * Format log context as a compact key=value list.
+     *
+     * @param array $context Key/value pairs.
+     * @return string A formatted context suffix (or empty string).
+     */
+    private function format_log_context( array $context ): string {
+        $parts = [];
+        foreach ( $context as $key => $value ) {
+            if ( $value === null || $value === '' ) {
+                continue;
+            }
+            if ( is_bool( $value ) ) {
+                $value = $value ? 'true' : 'false';
+            }
+            $parts[] = $key . '=' . $value;
+        }
+
+        return empty( $parts ) ? '' : ' (' . implode( ', ', $parts ) . ')';
+    }
+
+    /**
+     * Extract a safe, useful subset of webhook fields for logging.
+     *
+     * @param array $data Webhook request params.
+     * @return array Key/value pairs.
+     */
+    private function get_webhook_log_context( array $data ): array {
+        $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $data );
+
+        return [
+            'invoiceId'        => $data['invoiceId'] ?? null,
+            'transactionId'    => $data['id'] ?? null,
+            'paymentMethod'    => $data['paymentMethod'] ?? null,
+            'gatewayId'        => $custom_data['gateway_id'] ?? null,
+        ];
+    }
+
+    /**
+     * Extract a small subset of process result fields for logging.
+     *
+     * @param array $result Processing result from OrderHelper::process_payment().
+     * @return array Key/value pairs.
+     */
+    private function get_webhook_result_log_context( array $result ): array {
+        return [
+            'code'    => $result['code'] ?? null,
+            'message' => $result['message'] ?? null,
+        ];
+    }
+
+    /**
      * Parse the webhook input and return either a WC_Order or a WC_Subscription.
      *
      * @param array|\WP_REST_Request $input         Incoming data.
@@ -332,7 +414,7 @@ class WebhooksInit {
 
     private function get_wp_error(\Exception $e, $hook_name, $data) {
         $this->gateway->logger->error('Error in ' . $hook_name . ': ' . $e->getMessage());
-        $this->gateway->logger->error('Input: ' . json_encode($data));
+        $this->gateway->logger->error('Input: ' . json_encode( $this->sanitize_webhook_data_for_logging( $data ) ));
         $this->gateway->logger->error('Stack trace: ' . $e->getTraceAsString());
             
         // Respond with the error message and code
@@ -345,5 +427,36 @@ class WebhooksInit {
                 'stack_trace' => $e->getTraceAsString(),
             )
         );
+    }
+
+    /**
+     * Remove sensitive fields from webhook payloads before logging.
+     *
+     * @param array $data Raw webhook payload.
+     * @return array Sanitized webhook payload safe for logs.
+     */
+    private function sanitize_webhook_data_for_logging( array $data ): array {
+        foreach ( [ 'rrn', 'amount', 'settled', 'accountId', 'currency' ] as $key ) {
+            if ( array_key_exists( $key, $data ) ) {
+                unset( $data[ $key ] );
+            }
+        }
+
+        if ( isset( $data['merchantCustomData'] ) ) {
+            $custom_data = $data['merchantCustomData'];
+
+            if ( is_string( $custom_data ) ) {
+                $decoded = json_decode( $custom_data, true );
+                if ( json_last_error() === JSON_ERROR_NONE && is_array( $decoded ) ) {
+                    unset( $decoded['storeCardOnFile'], $decoded['store_card_on_file'] );
+                    $data['merchantCustomData'] = wp_json_encode( $decoded );
+                }
+            } elseif ( is_array( $custom_data ) ) {
+                unset( $custom_data['storeCardOnFile'], $custom_data['store_card_on_file'] );
+                $data['merchantCustomData'] = $custom_data;
+            }
+        }
+
+        return $data;
     }
 }

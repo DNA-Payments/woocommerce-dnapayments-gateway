@@ -37,12 +37,12 @@ export function useTogglePlaceOrderButtonDisabled(activePaymentMethod) {
     const refActivePaymentMethod = useRef(activePaymentMethod)
     const update = () => {
         const isDisabled = isPlaceOrderButtonDisabled(refActivePaymentMethod.current)
-        const button = getPlaceOrderButton()
-        setTimeout(() => setPlaceOrderButtonDisabled(isDisabled, button), 100)
+        setPlaceOrderButtonDisabled(isDisabled)
     }
 
     useEffect(() => {
         refActivePaymentMethod.current = activePaymentMethod
+        update()
     }, [activePaymentMethod])
 
     useCheckoutUpdate(update)

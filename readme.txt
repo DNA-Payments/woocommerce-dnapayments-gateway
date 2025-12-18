@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.1.0
+Stable tag: 4.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,30 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.1.1 - 2025-12-18 =
+
+= Improvements =
+	- Calculate cart totals before generating payment data to ensure accurate payment amounts.
+	- Add a loading state while rendering the Google Pay button.
+	- Improve unique invoice ID generation for verification transactions.
+	- Enhance return pages for multiple payment flows:
+	- Add payment method
+	- Pay for order
+	- Complete checkout
+	- Improve payment processing with stronger state checks and error handling.
+	- Improve logging and order notes with a consistent DNA Payments prefix.
+
+= Fixes =
+	- Fix Apple Pay intermittently not appearing on the Pay for Order page.
+	- Prevent duplicate hook handling.
+	- Replace deprecated is_finished_payment usage with the new _dnapayments_state meta field.
+
+= Security / Stability =
+	- Add a preloader to keep Place Order disabled until DNA Payments is fully initialized and required JavaScript files are loaded.
+	- Prevent auto-cancellation of orders that are already charged or failed by validating transactions before cancellation.
+	- Prevent auto-cancellations by checking existing order transactions instead of relying solely on order status.
+
 
 = 4.1.0 - 2025-12-05 =
 * New Features

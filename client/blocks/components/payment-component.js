@@ -119,10 +119,10 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         await completePayment({
                             paymentResult,
                             redirect,
+                            setLoading: (isLoading) => setLoadingState(isLoading ? 'loading' : 'done'),
                             setErrors,
                             page: 'checkout',
                         })
-                        setLoadingState('done')
                         resolveCheckoutPromise(redirect)
                     },
                     onCancel: () => {

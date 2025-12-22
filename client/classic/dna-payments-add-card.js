@@ -3,7 +3,7 @@
 import 'whatwg-fetch'
 import { requestAction } from '../common/api/request'
 import { renderHostedFields } from './utils/render-hosted-fields'
-import { createCardError, getSelectedPaymentGateway, createSetLoading } from './utils/ui'
+import { createCardError, getSelectedPaymentGateway, createSetLoading, getPlaceOrderButton } from './utils/ui'
 import { createPlaceOrder } from './utils/place-order'
 import { getGlobalVariables } from './utils/data'
 
@@ -57,5 +57,11 @@ jQuery(function ($) {
             placeOrder(hostedFieldsInstance)
             return false
         }
+    }
+
+    const placeOrderBtn = getPlaceOrderButton()
+    if (placeOrderBtn && getSelectedPaymentGateway() === gatewayId) {
+        placeOrderBtn.removeAttribute('disabled')
+        window.__dnapaymentsReady = true
     }
 })

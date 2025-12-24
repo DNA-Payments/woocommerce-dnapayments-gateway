@@ -137,7 +137,7 @@ class AjaxInit {
 
 		try {
             wp_send_json_success( array(
-				'auth'			=> $this->gateway->authDataHelper->get_auth_data( $invoice_id, 0, 'GBP' ),
+				'auth'			=> $this->gateway->authDataHelper->get_auth_data( $invoice_id, 0, 'GBP', 'handle_get_payment_and_auth_data_for_saving_card' ),
 				'paymentData'	=> $this->gateway->paymentDataHelper->get_payment_data_from_customer( $customer, $invoice_id )
 			) );
 		} catch (\Exception $e) {

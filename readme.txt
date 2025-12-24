@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.1.1
+Stable tag: 4.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,21 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.1.2 - 2025-12-23 =
+
+= Features =
+	- Add autoRedirectDelayInMs setting to control delay before redirecting back to merchant site after payment.
+
+= Fixes =
+	- Remove disabled attribute from Place Order button when DNA Payments gateway is ready for tokenization.
+	- Fix issue where Place Order button remained disabled after rapid switching between payment methods in block-based checkout.
+
+= Improvements =
+	- Improve webhook validation to enhance security before updating order status.
+	- Improve webhook and auth data logging and error handling by adding context data.
+	- Show loader during redirect delay after Google Pay and Apple Pay payments on block-based checkout.
+
 
 = 4.1.1 - 2025-12-18 =
 

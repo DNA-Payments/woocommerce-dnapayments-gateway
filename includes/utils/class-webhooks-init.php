@@ -81,6 +81,7 @@ class WebhooksInit {
     }
 
     public function success_webhook($input) {
+        $name = 'Success webhook';
         $data = $input->get_params();
 
         try {
@@ -90,23 +91,30 @@ class WebhooksInit {
     
             $order_id = $order->get_id();
             $status = $order->get_status();
+            $log_context = $this->get_webhook_log_context( $data );
 
-            $this->gateway->logger->info('Processing success webhook for order ID ' . $order_id . ' with status ' . $status);
+            $this->gateway->logger->info( $name . ' started: order ' . $order_id . ', status ' . $status, $log_context );
 
-            $result = $this->gateway->orderHelper->process_payment( $order, $input, 'success_webhook' );
+            $result = $this->gateway->orderHelper->process_payment( $order, $input, $name );
 
-            $this->gateway->logger->info('Processed success webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
+            $new_status = $result['status'] ?? '';
+            $result_context = $this->get_webhook_result_log_context( $result );
+            $this->gateway->logger->info(
+                $name . ' finished: order ' . $order_id . ', status ' . $new_status,
+                array_merge( $log_context, $result_context )
+            );
 
             return rest_ensure_response([
                 'success' => true,
-                'message' => isset($result['message']) ? $result['message'] : 'Success webhook processed successfully.',
+                'message' => isset($result['message']) ? $result['message'] : $name . ' processed successfully.',
             ]);
         } catch (\Exception $e) {
-            return $this->get_wp_error( $e, 'success_webhook', $data );
+            return $this->get_wp_error( $e, $name, $data );
         }
     }
 
     public function fail_webhook( \WP_REST_Request $input ) {
+        $name = 'Failure webhook';
         $data = $input->get_params();
 
         try {
@@ -116,36 +124,48 @@ class WebhooksInit {
             
             $order_id = $order->get_id();
             $status = $order->get_status();
+            $log_context = $this->get_webhook_log_context( $data );
+
+            $this->gateway->logger->info( $name . ' started: order ' . $order_id . ', status ' . $status, $log_context );
             
-            $this->gateway->logger->info('Processing failure webhook for order ID ' . $order_id . ' with status ' . $status);
+            $result = $this->gateway->orderHelper->process_payment( $order, $input, $name );
             
-            $result = $this->gateway->orderHelper->process_payment( $order, $input, 'fail_webhook' );
-            
-            $this->gateway->logger->info('Processed failure webhook for order ID ' . $order_id . ' with new status ' . $result['status']);
+            $new_status = $result['status'] ?? '';
+            $result_context = $this->get_webhook_result_log_context( $result );
+            $this->gateway->logger->info(
+                $name . ' finished: order ' . $order_id . ', status ' . $new_status,
+                array_merge( $log_context, $result_context )
+            );
         
             return rest_ensure_response([
                 'success' => true,
-                'message' => isset($result['message']) ? $result['message'] : 'Failure webhook processed successfully.',
+                'message' => isset($result['message']) ? $result['message'] : $name . ' processed successfully.',
             ]);
         } catch (\Exception $e) {
-            return $this->get_wp_error( $e, 'fail_webhook', $data );
+            return $this->get_wp_error( $e, $name, $data );
         }
     }
 
     public function success_webhook_add_card( \WP_REST_Request $input ) {
         $data = $input->get_params();
+        $name = 'Add-card webhook';
 
         try {
             $this->validate_webhook_input( $input, true );
 
+            $log_context = $this->get_webhook_log_context( $data );
+            $this->gateway->logger->info( $name . ' started', $log_context );
+
             \WC_DNA_Payments_Order_Client_Helpers::saveCardToken( $input, $this->gateway->id );
+
+            $this->gateway->logger->info( $name . ' finished', $log_context );
 
             return rest_ensure_response([
                 'success' => true,
-                'message' => 'Add card webhook processed successfully.',
+                'message' => $name . ' processed successfully.',
             ]);
         } catch (\Exception $e) {
-            return $this->get_wp_error( $e, 'success_webhook_add_card', $data );
+            return $this->get_wp_error( $e, $name, $data );
         }
     }
 
@@ -219,6 +239,37 @@ class WebhooksInit {
         exit;
     }
 
+    /**
+     * Extract a safe, useful subset of webhook fields for logging.
+     *
+     * @param array $data Webhook request params.
+     * @return array Key/value pairs.
+     */
+    private function get_webhook_log_context( array $data ): array {
+        $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $data );
+
+        return [
+            'invoiceId'        => $data['invoiceId'] ?? null,
+            'transactionId'    => $data['id'] ?? null,
+            'paymentMethod'    => $data['paymentMethod'] ?? null,
+            'gatewayId'        => $custom_data['gateway_id'] ?? null,
+            'orderId'          => $custom_data['order_id'] ?? null,
+        ];
+    }
+
+    /**
+     * Extract a small subset of process result fields for logging.
+     *
+     * @param array $result Processing result from OrderHelper::process_payment().
+     * @return array Key/value pairs.
+     */
+    private function get_webhook_result_log_context( array $result ): array {
+        return [
+            'code'    => $result['code'] ?? null,
+            'message' => $result['message'] ?? null,
+        ];
+    }
+
     private function parse_webhook_order( $input ) {
         if ( empty($input['invoiceId']) ) {
             throw new \Exception('Invoice ID is missing or invalid.', 400);
@@ -288,9 +339,11 @@ class WebhooksInit {
     }
 
     private function get_wp_error(\Exception $e, $hook_name, $data) {
-        $this->gateway->logger->error('Error in ' . $hook_name . ': ' . $e->getMessage());
-        $this->gateway->logger->error('Input: ' . json_encode($data));
-        $this->gateway->logger->error('Stack trace: ' . $e->getTraceAsString());
+        $log_context = is_array( $data )
+            ? $this->get_webhook_log_context( $data )
+            : null;
+        $this->gateway->logger->error( $hook_name . ' failed: ' . $e->getMessage(), $log_context );
+        $this->gateway->logger->error( 'Stack trace: ' . $e->getTraceAsString(), $log_context );
             
         // Respond with the error message and code
         return new \WP_Error(

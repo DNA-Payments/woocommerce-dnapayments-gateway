@@ -30,10 +30,13 @@ class AuthDataHelper {
      * @param string $invoice_id The invoice ID
      * @param float $amount The payment amount
      * @param string $currency The payment currency
+     * @param string $source Identifies which part of the code this method is called from
      * @return array Authentication data with access_token
      * @throws \Exception If the authentication request fails
      */
-    public function get_auth_data( $invoice_id, $amount, $currency ) {
+    public function get_auth_data( $invoice_id, $amount, $currency, $source = '' ) {
+        $log_context = array( 'invoice_id' => $invoice_id, 'amount' => $amount, 'currency' => $currency, 'source' => $source );
+
         try {
             \DNAPayments\DNAPayments::configure($this->gateway->get_config());
 
@@ -50,9 +53,8 @@ class AuthDataHelper {
         } catch (\Exception $e) {
             // Log the exception before re-throwing it
             if ( isset( $this->gateway->logger ) ) {
-                $this->gateway->logger->error( 'Exception in get_auth_data for invoice ' . $invoice_id . ': ' . $e->getMessage() );
+                $this->gateway->logger->error( 'Auth request failed: ' . $e->getMessage(), $log_context );
                 $this->gateway->logger->error( 'Stack trace: ' . $e->getTraceAsString() );
-                $this->log_request_details($invoice_id, $amount, $currency);
             }
             
             // Re-throw the exception to be handled by the caller
@@ -64,7 +66,8 @@ class AuthDataHelper {
         return $this->get_auth_data(
             strval( $order->get_order_number() ),
             floatval( $order->get_total() ),
-            $order->get_currency()
+            $order->get_currency(),
+            'get_auth_data_from_order'
         );
     }
 
@@ -78,13 +81,8 @@ class AuthDataHelper {
      */
     public function get_auth_data_with_try( $invoice_id, $amount, $currency ) {
         try {            
-            return $this->get_auth_data( $invoice_id, $amount, $currency );
+            return $this->get_auth_data( $invoice_id, $amount, $currency, 'get_auth_data_with_try' );
         } catch (\Exception $e) {
-            // Log the error
-            if ( isset( $this->gateway->logger ) ) {
-                $this->gateway->logger->error( 'Error in get_auth_data_with_try; Failed to get authentication token: ' . $e->getMessage() );
-            }
-            
             return array(
                 'access_token' => null,
                 'error' => $e->getMessage()
@@ -114,31 +112,5 @@ class AuthDataHelper {
         }
         
         return $this->temp_token;
-    }
-
-    /**
-     * Logs the request details for debugging purposes
-     * 
-     * @param string $invoice_id The invoice ID
-     * @param float $amount The payment amount
-     * @param string $currency The payment currency
-     * @return void
-     */
-    private function log_request_details($invoice_id, $amount, $currency) {
-        if (!isset($this->gateway->logger)) {
-            return;
-        }
-        
-        // Prepare request data
-        $request_data = array(
-            'client_id' => $this->gateway->client_id,
-            'client_secret' => '***REDACTED***', // Don't log actual secret
-            'terminal' => $this->gateway->terminal,
-            'invoiceId' => $invoice_id,
-            'amount' => $amount,
-            'currency' => $currency
-        );
-  
-        $this->gateway->logger->error('Auth request data: ' . json_encode($request_data));
     }
 }

@@ -55,19 +55,41 @@ class ActionHandlers {
      * @param  int $order_id
      */
     public function capture_payment( $order_id, $previous_status, $next_status ) {
-        if ( in_array($next_status, [ 'processing', 'completed' ]) ) {
+        if ( ! in_array($next_status, [ 'processing', 'completed' ]) ) {
+            $this->gateway->logger->info('Capture skipped: target status is not processing/completed', [
+                'order_id' => $order_id,
+                'prev_status' => $previous_status,
+                'next_status' => $next_status
+            ]);
+            return false;
+        }
+
+        $transaction_type = strtoupper($this->gateway->configHelper->get_transaction_type());
+        $context = [
+            'order_id' => $order_id,
+            'prev_status' => $previous_status,
+            'next_status' => $next_status,
+            'transaction_type' => $transaction_type
+        ];
+
+        if ( $transaction_type !== 'AUTH' ) {
+            $this->gateway->logger->info('Capture skipped: transaction type is not AUTH', $context);
             return false;
         }
         
         $order = wc_get_order( $order_id );
 
         if ( ! $order instanceof \WC_Order ) {
+            $this->gateway->logger->warning('Capture skipped: order not found', $context);
             return false;
         }
 
         $transaction_id = $order->get_transaction_id();
+        $context['transaction_id'] = $transaction_id ?: '';
+        $context['order_state'] = $this->gateway->orderHelper->get_order_state($order);
 
-        if ( !$transaction_id || $this->gateway->orderHelper->get_order_state($order) !== 'authorized' ) {
+        if ( !$transaction_id || $context['order_state'] !== 'authorized' ) {
+            $this->gateway->logger->info('Capture skipped: missing transaction ID or state is not authorized', $context);
             return false;
         }
 
@@ -76,6 +98,10 @@ class ActionHandlers {
         if( $paymentMethod === 'paypal' && !\WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order) ) {
             $paypalCaptureStatus = $order->get_meta( 'paypal_capture_status', true );
             $order->add_order_note( sprintf( __('DNA Payments: Paypal payment could not be captured with status: %s', \WC_DNA_Payments::$text_domain ), $paypalCaptureStatus) );
+            $this->gateway->logger->info('Capture skipped: PayPal status is not valid for capture', array_merge($context, [
+                'payment_method' => $paymentMethod,
+                'paypal_capture_status' => $paypalCaptureStatus
+            ]));
             return false;
         }
 
@@ -98,6 +124,9 @@ class ActionHandlers {
 
             if( !empty($result) && $result['success'] ) {
                 $new_transaction_id = $result['id'];
+                $this->gateway->logger->info('Capture successful', array_merge($context, [
+                    'new_transaction_id' => $new_transaction_id
+                ]));
                 $order->add_order_note(sprintf(__( 'DNA Payments: Payment was charged (Transaction ID: %s). Order status updated from %s to %s. Source: %s.', \WC_DNA_Payments::$text_domain ), $new_transaction_id, ucfirst($previous_status), ucfirst($next_status), 'capture_payment' ));
                 $order->update_meta_data( '_dnapayments_state', 'charged' );
                 $order->set_transaction_id( $new_transaction_id );
@@ -105,8 +134,15 @@ class ActionHandlers {
 
                 return true;
             }
+
+            $this->gateway->logger->warning('Capture failed: unexpected charge response', array_merge($context, [
+                'charge_success' => isset($result['success']) ? ($result['success'] ? 'true' : 'false') : 'undefined'
+            ]));
         } catch (\Exception $e) {
-            $this->gateway->logger->error('Error in capture_payment; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+            $this->gateway->logger->error(
+                'Error in capture_payment; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage(),
+                $context
+            );
         }
 
         return false;

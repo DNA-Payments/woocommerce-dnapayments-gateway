@@ -79,6 +79,7 @@ class ActionHandlers {
         $transaction_id = $order->get_transaction_id();
         $context['transaction_id'] = $transaction_id ?: '';
         $context['order_state'] = $this->gateway->orderHelper->get_order_state($order);
+        $context['order_payment_method'] = $order->get_payment_method();
 
         if ( !$transaction_id || $context['order_state'] !== 'authorized' ) {
             $this->gateway->logger->info('Capture skipped: missing transaction ID or state is not authorized', $context);
@@ -86,7 +87,6 @@ class ActionHandlers {
         }
 
         $paymentMethod = $order->get_meta( 'payment_method', true );
-        $context['order_payment_method'] = $paymentMethod ?: '';
 
         if( $paymentMethod === 'paypal' && !\WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order) ) {
             $paypalCaptureStatus = $order->get_meta( 'paypal_capture_status', true );

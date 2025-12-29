@@ -56,34 +56,18 @@ class ActionHandlers {
      */
     public function capture_payment( $order_id, $previous_status, $next_status ) {
         if ( ! in_array($next_status, [ 'processing', 'completed' ]) ) {
-            $this->gateway->logger->info('Capture skipped: target status is not processing/completed', [
-                'order_id' => $order_id,
-                'prev_status' => $previous_status,
-                'next_status' => $next_status
-            ]);
             return false;
         }
 
         if ( $previous_status !== 'on-hold' ) {
-            $this->gateway->logger->info('Capture skipped: previous status is not on-hold', [
-                'order_id' => $order_id,
-                'prev_status' => $previous_status,
-                'next_status' => $next_status
-            ]);
             return false;
         }
 
-        $transaction_type = strtoupper($this->gateway->configHelper->get_transaction_type());
         $context = [
             'order_id' => $order_id,
             'prev_status' => $previous_status,
             'next_status' => $next_status,
         ];
-
-        if ( $transaction_type !== 'AUTH' ) {
-            $this->gateway->logger->info('Capture skipped: transaction type is not AUTH', $context);
-            return false;
-        }
         
         $order = wc_get_order( $order_id );
 

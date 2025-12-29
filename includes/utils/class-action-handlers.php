@@ -64,12 +64,20 @@ class ActionHandlers {
             return false;
         }
 
+        if ( $previous_status !== 'on-hold' ) {
+            $this->gateway->logger->info('Capture skipped: previous status is not on-hold', [
+                'order_id' => $order_id,
+                'prev_status' => $previous_status,
+                'next_status' => $next_status
+            ]);
+            return false;
+        }
+
         $transaction_type = strtoupper($this->gateway->configHelper->get_transaction_type());
         $context = [
             'order_id' => $order_id,
             'prev_status' => $previous_status,
             'next_status' => $next_status,
-            'transaction_type' => $transaction_type
         ];
 
         if ( $transaction_type !== 'AUTH' ) {
@@ -94,6 +102,7 @@ class ActionHandlers {
         }
 
         $paymentMethod = $order->get_meta( 'payment_method', true );
+        $context['order_payment_method'] = $paymentMethod ?: '';
 
         if( $paymentMethod === 'paypal' && !\WC_DNA_Payments_Order_Admin_Helpers::isValidStatusPayPalStatus($order) ) {
             $paypalCaptureStatus = $order->get_meta( 'paypal_capture_status', true );
@@ -136,11 +145,12 @@ class ActionHandlers {
             }
 
             $this->gateway->logger->warning('Capture failed: unexpected charge response', array_merge($context, [
-                'charge_success' => isset($result['success']) ? ($result['success'] ? 'true' : 'false') : 'undefined'
+                'charge_success' => isset($result['success']) ? ($result['success'] ? 'true' : 'false') : 'undefined',
+                'order_payment_method' => $paymentMethod ?: ''
             ]));
         } catch (\Exception $e) {
             $this->gateway->logger->error(
-                'Error in capture_payment; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage(),
+                'Capture failed: Code: ' . $e->getCode() . '; Message: ' . $e->getMessage(),
                 $context
             );
         }

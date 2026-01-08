@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.1.2
+Stable tag: 4.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,16 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.1.3 - 2025-01-08 =
+
+= Fixes =
+	- Added a checkout validation workaround for GB addresses: clear `billing-state` and
+	`shipping-state` validation errors when country is `GB` due to a WooCommerce Blocks
+	bug that incorrectly requires state for GB. This prevents non-regular validation
+	failures during block-based checkout.
+	Location: `client/blocks/hooks/use-checkout-validation.js:30-37`
+
 
 = 4.1.2 - 2025-12-23 =
 

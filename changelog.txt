@@ -2,6 +2,16 @@
 
 Changelog
 
+2025-01-08 - version 4.1.3
+
+= Fixes =
+	- Added a checkout validation workaround for GB addresses: clear `billing-state` and
+	`shipping-state` validation errors when country is `GB` due to a WooCommerce Blocks
+	bug that incorrectly requires state for GB. This prevents non-regular validation
+	failures during block-based checkout.
+	Location: `client/blocks/hooks/use-checkout-validation.js:30-37`
+
+
 2025-12-23 - version 4.1.2
 
 = Features =

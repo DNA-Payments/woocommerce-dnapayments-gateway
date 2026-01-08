@@ -6,12 +6,14 @@ const wcDepMap = {
 	'@woocommerce/blocks-registry': ['wc', 'wcBlocksRegistry'],
 	'@woocommerce/blocks-checkout': ['wc', 'blocksCheckout'],
 	'@woocommerce/settings'       : ['wc', 'wcSettings'],
+	'@woocommerce/block-data'     : ['wc', 'wcBlocksData'],
 };
 
 const wcHandleMap = {
 	'@woocommerce/blocks-registry': 'wc-blocks-registry',
 	'@woocommerce/blocks-checkout': 'wc-blocks-checkout',
 	'@woocommerce/settings'       : 'wc-settings',
+	'@woocommerce/block-data'     : 'wc-blocks-data-store',
 };
 
 const requestToExternal = (request) => {

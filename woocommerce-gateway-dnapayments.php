@@ -88,7 +88,7 @@ class WC_DNA_Payments {
 		add_filter( 'woocommerce_endpoint_order-received_title', array( __CLASS__, 'custom_woocommerce_endpoint_order_received_title' ), 10, 3 );
 
 		// Change "Thank you" ("Order received") page text when order status failed		
-		add_filter('woocommerce_thankyou_order_received_text', array( __CLASS__, 'custom_order_received_text' ), 10, 3);		
+		add_filter('woocommerce_thankyou_order_received_text', array( __CLASS__, 'custom_order_received_text' ), 10, 3);
 	}
 
 	public static function before_woocommerce_hpos() {

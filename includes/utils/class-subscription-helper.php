@@ -85,13 +85,17 @@ class SubscriptionHelper {
         $this->gateway->logger->info(
             'Comparing subscription payment details',
             array_merge(
-                $this->get_subscription_context( $subscription ),
                 [
                     'subscriptionString' => $subscription_string,
                     'inputString'        => $input_string,
-                    'inputGatewayId'     => $input_gateway_id,
-                    'inputPaymentMethod' => $input_payment_method,
-                    'inputCardTokenId'   => $input_card_token_id,
+                ],
+                $this->get_subscription_context( $subscription ),
+                [
+                    'input' => [
+                        'gatewayId'     => $input_gateway_id,
+                        'paymentMethod' => $input_payment_method,
+                        'cardTokenId'   => $input_card_token_id,
+                    ],
                 ]
             )
         );
@@ -200,14 +204,16 @@ class SubscriptionHelper {
      * @param WC_Order $renewal_order    The renewal order
      */
     public function scheduled_subscription_payment( $gateway_id, $amount_to_charge, $renewal_order ) {
+        $renewal_order_id = $renewal_order instanceof \WC_Order ? $renewal_order->get_id() : null;
+        $name = 'Scheduled subscription payment #' . $renewal_order_id;
         $base_context = [
             'gatewayId'      => $gateway_id,
-            'renewalOrderId' => $renewal_order ? $renewal_order->get_id() : null,
+            'renewalOrderId' => $renewal_order_id,
             'amount'         => $amount_to_charge,
         ];
 
         try {
-            $this->gateway->logger->info( 'Processing scheduled subscription payment', $base_context );
+            $this->gateway->logger->info( $name . ' started:', $base_context );
 
             if ( ! function_exists( 'wcs_get_subscriptions_for_renewal_order' ) ) {
                 throw new \Exception( 'WooCommerce Subscriptions function not available' );
@@ -223,7 +229,6 @@ class SubscriptionHelper {
             $context = array_merge(
                 $base_context,
                 $this->get_subscription_context( $subscription ),
-                [ 'parentTransactionId' => $transaction_id ]
             );
 
             if ( empty( $transaction_id ) ) {
@@ -250,7 +255,7 @@ class SubscriptionHelper {
             }
 
             $this->gateway->logger->info(
-                'Starting subscription renewal payment',
+                $name . ' processing:',
                 array_merge(
                     $context,
                     [
@@ -263,9 +268,9 @@ class SubscriptionHelper {
             $result = $this->gateway->dnaPayment->recurring($request_data);
 
             if ( $result && isset( $result['success'] ) && $result['success'] === true ) {
-                $new_status = $this->gateway->orderHelper->payment_complete( $renewal_order, $result, $result['settled'], 'scheduled_subscription_payment' );
+                $new_status = $this->gateway->orderHelper->payment_complete( $renewal_order, $result, $result['settled'] ?? false, $name );
                 $this->gateway->logger->info(
-                    'Subscription renewal payment completed',
+                    $name . ' finished:' ,
                     array_merge(
                         $context,
                         $this->get_recurring_result_log_context( $result ),
@@ -287,14 +292,14 @@ class SubscriptionHelper {
             }
         } catch ( \Exception $e ) {
             $this->gateway->logger->error(
-                'Subscription payment failed',
+                $name . ' failed:',
                 array_merge(
                     $base_context,
-                    isset( $subscription ) && $subscription instanceof \WC_Subscription ? $this->get_subscription_context( $subscription ) : [],
+                    isset( $subscription ) ? $this->get_subscription_context( $subscription ) : [],
                     [ 'errorMessage' => $e->getMessage() ]
                 )
             );
-            $renewal_order->update_status( 'failed', sprintf( __( 'DNA Payments subscription payment failed: %s', \WC_DNA_Payments::$text_domain ), $e->getMessage() ) );
+            $renewal_order->update_status( 'failed', sprintf( __( 'DNA Payments: %s failed: %s', \WC_DNA_Payments::$text_domain ), $name, $e->getMessage() ) );
         }
     }
 
@@ -325,15 +330,7 @@ class SubscriptionHelper {
         $subscription->save();
         $this->gateway->logger->info(
             'Saved subscription payment metadata',
-            $this->get_subscription_context(
-                $subscription,
-                [
-                    'parentOrderId'  => $parent_order_id,
-                    'transactionId'  => $input['id'] ?? null,
-                    'paymentMethod'  => $input['paymentMethod'] ?? null,
-                    'cardTokenId'    => $input['cardTokenId'] ?? null,
-                ]
-            )
+            $this->get_subscription_context( $subscription ),
         );
     }
 
@@ -347,6 +344,17 @@ class SubscriptionHelper {
     public function change_subscription_payment_method( \WC_Subscription $subscription, array $input ) {
         $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
         $gateway_id  = $custom_data['gateway_id'] ?? '';
+        $name    = 'Change subscription payment method #' . $subscription->get_id();        
+        $context = array_merge(
+            [
+                'gatewayId'     => $gateway_id,
+                'paymentMethod' => $input['paymentMethod'] ?? null,
+                'cardTokenId'   => $input['cardTokenId'] ?? null,
+                'transactionId' => $input['id'] ?? null,
+            ],
+            $this->get_subscription_context( $subscription ),
+        );
+        $this->gateway->logger->info( $name . ' started', $context );
 
         if ( empty( $gateway_id ) ) {
             throw new \Exception( 'Gateway (Payment method) ID is missing' );
@@ -365,30 +373,12 @@ class SubscriptionHelper {
             throw new \Exception( 'WC_Subscriptions_Change_Payment_Gateway::update_payment_method does not exist' );
         }
 
-        $context = $this->get_subscription_context(
-            $subscription,
-            [
-                'gatewayId'       => $gateway_id,
-                'paymentMethod'   => $input['paymentMethod'] ?? null,
-                'cardTokenId'     => $input['cardTokenId'] ?? null
-            ]
-        );
-
-        $this->gateway->logger->info( 'Changing subscription payment method', $context );
+        $this->gateway->logger->info( $name . ' processing', $context );
 
         \WC_Subscriptions_Change_Payment_Gateway::update_payment_method( $subscription, $gateway_id, $payment_meta );
         $this->save_payment_meta_to_subscription( $subscription, $input );
 
-        $account_id = isset( $input['accountId'] ) ? $input['accountId'] : '';
-        $this->gateway->logger->info(
-            'Processed subscription change payment method',
-            array_merge(
-                $context,
-                [
-                    'transactionId' => $input['id'] ?? null,
-                ]
-            )
-        );
+        $this->gateway->logger->info( $name . ' finished:', $context );
     }
 
     /**
@@ -400,18 +390,23 @@ class SubscriptionHelper {
      */
     private function get_subscription_context( $subscription = null, array $extra = [] ): array {
         if ( ! $subscription instanceof \WC_Subscription ) {
-            return $extra;
+            return [];
         }
 
         $context = [
-            'subscriptionId'      => $subscription->get_id(),
-            'parentTransactionId' => $subscription->get_meta( $this->get_meta_key( 'parent_transaction_id' ) ),
-            'parentOrderId'       => $subscription->get_meta( $this->get_meta_key( 'parent_order_id' ) ),
-            'paymentMethod'       => $subscription->get_meta( $this->get_meta_key( 'payment_method' ) ),
-            'cardTokenId'         => $subscription->get_meta( $this->get_meta_key( 'card_token_id' ) ),
+            'id'            => $subscription->get_id(),
+            'paymentMethod' => $subscription->get_payment_method(),
+            'meta' => [
+                'parentTransactionId'   => $subscription->get_meta( $this->get_meta_key( 'parent_transaction_id' ) ),
+                'parentOrderId'         => $subscription->get_meta( $this->get_meta_key( 'parent_order_id' ) ),
+                'paymentMethod'         => $subscription->get_meta( $this->get_meta_key( 'payment_method' ) ),
+                'cardTokenId'           => $subscription->get_meta( $this->get_meta_key( 'card_token_id' ) ),
+            ]
         ];
 
-        return array_merge( $context, $extra );
+        return [
+            'subscription' => array_merge( $context, $extra ),
+        ];
     }
 
     /**
@@ -422,12 +417,14 @@ class SubscriptionHelper {
      */
     private function get_recurring_result_log_context( array $result ): array {
         return [
-            'transactionId' => $result['id'] ?? null,
-            'success'       => $result['success'] ?? null,
-            'settled'       => $result['settled'] ?? null,
-            'status'        => $result['status'] ?? null,
-            'errorCode'     => $result['errorCode'] ?? null,
-            'message'       => $result['message'] ?? null,
+            'recurring_result' => [
+                'transactionId' => $result['id'] ?? null,
+                'success'       => $result['success'] ?? null,
+                'settled'       => $result['settled'] ?? null,
+                'status'        => $result['status'] ?? null,
+                'errorCode'     => $result['errorCode'] ?? null,
+                'message'       => $result['message'] ?? null,
+            ]
         ];
     }
 }

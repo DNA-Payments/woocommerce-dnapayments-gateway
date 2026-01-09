@@ -89,6 +89,15 @@ class WC_DNA_Payments {
 
 		// Change "Thank you" ("Order received") page text when order status failed		
 		add_filter('woocommerce_thankyou_order_received_text', array( __CLASS__, 'custom_order_received_text' ), 10, 3);
+
+        // Track last checkout-created order for the current session
+        add_action( 'woocommerce_checkout_order_created', array( __CLASS__, 'remember_checkout_order_context' ), 20, 1 );
+
+        // Reset the marker if cart/shipping changed after order creation
+        add_action( 'wp_loaded', array( __CLASS__, 'maybe_reset_checkout_order_context' ), 5 );
+
+        // Prevent clearing cart incorrectly after payment
+        add_filter( 'woocommerce_should_clear_cart_after_payment', array( __CLASS__, 'maybe_prevent_cart_clear' ), 20, 1 );
 	}
 
 	public static function before_woocommerce_hpos() {
@@ -244,6 +253,145 @@ class WC_DNA_Payments {
 	public static function load_plugin_textdomain() {
 		load_plugin_textdomain( self::$text_domain, false, self::plugin_abspath() . '/languages' );
 	}
+    public static function remember_checkout_order_context( $order ) {
+        if ( ! WC()->session || ! $order ) {
+            return;
+        }
+
+        // Store the order ID created during the current checkout session
+        WC()->session->set( 'dna_last_checkout_order_id', (int) $order->get_id() );
+
+        // Store cart fingerprint only if cart is available
+        if ( WC()->cart ) {
+            WC()->session->set( 'dna_last_checkout_fp', self::get_cart_fingerprint() );
+        }
+    }
+
+    public static function maybe_reset_checkout_order_context() {
+        if ( ! WC()->session || ! WC()->cart ) {
+            return;
+        }
+
+        $last_id  = (int) WC()->session->get( 'dna_last_checkout_order_id' );
+        $saved_fp = (string) WC()->session->get( 'dna_last_checkout_fp' );
+
+        // Nothing to reset if marker or fingerprint is missing
+        if ( ! $last_id || ! $saved_fp ) {
+            return;
+        }
+
+        $current_fp = self::get_cart_fingerprint();
+
+        /**
+         * If cart, shipping, coupons or address were changed
+         * after the order was created, reset the checkout marker.
+         *
+         * This indicates that the current cart no longer belongs
+         * to the previously created checkout order.
+         */
+        if ( ! hash_equals( $saved_fp, $current_fp ) ) {
+            WC()->session->__unset( 'dna_last_checkout_order_id' );
+            WC()->session->__unset( 'dna_last_checkout_fp' );
+        }
+    }
+
+    public static function maybe_prevent_cart_clear( $should_clear ) {
+
+        if ( ! WC()->session || ! WC()->cart ) {
+            // No session or cart available — do not interfere
+            return $should_clear;
+        }
+
+        // Nothing to preserve if the cart is already empty
+        if ( WC()->cart->is_empty() ) {
+            return $should_clear;
+        }
+
+        global $wp;
+
+        // Determine which order is being paid
+        $paying_order_id = 0;
+        $context = 'unknown';
+
+        // /checkout/order-pay/{order_id}/
+        if ( ! empty( $wp->query_vars['order-pay'] ) ) {
+            $paying_order_id = absint( $wp->query_vars['order-pay'] );
+        }
+        // /checkout/order-received/{order_id}/
+        elseif ( ! empty( $wp->query_vars['order-received'] ) ) {
+            $paying_order_id = absint( $wp->query_vars['order-received'] );
+        }
+
+        if ( ! $paying_order_id ) {
+            return $should_clear;
+        }
+
+        // Marker that identifies the last order created by the current checkout
+        $last_checkout_order_id = (int) WC()->session->get( 'dna_last_checkout_order_id' );
+
+        /**
+         * Core rule:
+         *
+         * If the cart contains items and the order being paid is NOT
+         * the same order that belongs to the current checkout session
+         * (or the marker is missing), the cart must NOT be cleared.
+         *
+         * Marker = 0 means the cart was modified after order creation
+         * (items, shipping, coupons, address, etc.).
+         */
+        if ( ! $last_checkout_order_id || $paying_order_id !== $last_checkout_order_id ) {
+            return false;
+        }
+
+        return $should_clear;
+    }
+
+    private static function get_cart_fingerprint(): string {
+        $items = [];
+        $cart  = WC()->cart ? WC()->cart->get_cart() : [];
+
+        foreach ( $cart as $item ) {
+            $items[] = [
+                'product_id'   => (int) ( $item['product_id'] ?? 0 ),
+                'variation_id' => (int) ( $item['variation_id'] ?? 0 ),
+                'qty'          => (int) ( $item['quantity'] ?? 0 ),
+                'variation'    => (array) ( $item['variation'] ?? [] ),
+            ];
+        }
+
+        $coupons = WC()->cart
+            ? array_values( WC()->cart->get_applied_coupons() )
+            : [];
+
+        $chosen_shipping = WC()->session
+            ? (array) WC()->session->get( 'chosen_shipping_methods', [] )
+            : [];
+
+        $address = [];
+        if ( WC()->customer ) {
+            $address = [
+                WC()->customer->get_shipping_country(),
+                WC()->customer->get_shipping_state(),
+                WC()->customer->get_shipping_postcode(),
+                WC()->customer->get_shipping_city(),
+            ];
+        }
+
+        /**
+         * The fingerprint uniquely represents the current checkout context.
+         * Any change to cart contents, shipping, coupons or address
+         * will produce a different hash.
+         */
+        return hash(
+            'sha256',
+            wp_json_encode( [
+                'items'   => $items,
+                'coupons' => $coupons,
+                'ship'    => array_values( $chosen_shipping ),
+                'addr'    => $address,
+            ] )
+        );
+    }
 }
 
 WC_DNA_Payments::init();

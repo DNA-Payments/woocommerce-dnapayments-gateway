@@ -46,6 +46,14 @@ class Helper {
         }
     }
 
+    public static function is_empty( $value ): bool
+    {
+        if ( $value === null ) return true;
+        if ( is_string($value) ) return trim($value) === '';
+        if ( is_array($value) || $value instanceof \Countable ) return count($value) === 0;
+        return false;
+    }
+
 	public static function merge_if_empty( $base, $override ) {
 		if ( empty($base) ) {
 			return $override;

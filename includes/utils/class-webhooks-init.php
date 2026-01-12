@@ -337,10 +337,11 @@ class WebhooksInit {
 
         $parsed = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
         $order_id = $parsed['order_id'] ?? null;
+        $input_order_number = Helper::extract_prefix_from_invoice_id( $input['invoiceId'] );
 
         // Find order/subscription ID if not already set
         if ( empty( $order_id ) ) {
-            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( Helper::extract_prefix_from_invoice_id( $input['invoiceId'] ) );
+            $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( $input_order_number );
             if ( empty( $order_id ) ) {
                 throw new \Exception( $return_subscription ? 'Subscription' : 'Order' . ' ID could not be determined for invoiceId: ' . $input['invoiceId'], 400 );
             }
@@ -350,6 +351,9 @@ class WebhooksInit {
             $subscription = $this->gateway->subscriptionHelper->get_subscription( $order_id );
             if ( ! $subscription ) {
                 throw new \Exception( 'Subscription not found for ID: ' . $order_id, 400 );
+            }
+            if ( $input_order_number !== $subscription->get_order_number() ) {
+                throw new \Exception( 'Subscription number mismatch: expected ' . $subscription->get_order_number() . ', got ' . $input_order_number, 400 );
             }
             return $subscription;
         }
@@ -361,7 +365,7 @@ class WebhooksInit {
         $this->validate_input_against_order( $input, $order );
         return $order;
     }
-    
+
     private function validate_input_against_order( $input, $order ) {
         $input_order_number = Helper::extract_prefix_from_invoice_id( $input['invoiceId'] );
         $input_total        = isset( $input['amount'] ) ? wc_format_decimal( $input['amount'], 2 ) : null;

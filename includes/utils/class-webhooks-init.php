@@ -292,29 +292,29 @@ class WebhooksInit {
             throw new \Exception('Order not found for ID: ' . $order_id, 400);
         }
 
-        $this->validate_input_against_entity( $input, $order, 'Order' );
+        $this->validate_input_against_order( $input, $order );
         return $order;
     }
     
-    private function validate_input_against_entity( $input, $entity, $type_label ) {
-        $input_order_number = $input['invoiceId'];
+    private function validate_input_against_order( $input, $order ) {
+        $input_order_number = Helper::extract_prefix_from_invoice_id( $input['invoiceId'] );
         $input_total        = isset( $input['amount'] ) ? wc_format_decimal( $input['amount'], 2 ) : null;
         $input_currency     = isset( $input['currency'] ) ? strtoupper( sanitize_text_field( $input['currency'] ) ) : null;
 
-        $entity_number   = $entity->get_order_number();
-        $entity_total    = wc_format_decimal( $entity->get_total(), 2 );
-        $entity_currency = strtoupper( $entity->get_currency() );
+        $order_number   = $order->get_order_number();
+        $order_total    = wc_format_decimal( $order->get_total(), 2 );
+        $order_currency = strtoupper( $order->get_currency() );
 
-        if ( $input_order_number !== $entity_number ) {
-            throw new \Exception( $type_label . ' number mismatch: expected ' . $entity_number . ', got ' . $input_order_number, 400 );
+        if ( $input_order_number !== $order_number ) {
+            throw new \Exception( 'Order number mismatch: expected ' . $order_number . ', got ' . $input_order_number, 400 );
         }
 
-        if ( $input_total === null || $input_total !== $entity_total ) {
-            throw new \Exception( $type_label . ' total mismatch: expected ' . $entity_total . ', got ' . $input_total, 400 );
+        if ( $input_total === null || $input_total !== $order_total ) {
+            throw new \Exception( 'Order total mismatch: expected ' . $order_total . ', got ' . $input_total, 400 );
         }
 
-        if ( $input_currency === null || $input_currency !== $entity_currency ) {
-            throw new \Exception( $type_label . ' currency mismatch: expected ' . $entity_currency . ', got ' . $input_currency, 400 );
+        if ( $input_currency === null || $input_currency !== $order_currency ) {
+            throw new \Exception( 'Order currency mismatch: expected ' . $order_currency . ', got ' . $input_currency, 400 );
         }
     }
 

@@ -65,7 +65,10 @@ class SubscriptionHelper {
         $subscription_payment_method = (string) $subscription->get_meta( $this->get_meta_key( 'payment_method' ) );
         $subscription_card_token_id = (string) $subscription->get_meta( $this->get_meta_key( 'card_token_id' ) );
 
-        $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
+        $custom_data = Helper::parse_merchant_custom_data( $input );
+        if ( ! empty( $custom_data['error'] ) ) {
+            $this->gateway->logger->error( $custom_data['error'] );
+        }
         $input_gateway_id = $custom_data['gateway_id'] ?? '';
         $input_payment_method = $input['paymentMethod'] ?? '';
         $input_card_token_id = $input['cardTokenId'] ?? '';
@@ -342,7 +345,10 @@ class SubscriptionHelper {
      * @throws \Exception If the payment method cannot be changed.
      */
     public function change_subscription_payment_method( \WC_Subscription $subscription, array $input ) {
-        $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
+        $custom_data = Helper::parse_merchant_custom_data( $input );
+        if ( ! empty( $custom_data['error'] ) ) {
+            $this->gateway->logger->error( $custom_data['error'] );
+        }
         $gateway_id  = $custom_data['gateway_id'] ?? '';
         $name    = 'Change subscription payment method #' . $subscription->get_id();        
         $context = array_merge(

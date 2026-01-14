@@ -177,4 +177,91 @@ class Helper {
 
         return $parts[0];
     }
+
+    // Parse merchant custom data
+    public static function parse_merchant_custom_data( $input ) {
+        $default_value = [
+            'order_id' => null, 
+            'store_card_on_file' => false,
+            'gateway_id' => '',
+            'allowed_recurring' => false,
+            'error' => ''
+        ];
+
+        if ( isset($input['merchantCustomData']) ) {
+            try {
+                $customData = json_decode($input['merchantCustomData']);
+                return [ 
+                    'order_id' => $customData->orderId, 
+                    'store_card_on_file' => $customData->storeCardOnFile ?? false,
+                    'gateway_id' => $customData->gatewayId ?? '',
+                    'allowed_recurring' => $customData->allowedRecurring ?? false,
+                    'error' => '',
+                ];
+            } catch (\Exception $e) {
+                $default_value['error'] = 'Error parsing merchantCustomData: ' . $e->getMessage();
+            }
+        }
+
+        return $default_value;
+    }
+
+    /**
+     * Normalize card scheme name to match WooCommerce standard
+     *
+     * @param string $scheme_name Card scheme name from API
+     * @return string Normalized card scheme name
+     */
+    public static function normalize_card_scheme_name($scheme_name) {
+        $normalized = strtolower(trim($scheme_name));
+
+        switch ($normalized) {
+            case 'amex':
+            case 'amexcard': 
+            case 'americanexpress':
+            case 'american express':
+            case 'american-express':
+                return 'amex';
+
+            case 'dci':
+            case 'diners':
+            case 'dinersclub':
+            case 'diners club':
+            case 'diners-club':
+                return 'diners';
+
+            case 'mc':
+            case 'mastercard':
+            case 'master card':
+            case 'master-card':
+                return 'mastercard';
+
+            case 'upi':
+            case 'unionpay':
+            case 'union pay':
+            case 'union-pay':
+                return 'unionpay';
+
+            case 'visa':
+            case 'visacard':
+            case 'visa card':
+            case 'visa-card':
+                return 'visa';
+
+            case 'maestro':
+            case 'maestrocard':
+            case 'maestro card':
+            case 'maestro-card':
+                return 'mastercard';
+
+            case 'discover':
+            case 'discovercard':
+            case 'discover card':
+            case 'discover-card':
+                return 'discover';
+
+            default:
+                return $normalized;
+        }
+    }
 }

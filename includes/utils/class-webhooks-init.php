@@ -86,14 +86,14 @@ class WebhooksInit {
         return true;
     }
 
-    public function success_webhook($input) {
+    public function success_webhook( \WP_REST_Request $input ) {
         $name = 'Success webhook';
         $data = $input->get_params();
 
         try {
-            $this->validate_webhook_input( $input, true );
+            $this->validate_webhook_input( $data, true );
 
-            $order = $this->parse_webhook_order( $input );
+            $order = $this->parse_webhook_order( $data );
     
             $order_id = $order->get_id();
             $status = $order->get_status();
@@ -101,7 +101,7 @@ class WebhooksInit {
 
             $this->gateway->logger->info( $name . ' started: order ' . $order_id . ', status ' . $status, $log_context );
 
-            $result = $this->gateway->orderHelper->process_payment( $order, $input, $name );
+            $result = $this->gateway->orderHelper->process_payment( $order, $data, $name );
 
             $new_status = $result['status'] ?? '';
             $result_context = $this->get_webhook_result_log_context( $result );
@@ -124,9 +124,9 @@ class WebhooksInit {
         $data = $input->get_params();
 
         try {
-            $this->validate_webhook_input( $input, false );
+            $this->validate_webhook_input( $data, false );
 
-            $order = $this->parse_webhook_order( $input );
+            $order = $this->parse_webhook_order( $data );
             
             $order_id = $order->get_id();
             $status = $order->get_status();
@@ -134,7 +134,7 @@ class WebhooksInit {
 
             $this->gateway->logger->info( $name . ' started: order ' . $order_id . ', status ' . $status, $log_context );
             
-            $result = $this->gateway->orderHelper->process_payment( $order, $input, $name );
+            $result = $this->gateway->orderHelper->process_payment( $order, $data, $name );
             
             $new_status = $result['status'] ?? '';
             $result_context = $this->get_webhook_result_log_context( $result );
@@ -153,16 +153,16 @@ class WebhooksInit {
     }
 
     public function success_webhook_add_card( \WP_REST_Request $input ) {
-        $data = $input->get_params();
         $name = 'Add-card webhook';
+        $data = $input->get_params();
 
         try {
-            $this->validate_webhook_input( $input, true );
+            $this->validate_webhook_input( $data, true );
 
             $log_context = $this->get_webhook_log_context( $data );
             $this->gateway->logger->info( $name . ' started', $log_context );
 
-            \WC_DNA_Payments_Order_Client_Helpers::saveCardToken( $input, $this->gateway->id );
+            $this->gateway->paymentTokenHelper->add_token( $data, $this->gateway->id );
 
             $this->gateway->logger->info( $name . ' finished', $log_context );
 
@@ -185,9 +185,9 @@ class WebhooksInit {
         $data = $input->get_params();
 
         try {
-            $this->validate_webhook_input( $input, true );
+            $this->validate_webhook_input( $data, true );
 
-            $subscription = $this->parse_webhook_order( $input, true );
+            $subscription = $this->parse_webhook_order( $data, true );
 
             $this->gateway->subscriptionHelper->change_subscription_payment_method( $subscription, $data );
 
@@ -298,7 +298,10 @@ class WebhooksInit {
      * @return array Key/value pairs.
      */
     private function get_webhook_log_context( array $data ): array {
-        $custom_data = $this->gateway->orderHelper->parse_merchant_custom_data( $data );
+        $custom_data = Helper::parse_merchant_custom_data( $data );
+        if ( ! empty( $custom_data['error'] ) ) {
+            $this->gateway->logger->error( $custom_data['error'] );
+        }
 
         return [
             'invoiceId'        => $data['invoiceId'] ?? null,
@@ -335,8 +338,12 @@ class WebhooksInit {
             throw new \Exception( 'Invoice ID is missing or invalid.', 400 );
         }
 
-        $parsed = $this->gateway->orderHelper->parse_merchant_custom_data( $input );
-        $order_id = $parsed['order_id'] ?? null;
+        $custom_data = Helper::parse_merchant_custom_data( $input );
+        if ( ! empty( $custom_data['error'] ) ) {
+            $this->gateway->logger->error( $custom_data['error'] );
+        }
+
+        $order_id = $custom_data['order_id'] ?? null;
         $input_order_number = Helper::extract_prefix_from_invoice_id( $input['invoiceId'] );
 
         // Find order/subscription ID if not already set

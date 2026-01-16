@@ -7,7 +7,7 @@ import { tryParse } from '../../common/try-parse'
 import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
 import { addGatewayId, setNonces } from '../../common/utils'
-import { GATEWAY_ID_APPLE_PAY } from '../../common/constants'
+import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS } from '../../common/constants'
 import { getPaymentComponentErrorMessage, isInitFailed } from '../../common/payment-component-helper'
 
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
@@ -100,6 +100,15 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                     onClick: () => {
                         setErrors([])
                         setLoadingState('loading')
+
+                        // Update description for Alipay, WeChat Pay, and Alipay Plus
+                        const targetGateways = [GATEWAY_ID_ALIPAY, GATEWAY_ID_ALIPAY_PLUS, GATEWAY_ID_WECHAT_PAY]
+                        if (targetGateways.includes(gatewayId) && draftPaymentDataRef?.current?.orderLines) {
+                            const lines = draftPaymentDataRef.current.orderLines
+                            const allNames = lines.map(item => item.name).join(', ')
+                            draftPaymentDataRef.current.description = allNames
+                        }
+
                         return { paymentData: draftPaymentDataRef.current }
                     },
                     onBeforeProcessPayment: () => {

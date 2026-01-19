@@ -240,8 +240,8 @@ jQuery(function ($) {
         displayError(globalError)
     }
 
-    // On the Pay for Order page, ensure initialization
-    if (isPayForOrderPage) {
+    // On the Pay for Order page, ensure initialization of payment components
+    if (isPayForOrderPage || isElementorBased) {
         render({ shouldScrollToError: isFirstRender })
     }
 

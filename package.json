@@ -16,17 +16,20 @@
         "npm": "^10.5.0"
     },
     "dependencies": {
-        "@woocommerce/dependency-extraction-webpack-plugin": "^3.1.0",
-        "@wordpress/scripts": "^30.18.0",
-        "core-js": "^3.43.0",
+        "@woocommerce/dependency-extraction-webpack-plugin": "^4.0.0",
+        "@wordpress/scripts": "^31.3.0",
+        "core-js": "^3.47.0",
         "regenerator-runtime": "^0.14.1",
         "whatwg-fetch": "^3.6.20"
     },
     "devDependencies": {
-        "@babel/core": "^7.27.4",
-        "@babel/preset-env": "^7.27.2",
-        "@babel/runtime": "^7.27.6",
+        "@babel/core": "^7.28.6",
+        "@babel/preset-env": "^7.28.6",
+        "@babel/runtime": "^7.28.6",
         "babel-loader": "^10.0.0",
-        "webpack-dev-server": "^5.2.2"
+        "webpack-dev-server": "^5.2.3"
+    },
+    "overrides": {
+        "webpack-dev-server": "^5.2.3"
     }
 }

@@ -20,7 +20,7 @@ export function initPaymentComponent(paymentMethodId, options, ctx) {
         // to another gateway (which removes the current container from the DOM).
         // When that happens we stop observing and resolve the promise so the caller
         // can clean up or abort the component initialisation.
-        const parentElement = document.querySelector('#payment .payment_methods')
+        const parentElement = document.querySelector('form.woocommerce-checkout #payment')
         const observer = new MutationObserver((mutations) => {
             if (!parentElement.contains(options.containerElement)) {
                 observer.disconnect()

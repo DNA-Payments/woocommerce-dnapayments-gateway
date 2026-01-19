@@ -46,6 +46,7 @@ jQuery(function ($) {
         getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
+    const isElementorBased = !$form.hasClass('checkout')
     const cardError = createCardError()
     const setFormLoading = createSetLoading($form)
 
@@ -204,7 +205,7 @@ jQuery(function ($) {
         }
     })
 
-    $form.on(isPayForOrderPage ? 'submit' : 'checkout_place_order_dnapayments', onSubmit)
+    $form.on(isPayForOrderPage || isElementorBased ? 'submit' : 'checkout_place_order_dnapayments', onSubmit)
 
     // WooCommerce updated_checkout - don't scroll as it triggers blur on all fields
     $(document.body).on('updated_checkout', () => {

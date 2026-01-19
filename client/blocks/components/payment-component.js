@@ -13,7 +13,7 @@ import { getPaymentComponentErrorMessage, isInitFailed } from '../../common/paym
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 import { getPaymentData } from '../utils/get-payment-data'
-import { getValidationErrors } from '../utils/validator'
+import { useCheckoutValidation } from '../hooks/use-checkout-validation'
 
 import { ErrorMessage } from './error-message'
 
@@ -78,17 +78,12 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
         [responseTypes, noticeContexts],
     )
 
-    useEffect(() => {
-        const handler = (payload) => {
-            const messages = getValidationErrors()
-            logData('onCheckoutValidation', payload, messages)
-            if (messages.length) {
-                processPromiseRef.current?.reject(messages[0])
-            }
+    const onMessages = useCallback((messages) => {
+        if (messages.length) {
+            processPromiseRef.current?.reject(messages[0])
         }
-
-        return onCheckoutValidation(handler)
-    }, [onCheckoutValidation])
+    }, [])
+    useCheckoutValidation({ onCheckoutValidation, onMessages })
 
     const setupIntegration = useCallback(
         debounce(async () => {

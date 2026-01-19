@@ -2,11 +2,12 @@
  * External dependencies
  */
 import { __ } from '@wordpress/i18n'
-import { useEffect } from '@wordpress/element'
+import { useEffect, useCallback } from '@wordpress/element'
 
 /**
  * Internal dependencies
  */
+import { useCheckoutValidation } from './use-checkout-validation'
 import { tryParse } from '../../common/try-parse'
 import { payHostedFields } from '../../common/pay-hosted-fields'
 import errors from '../../common/errors'
@@ -16,7 +17,6 @@ import { addGatewayId, setNonces } from '../../common/utils'
 
 import { TEXT_DOMAIN } from '../../common/constants'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
-import { getValidationErrors } from '../utils/validator'
 
 export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
     const {
@@ -28,17 +28,15 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
     const { isTestMode, integrationType, allowSavingCards, cards, terminalConfig, autoRedirectDelayInMs } =
         dnaPaymentsSettingsData
 
-    useEffect(() => {
-        const handler = () => {
-            const errorMessage = getValidationErrors()
-            if (errorMessage.length) {
-                setExpressPaymentError(errorMessage)
+    const onMessages = useCallback(
+        (messages) => {
+            if (messages.length) {
+                setExpressPaymentError(messages)
             }
-            return !errorMessage.length
-        }
-
-        return onCheckoutValidation(handler)
-    }, [onCheckoutValidation])
+        },
+        [setExpressPaymentError],
+    )
+    useCheckoutValidation({ onCheckoutValidation, onMessages })
 
     useEffect(() => {
         const handler = async () => {

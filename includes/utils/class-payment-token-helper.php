@@ -15,7 +15,6 @@ class PaymentTokenHelper {
 
     public const ALLOWED_PAYMENT_METHODS = [ 'card', 'googlepay', 'applepay' ];
     public const META_EXTRA_DATA = 'extra_data';
-    public const META_PARENT_TRANSACTION_ID = '_dnapayments_parent_transaction_id';
 
     /**
      * Constructor
@@ -27,52 +26,82 @@ class PaymentTokenHelper {
     }
 
     /**
-     * Add or update a stored card token for a customer.
+     * Get card info from input array.
      *
-     * Validates the incoming payload, checks for an existing token for the
-     * given customer and gateway, and either updates its metadata (when last4
-     * differs) or prevents duplicate cards. Creates a new token when none exists.
-     *
-     * @param array  $input      DNA Payments webhook payload
-     * @param string $gateway_id WooCommerce gateway ID
-     * @param bool   $allowed_recurring Whether to allow recurring payments
-     * 
-     * @return string Empty string on success; error message otherwise
+     * @param array $input Input data
+     * @return array Card info
      */
-    public function add_token( array $input, string $gateway_id, bool $allowed_recurring = false ): string {
+    public function get_card_info( array $input ): array {
         try {
             $this->validate($input);
-            $token_id = $input['cardTokenId'];
 
-            /** @var \WC_Payment_Token_CC[] $tokens */
-            $tokens = array_filter(
-                \WC_Payment_Tokens::get_customer_tokens( $input['accountId'], $gateway_id ),
-                function ($token) use ($token_id) {
-                    return $token->get_token() == $token_id;
+            $date_arr = explode("/", $input['cardExpiryDate']);
+
+            return [
+                'token' => $input['cardTokenId'] ?? '',
+                'expiry_month' => $date_arr[0] ?? '',
+                'expiry_year' => '20' . $date_arr[1] ?? '',
+                'card_type' => Helper::normalize_card_scheme_name( $input['cardSchemeName'] ?? '' ),
+                'last4' => substr( $input['cardPanStarred'], -4 ) ?? '',
+                'user_id' => $input['accountId'] ?? '',
+            ];
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Add or update a stored card token for a customer.
+     *
+     * Validates input and either updates an existing token or creates a new one.
+     * Returns the persisted token instance and an error string (empty on success).
+     *
+     * @param array  $input             DNA Payments webhook payload
+     * @param string $gateway_id        WooCommerce gateway ID
+     * @param bool   $allowed_recurring Whether to allow recurring payments
+     * @return array                    ['token' => \WC_Payment_Token_CC|null, 'error' => string]
+     */
+    public function add_token( array $input, string $gateway_id, bool $allowed_recurring = false ): array {
+        try {
+            $this->validate($input);
+
+            $token = $this->find_token($input['accountId'], $gateway_id, $input['cardTokenId']);
+
+            if ( $token ) {
+                if (
+                    $token->get_last4() != substr( $input['cardPanStarred'], -4 ) ||
+                    empty( $token->get_meta( Helper::META_PARENT_TRANSACTION_ID ) )
+                ) {
+                    $this->save_token_data($token, $input, $gateway_id, $allowed_recurring);
+                    return [ 'token' => $token, 'error' => '' ];
                 }
-            );
-
-            if ( count($tokens) > 0 ) {
-                foreach ($tokens as $token) {
-                    if (
-                        $token->get_last4() != substr( $input['cardPanStarred'], -4 ) || 
-                        empty( $token->get_meta( self::META_PARENT_TRANSACTION_ID ) )
-                    ) {
-                        $this->save_token_data($token, $input, $gateway_id, $allowed_recurring);
-                        return '';
-                    }
-                }
-
-                return 'Card already exists and cannot be updated.';
+                return [ 'token' => $token, 'error' => 'Card already exists and cannot be updated.' ];
             }
 
             $token = new \WC_Payment_Token_CC();
             $this->save_token_data($token, $input, $gateway_id, $allowed_recurring);
 
-            return '';
+            return [ 'token' => $token, 'error' => '' ];
         } catch (\Exception $e) {
-            return $e->getMessage();
+            return [ 'token' => null, 'error' => $e->getMessage() ];
         }
+    }
+
+    /**
+     * @param string $user_id
+     * @param string $gateway_id
+     * @param string $token_str
+     * @return \WC_Payment_Token_CC|null
+     */
+    public function find_token(string $user_id, string $gateway_id, string $token_str ) {
+        /** @var \WC_Payment_Token_CC[] $tokens */
+        $tokens = array_filter(
+            \WC_Payment_Tokens::get_customer_tokens( $user_id, $gateway_id ),
+            function ($token) use ($token_str) {
+                return $token instanceof \WC_Payment_Token_CC && $token->get_token() == $token_str;
+            }
+        );
+        return current($tokens) ?: null;
     }
 
     /**
@@ -127,8 +156,8 @@ class PaymentTokenHelper {
         $date_arr = explode("/", $input['cardExpiryDate']);
         $last4 = substr( $input['cardPanStarred'], -4 );
 
-        if ( $allowed_recurring && ( $token->get_last4() != $last4 || empty( $token->get_meta( self::META_PARENT_TRANSACTION_ID ) ) ) ) {
-            $token->update_meta_data( self::META_PARENT_TRANSACTION_ID, $input['id'] );
+        if ( $allowed_recurring && ( $token->get_last4() != $last4 || empty( $token->get_meta( Helper::META_PARENT_TRANSACTION_ID ) ) ) ) {
+            $token->update_meta_data( Helper::META_PARENT_TRANSACTION_ID, $input['id'] );
         }
 
         $token->set_token( $input['cardTokenId'] );
@@ -171,7 +200,7 @@ class PaymentTokenHelper {
         if ( empty($input['accountId'])) {
             $error_message .= 'User ID is missing. ';
         }
-        
+
         if ( empty($input['cardTokenId'])) {
             $error_message .= 'Card token is missing. ';
         }

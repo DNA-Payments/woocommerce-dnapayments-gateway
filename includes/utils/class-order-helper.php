@@ -58,7 +58,7 @@ class OrderHelper {
         return $result;
     }
 
-    public function process_payment( $order, $input, $source = '' ) {
+    public function process_payment( \WC_Order $order, array $input, string $source = '' ) {
 
         $transaction_id = $input['id'];
         $order_id       = $order->get_id();
@@ -111,7 +111,7 @@ class OrderHelper {
                 return [ 'status' => $status, 'message' => $message ];
             }
 
-            if ( !\WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order) ) {
+            if ( !Helper::is_dna_payments_order($order) ) {
                 $this->gateway->logger->error( 'Order with ID ' . $order_id . ' processed by a different payment method: ' . $order->get_payment_method() . '. But the payment process will continue.' );
             }
 
@@ -130,11 +130,15 @@ class OrderHelper {
             $is_processed = $new_status !== $status && $status === 'on-hold';
             $should_add_token = $this->gateway->enabled_saved_cards && ($input['storeCardOnFile'] || $custom_data['store_card_on_file']);
             if ( ! $is_processed && ($should_add_token || $custom_data['allowed_recurring']) ) {
-                $msg_save_token = $this->gateway->paymentTokenHelper->add_token($input, $this->gateway->id);
-                if ( empty( $msg_save_token ) ) {
+                $token_result = $this->gateway->paymentTokenHelper->add_token($input, $order->get_payment_method(), (bool) ($custom_data['allowed_recurring'] ?? false));
+                if ( $token_result['token'] ) {
+                    $order->add_payment_token( $token_result['token'] );
+                }
+
+                if ( empty( $token_result['error'] ) ) {
                     $this->gateway->logger->info('Card token saved for order ID ' . $order_id);
                 } else {
-                    $this->gateway->logger->info('Card token not saved for order ID ' . $order_id . '. Error: ' . $msg_save_token);
+                    $this->gateway->logger->info('Card token not saved for order ID ' . $order_id . '. Error: ' . $token_result['error']);
                 }
             }
 
@@ -188,6 +192,11 @@ class OrderHelper {
         }
 
         // Update metadata
+        $card_info = $this->gateway->paymentTokenHelper->get_card_info($input);
+        if ( ! empty( $card_info ) ) {
+            $order->update_meta_data( Helper::META_CARD_TYPE, $card_info['card_type'] ?? '');
+            $order->update_meta_data( Helper::META_CARD_LAST4, $card_info['last4'] ?? '');
+        }
         $order->update_meta_data('_dnapayments_state', $settled ? 'charged' : 'authorized');
         $order->update_meta_data('_dnapayments_transaction_id', $transaction_id);
         $order->update_meta_data('rrn', $input['rrn'] ?? '');

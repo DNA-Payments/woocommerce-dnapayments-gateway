@@ -183,6 +183,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'subscription_date_changes',
             'subscription_payment_method_change',
             'subscription_payment_method_change_customer',
+            'subscription_payment_method_change_admin',
             'multiple_subscriptions'
         );
 

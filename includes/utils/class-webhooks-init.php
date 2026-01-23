@@ -189,7 +189,7 @@ class WebhooksInit {
 
             $subscription = $this->parse_webhook_order( $data, true );
 
-            $this->gateway->subscriptionHelper->change_subscription_payment_method( $subscription, $data );
+            $this->gateway->subscriptionHelper->handle_change_subscription_payment_method( $subscription, $data );
 
             return rest_ensure_response([
                 'success' => true,

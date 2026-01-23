@@ -131,9 +131,6 @@ class OrderHelper {
             $should_add_token = $this->gateway->enabled_saved_cards && ($input['storeCardOnFile'] || $custom_data['store_card_on_file']);
             if ( ! $is_processed && ($should_add_token || $custom_data['allowed_recurring']) ) {
                 $token_result = $this->gateway->paymentTokenHelper->add_token($input, $order->get_payment_method(), (bool) ($custom_data['allowed_recurring'] ?? false));
-                if ( $token_result['token'] ) {
-                    $order->add_payment_token( $token_result['token'] );
-                }
 
                 if ( empty( $token_result['error'] ) ) {
                     $this->gateway->logger->info('Card token saved for order ID ' . $order_id);

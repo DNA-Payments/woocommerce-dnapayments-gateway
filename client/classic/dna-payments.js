@@ -78,6 +78,7 @@ jQuery(function ($) {
     }
 
     const placeOrder = createPlaceOrder({
+        page,
         cards,
         cardError,
         allowSavingCards,

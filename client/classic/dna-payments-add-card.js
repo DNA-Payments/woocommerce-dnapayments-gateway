@@ -20,7 +20,6 @@ jQuery(function ($) {
         cardError,
         cards: [],
         allowSavingCards: false,
-        paymentMethods: ['BankCard'],
         setFormLoading,
         fetchPaymentData: async () => {
             const result = await requestAction('get_payment_and_auth_data_for_saving_card')

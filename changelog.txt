@@ -2,6 +2,13 @@
 
 Changelog
 
+2026-01-27 - version 4.1.5
+
+= Fixes =
+	- The previous selector 'form.woocommerce-checkout #payment' was too specific and could fail when the form class changes.
+	  Use the more general 'form #payment' selector to ensure the MutationObserver correctly detects when the payment container is removed from the DOM.
+
+
 2026-01-19 - version 4.1.4
 
 = Build =

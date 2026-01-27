@@ -2,6 +2,17 @@
 
 Changelog
 
+2026-01-27 - version 4.1.5
+
+= Fixes =
+	- Prevent premature checkout form submission during payment gateway initialization.
+	- Block the Place Order button until the gateway is fully ready.
+	- Improve MutationObserver selectors to be more reliable across different checkout forms.
+
+= Improvements =
+	- Replace the jQuery `scroll_to_notices` dependency with a custom scroll animation for better compatibility and stability.
+
+
 2026-01-19 - version 4.1.4
 
 = Build =

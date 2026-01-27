@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.1.4
+Stable tag: 4.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,17 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.1.5 - 2026-01-27 =
+
+= Fixes =
+	- Prevent premature checkout form submission during payment gateway initialization.
+	- Block the Place Order button until the gateway is fully ready.
+	- Improve MutationObserver selectors to be more reliable across different checkout forms.
+
+= Improvements =
+	- Replace the jQuery `scroll_to_notices` dependency with a custom scroll animation for better compatibility and stability.
+
 
 = 4.1.4 - 2026-01-19 =
 

@@ -1,5 +1,13 @@
 import { DNA_PAYMENTS_GATEWAYS } from './utils/data'
 
+function handlePlaceOrderClick(e) {
+    if (e.target && e.target.id === 'place_order') {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        return false
+    }
+}
+
 function handlePaymentGatewayChange() {
     if (window.__dnapaymentsReady) return
 
@@ -15,6 +23,8 @@ function handlePaymentGatewayChange() {
 }
 
 function initPaymentMethodChangeListener() {
+    document.removeEventListener('click', handlePlaceOrderClick)
+
     document.addEventListener('change', function (e) {
         const target = e.target
         if (target && target.matches('input[name="payment_method"]')) {
@@ -32,3 +42,5 @@ if (document.readyState === 'loading') {
     handlePaymentGatewayChange()
     initPaymentMethodChangeListener()
 }
+
+document.addEventListener('click', handlePlaceOrderClick)

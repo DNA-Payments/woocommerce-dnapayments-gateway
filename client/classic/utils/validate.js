@@ -31,7 +31,7 @@ export function validate($form) {
         }
 
         if (name === 'terms') {
-            if ($form.find('[name="terms-field"]').val() === '1' && $el.is(':checked') === false) {
+            if ($el.length && $el.is(':checked') === false) {
                 messages.push(errors.TERMS_NOT_ACCEPTED.message)
             }
             return

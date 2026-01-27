@@ -7,9 +7,23 @@ export function setLoading($elem, isLoading) {
                 opacity: 0.6,
             },
         })
+        const isVisible = hasVisibleBefore($elem.find('.blockUI.blockOverlay').get(0))
+        if (!isVisible) {
+            document.body.classList.add('fallback-block-ui-loader')
+        }
     } else {
         $elem.unblock()
     }
+}
+
+export const hasVisibleBefore = (el, minWidth = 4) => {
+    const before = window.getComputedStyle(el, '::before');
+
+    if (!before || before.content === 'none' || before.content === 'normal') {
+        return false;
+    }
+
+    return parseFloat(before.width) > minWidth;
 }
 
 export const createSetLoading = ($elem) => (isLoading) => setLoading($elem, isLoading)

@@ -162,9 +162,9 @@ class Helper {
         $delimiter = '|';
         $parts = explode($delimiter, strval($invoice_id), 2);
 
-        // If no delimiter is found, return empty string as prefix
+        // If no delimiter is found, return invoice id as prefix
         if (count($parts) === 1) {
-            return '';
+            return $invoice_id;
         }
 
         return $parts[0];

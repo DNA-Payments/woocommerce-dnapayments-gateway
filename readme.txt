@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.1.3
+Stable tag: 4.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -75,7 +75,34 @@ For support, please contact DNA Payments directly through their website at https
 
 == Changelog ==
 
-= 4.1.3 - 2025-01-08 =
+= 4.1.5 - 2026-01-27 =
+
+= Fixes =
+	- The previous selector 'form.woocommerce-checkout #payment' was too specific and could fail when the form class changes.
+	  Use the more general 'form #payment' selector to ensure the MutationObserver correctly detects when the payment container is removed from the DOM.
+
+
+= 4.1.4 - 2026-01-19 =
+
+= Build =
+	- Update Node.js version in .nvmrc from v20 to v25.
+	- Upgrade all dependencies to their latest compatible versions.
+	- Add overrides section for webpack-dev-server to address security vulnerabilities.
+
+= Fixes =
+	- Update form submission event listener to support elementor-based checkout forms.
+	- Change the MutationObserver to observe a different DOM element to ensure support for Elementor-based WooCommerce themes.
+	- Add disabled state styling for place order button
+    - Update terms validation logic to support Elementor-based WooCommerce themes
+    - Add fallback loading state to support Elementor-based WooCommerce themes
+	- Update initialization of payment components to support Elementor-based WooCommerce themes
+
+= Improvements =
+	- Improved invoice ID parsing by returning the full invoice ID when no delimiter is found in extract_prefix_from_invoice_id.
+	- Simplified order validation logic by removing generic entity handling.
+
+
+= 4.1.3 - 2026-01-08 =
 
 = Fixes =
 	- Added a checkout validation workaround for GB addresses: clear `billing-state` and

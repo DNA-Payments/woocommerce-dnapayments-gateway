@@ -40,7 +40,7 @@ final class WC_Gateway_DNA_Payments_Blocks_Support extends WC_Gateway_Base_DNA_P
 	}
 
 	/**
-	 * Manually add DNA Payments save tokens to the saved payment methods list.
+	 * Manually add or remove DNA Payments save tokens to the saved payment methods list.
 	 *
 	 * @param array $saved_methods The saved payment methods.
 	 * @param int   $customer_id The customer ID.
@@ -48,24 +48,26 @@ final class WC_Gateway_DNA_Payments_Blocks_Support extends WC_Gateway_Base_DNA_P
 	 */
 	public function add_saved_payment_methods( $saved_methods, $customer_id ) {
 
-		$name 		= 'dnapayments';
-		$gateways	= WC()->payment_gateways->payment_gateways();
-		$gateway  	= $gateways[ $name ];
+		$gateways = WC()->payment_gateways->payment_gateways();
+		$gateway  = $gateways[ $this->name ] ?? null;
 
-		// If saved cards are not enabled for the gateway, or the integration type is not "Hosted Fields", then saved card payment options should be hidden in the Checkout page.
-		if ( isset( $saved_methods[ 'cc' ] ) && isset ( $gateway ) && ( ! $gateway->enabled_saved_cards || $gateway->integration_type !== 'seamless')) {
-			$saved_cards 		= $saved_methods[ 'cc' ];
-			$new_saved_cards 	= [];
-
-			foreach ( $saved_methods[ 'cc' ] as $item ) {
-				if ( ! $item['method'] || $item['method']['gateway'] !== $name ) {
-					array_push($new_saved_cards, $item);
-				}
-			}
-
-			$saved_methods[ 'cc' ] = $new_saved_cards;
+		if ( ! isset( $saved_methods['cc'] ) ) {
 			return $saved_methods;
 		}
+
+		$gateways_to_remove = [ 'dnapayments_google_pay', 'dnapayments_apple_pay' ];
+
+		if ( $gateway && ( ! $gateway->enabled_saved_cards || 'seamless' !== $gateway->integration_type ) ) {
+			$gateways_to_remove[] = $this->name;
+		}
+
+		$saved_methods['cc'] = array_values( array_filter(
+			$saved_methods['cc'],
+			function ( $item ) use ( $gateways_to_remove ) {
+				$token_gateway = isset( $item['method']['gateway'] ) ? $item['method']['gateway'] : '';
+				return ! in_array( $token_gateway, $gateways_to_remove, true );
+			}
+		) );
 
 		return $saved_methods;
 	}

@@ -155,7 +155,6 @@ class PaymentDataHelper {
                 'callbackUrl'       => get_rest_url(null, 'dnapayments/success-add-card'),
                 'returnUrl'         => $this->get_payment_return_url( 0, 'add_payment_method', true ),
                 'failureReturnUrl'  => $this->get_payment_return_url( 0, 'add_payment_method', false ),
-                
             ],
             'customerDetails' => [
                 'email'             => $customer->get_billing_email(),

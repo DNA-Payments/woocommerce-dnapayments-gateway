@@ -134,8 +134,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->method_title = 'DNA Payments Gateway';
         $this->method_description = 'Accept card payments via DNA Payments.';
 
-        $this->init_form_fields();
-        $this->init_settings();
         $this->title = $this->get_option( 'title' );
         $this->description = $this->get_option( 'description' );
         $this->enabled = $this->get_option( 'enabled' );
@@ -187,9 +185,16 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'multiple_subscriptions'
         );
 
+        if ($this->subscriptionHelper->is_subscriptions_active()) {
+            $this->enabled_saved_cards = true;
+        }
+
         if ( $this->enabled_saved_cards ) {
             array_push($this->supports, 'tokenization' );
         }
+
+        $this->init_form_fields();
+        $this->init_settings();
     }
 
     public function get_config() {
@@ -340,7 +345,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
     }
 
     public function init_form_fields(){
-        $this->form_fields = get_dnapayments_admin_fields();
+        $this->form_fields = get_dnapayments_admin_fields($this->subscriptionHelper->is_subscriptions_active());
     }
 
     /**

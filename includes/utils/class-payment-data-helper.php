@@ -88,9 +88,13 @@ class PaymentDataHelper {
 
         $payment_data['merchantCustomData'] = json_encode( $merchant_custom_data );
 
-        if ( !$is_change_payment_method ) {
-            $this->update_transaction_type( $payment_data );
-        }
+        if ( $is_change_payment_method || ($has_subscription && floatval( $payment_data['amount'] ) == 0) ) {
+            $payment_data['transactionType'] = 'VERIFICATION';
+
+            return $payment_data;
+        } 
+
+        $this->update_transaction_type( $payment_data );    
 
         return $payment_data;
     }

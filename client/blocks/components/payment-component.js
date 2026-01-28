@@ -101,21 +101,36 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         setErrors([])
                         setLoadingState('loading')
 
-                        // Update description for Alipay, WeChat Pay, and Alipay Plus
-                        const targetGateways = [GATEWAY_ID_ALIPAY, GATEWAY_ID_ALIPAY_PLUS, GATEWAY_ID_WECHAT_PAY]
-                        if (targetGateways.includes(gatewayId) && draftPaymentDataRef?.current?.orderLines) {
-                            const lines = draftPaymentDataRef.current.orderLines
-                            const allNames = lines.map(item => item.name).join(', ')
-                            draftPaymentDataRef.current.description = allNames
+                        const apmGateways = [GATEWAY_ID_ALIPAY, GATEWAY_ID_ALIPAY_PLUS, GATEWAY_ID_WECHAT_PAY]
+                        const isAPM = apmGateways.includes(gatewayId)
+
+                        // Add delay for APM to allow SDK window to open
+                        if (isAPM) {
+                            setTimeout(() => {
+                                setLoadingState('loading')
+                            }, 300)
                         }
 
                         return { paymentData: draftPaymentDataRef.current }
                     },
-                    onBeforeProcessPayment: () => {
-                        return new Promise((resolve, reject) => {
+                    onBeforeProcessPayment: async () => {
+
+                        const apmGateways = [GATEWAY_ID_ALIPAY, GATEWAY_ID_ALIPAY_PLUS, GATEWAY_ID_WECHAT_PAY]
+                        const isAPM = apmGateways.includes(gatewayId)
+
+                        const result = await new Promise((resolve, reject) => {
                             processPromiseRef.current = { resolve, reject }
                             triggerPlaceOrderButtonClick()
                         })
+
+                        // Update description for APM with order line names
+                        if (isAPM && result?.paymentData?.orderLines) {
+                            result.paymentData.description = result.paymentData.orderLines
+                                .map((item) => item.name)
+                                .join(', ')
+                        }
+
+                        return result
                     },
                     onPaymentSuccess: async (paymentResult) => {
                         logData('onPaymentSuccess', paymentResult)

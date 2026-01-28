@@ -146,7 +146,6 @@ jQuery(function ($) {
         isRendering = true
         isFirstRender = false
         $form.find('.dnapayments-footer').show()
-        console.log(148, selectedGateway)
         try {
             switch (selectedGateway) {
                 case GATEWAY_ID_GOOGLE_PAY:
@@ -166,7 +165,6 @@ jQuery(function ($) {
                         await fetchPaymentData()
                         setFormLoading(false)
                     }
-                    console.log(168,selectedGateway)
                     placeOrderBtn.setAttribute('disabled', 'disabled')
                     await renderPaymentComponent(selectedGateway)
                     break
@@ -233,7 +231,6 @@ jQuery(function ($) {
 
         const required = elem.getAttribute('aria-required')
         const isRequired = (required && required === 'true') || getRequiredFields(isShippingIncluded).includes(name)
-        console.log(235, isRequired, isUpdating, (!isUpdating && isRequired))
         if (!isUpdating && isRequired) {
             render({ shouldFetchPaymentData: name !== 'terms', shouldScrollToError: false })
         }
@@ -252,36 +249,39 @@ jQuery(function ($) {
     window.__dnapaymentsReady = true
 
     async function renderPaymentComponent(paymentMethodId) {
-        console.log('renderPaymentComponent called for:', paymentMethodId)
         const $container = $form.find('#' + paymentMethodId + '_container')
-        console.log('Container found:', $container.length, 'paymentData:', paymentData)
 
         // clear container HTML element
         $container.removeClass('has-error').html('')
 
+        const apmGateways = [GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS]
+        const isAPM = apmGateways.includes(paymentMethodId)
+
         const events = {
             onClick: () => {
                 // Add delay for Alipay, WeChat Pay, and Alipay Plus to allow SDK window to open
-                const delayedGateways = [GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS]
-                if (delayedGateways.includes(paymentMethodId)) {
+                if (isAPM) {
                     setTimeout(() => {
                         setFormLoading(true)
                     }, 300)
                 } else {
                     setFormLoading(true)
                 }
-                console.log(273, orderId);
 
-                // Update description for Alipay, WeChat Pay, and Alipay Plus
-                if (delayedGateways.includes(paymentMethodId) && paymentData?.orderLines) {
-                    paymentData.description = paymentData.orderLines
+                return { paymentData }
+            },
+            onBeforeProcessPayment: async () => {
+                const result = await postProcessPayment(paymentMethodId)
+
+                // Update description for APM with order line names
+                if (isAPM && result?.paymentData?.orderLines) {
+                    result.paymentData.description = result.paymentData.orderLines
                         .map((item) => item.name)
                         .join(', ');
                 }
 
-                return { paymentData }
+                return result
             },
-            onBeforeProcessPayment: () => postProcessPayment(paymentMethodId),
             onPaymentSuccess: (paymentResult) =>
                 completePayment({
                     paymentResult,
@@ -303,7 +303,6 @@ jQuery(function ($) {
 
         setLoading($container.parent(), true)
         try {
-            console.log(305, paymentMethodId, paymentData, authData ? authData.access_token : tempToken)
             await initPaymentComponent(
                 paymentMethodId,
                 {
@@ -323,7 +322,6 @@ jQuery(function ($) {
     }
 
     function onSubmit(e) {
-        console.log(325, e, gatewayId)
         if (getSelectedPaymentGateway() === gatewayId) {
             e.preventDefault()
 
@@ -357,7 +355,6 @@ jQuery(function ($) {
             paymentData = data.paymentData
             authData = data.auth || null
         }
-        console.log(paymentData, success, 356, orderId)
 
         return success
     }
@@ -384,7 +381,6 @@ jQuery(function ($) {
         })
 
         const result = await response.json()
-        console.log(386, result)
 
         if (result.redirect) {
             window.location.href = result.redirect
@@ -408,7 +404,6 @@ jQuery(function ($) {
         } catch (err) {
             console.error(err)
         }
-        console.log(411, result, result.paymentData.merchantCustomData)
 
         result.paymentData.merchantCustomData = addGatewayId(result.paymentData.merchantCustomData, selectedGatewayId)
 

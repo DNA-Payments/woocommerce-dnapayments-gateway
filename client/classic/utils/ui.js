@@ -69,5 +69,9 @@ export function scrollToNotices($form) {
         scrollElement = $form
     }
 
-    jQuery.scroll_to_notices(scrollElement)
+    if (scrollElement.length) {
+        jQuery('html, body').animate({
+            scrollTop: scrollElement.offset().top - 100
+        }, 1000);
+    }
 }

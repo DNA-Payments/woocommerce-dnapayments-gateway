@@ -143,7 +143,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $integration_type = $this->get_option( 'integration_type' );
         $this->integration_type = $integration_type === 'hosted-fields' ? 'seamless' : $integration_type;
         $this->has_fields = $this->integration_type == 'seamless';
-        $this->enabled_saved_cards = 'yes' === $this->get_option( 'enabled_saved_cards' );
         $this->client_id = $this->is_test_mode ? $this->get_option( 'test_client_id' ) : $this->get_option( 'client_id' );
         $this->client_secret = $this->is_test_mode ? $this->get_option( 'test_client_secret' ) : $this->get_option( 'client_secret' );
         $this->terminal = $this->is_test_mode ? $this->get_option( 'test_terminal' ) : $this->get_option('terminal');
@@ -187,6 +186,8 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
         if ($this->subscriptionHelper->is_subscriptions_active()) {
             $this->enabled_saved_cards = true;
+        } else {
+            $this->enabled_saved_cards = 'yes' === $this->get_option( 'enabled_saved_cards' );
         }
 
         if ( $this->enabled_saved_cards ) {
@@ -346,6 +347,15 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
     public function init_form_fields(){
         $this->form_fields = get_dnapayments_admin_fields($this->subscriptionHelper->is_subscriptions_active());
+    }
+
+    public function init_settings() {
+        parent::init_settings();
+
+        // If WooCommerce Subscriptions is active, force the "enabled_saved_cards" checkbox to be checked
+        if ( isset($this->subscriptionHelper) && $this->subscriptionHelper->is_subscriptions_active() ) {
+            $this->settings['enabled_saved_cards'] = 'yes';
+        }
     }
 
     /**

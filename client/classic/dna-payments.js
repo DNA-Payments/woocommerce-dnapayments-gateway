@@ -22,7 +22,7 @@ import { completePayment, getOrderIdFromPaymentData } from '../common/complete-p
 import { requestActionWithFormData } from '../common/api/request'
 import { tryParse } from '../common/try-parse'
 import { checkApplePayAvailability } from '../common/validater'
-import { GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL } from '../common/constants'
+import { GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL, GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS } from '../common/constants'
 import { addGatewayId, setNonces } from '../common/utils'
 
 /* global wc_checkout_params */
@@ -146,12 +146,14 @@ jQuery(function ($) {
         isRendering = true
         isFirstRender = false
         $form.find('.dnapayments-footer').show()
-
         try {
             switch (selectedGateway) {
                 case GATEWAY_ID_GOOGLE_PAY:
                 case GATEWAY_ID_APPLE_PAY:
-                case GATEWAY_ID_PAYPAL: {
+                case GATEWAY_ID_PAYPAL:
+                case GATEWAY_ID_ALIPAY:
+                case GATEWAY_ID_WECHAT_PAY:
+                case GATEWAY_ID_ALIPAY_PLUS: {
                     const messages = validate($form)
                     if (messages.length) {
                         // scroll to error if rendered payment component disappear because of failed validation

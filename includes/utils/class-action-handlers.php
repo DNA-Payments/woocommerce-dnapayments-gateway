@@ -45,6 +45,7 @@ class ActionHandlers {
         add_action( 'woocommerce_order_status_changed', array( $this, 'capture_payment' ), 10, 3 );
         add_action( 'woocommerce_order_status_cancelled', array( $this, 'cancel_payment' ) );
         add_filter( 'woocommerce_cancel_unpaid_order', array( $this, 'prevent_auto_cancel' ), 10, 2 );
+        add_filter( 'wc_order_payment_card_info', array( $this, 'get_payment_card_info' ), 10, 2 );
 
         self::$hooks_initialized = true;
     }
@@ -189,5 +190,34 @@ class ActionHandlers {
         }
 
         return false;
+    }
+
+    /**
+     * Get payment card info.
+     *
+     * @param  array $info
+     * @param  \WC_Order $order
+     * @return array
+     */
+    public function get_payment_card_info( $info, $order ) {
+        if ( ! $order instanceof \WC_Order ) {
+            return $info;
+        }
+
+        if ( ! Helper::is_dna_payments_order($order) ) {
+            return $info;
+        }
+
+        $card_type = $order->get_meta(Helper::META_CARD_TYPE);
+        if ( ! empty( $card_type ) ) {
+            $info['brand'] = Helper::normalize_card_brand($card_type);
+        }
+
+        $card_last4 = $order->get_meta(Helper::META_CARD_LAST4);
+        if ( ! empty( $card_last4 ) ) {
+            $info['last4'] = $card_last4;
+        }
+
+        return $info;
     }
 }

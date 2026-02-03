@@ -117,6 +117,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
     public $actionHandler;
 
     /**
+     * @var \WCPG_DNA_Payments\Utils\PaymentTokenHelper
+     */
+    public $paymentTokenHelper;
+
+    /**
      * Subscription helper instance
      * @var \WCPG_DNA_Payments\Utils\SubscriptionHelper
      */
@@ -129,8 +134,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->method_title = 'DNA Payments Gateway';
         $this->method_description = 'Accept card payments via DNA Payments.';
 
-        $this->init_form_fields();
-        $this->init_settings();
         $this->title = $this->get_option( 'title' );
         $this->description = $this->get_option( 'description' );
         $this->enabled = $this->get_option( 'enabled' );
@@ -140,7 +143,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $integration_type = $this->get_option( 'integration_type' );
         $this->integration_type = $integration_type === 'hosted-fields' ? 'seamless' : $integration_type;
         $this->has_fields = $this->integration_type == 'seamless';
-        $this->enabled_saved_cards = 'yes' === $this->get_option( 'enabled_saved_cards' );
         $this->client_id = $this->is_test_mode ? $this->get_option( 'test_client_id' ) : $this->get_option( 'client_id' );
         $this->client_secret = $this->is_test_mode ? $this->get_option( 'test_client_secret' ) : $this->get_option( 'client_secret' );
         $this->terminal = $this->is_test_mode ? $this->get_option( 'test_terminal' ) : $this->get_option('terminal');
@@ -161,9 +163,10 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         $this->webhooksInit = new WCPG_DNA_Payments\Utils\WebhooksInit( $this );
         $this->actionHandler = new WCPG_DNA_Payments\Utils\ActionHandlers( $this );
         $this->analyticsHelper = new WCPG_DNA_Payments\Utils\AnalyticsHelper($this);
-        $this->requestHelper = new WCPG_DNA_Payments\Utils\RequestHelper($this);
-        $this->configHelper = new WCPG_DNA_Payments\Utils\ConfigHelper($this);
-        $this->subscriptionHelper = new \WCPG_DNA_Payments\Utils\SubscriptionHelper( $this );
+        $this->requestHelper = new WCPG_DNA_Payments\Utils\RequestHelper( $this );
+        $this->configHelper = new WCPG_DNA_Payments\Utils\ConfigHelper( $this );
+        $this->paymentTokenHelper = new WCPG_DNA_Payments\Utils\PaymentTokenHelper( $this );
+        $this->subscriptionHelper = new WCPG_DNA_Payments\Utils\SubscriptionHelper( $this );
 
         // Define gateway support features
         $this->supports = array( 
@@ -177,12 +180,22 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'subscription_date_changes',
             'subscription_payment_method_change',
             'subscription_payment_method_change_customer',
+            'subscription_payment_method_change_admin',
             'multiple_subscriptions'
         );
+
+        if ($this->subscriptionHelper->is_subscriptions_active()) {
+            $this->enabled_saved_cards = true;
+        } else {
+            $this->enabled_saved_cards = 'yes' === $this->get_option( 'enabled_saved_cards' );
+        }
 
         if ( $this->enabled_saved_cards ) {
             array_push($this->supports, 'tokenization' );
         }
+
+        $this->init_form_fields();
+        $this->init_settings();
     }
 
     public function get_config() {
@@ -333,7 +346,16 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
     }
 
     public function init_form_fields(){
-        $this->form_fields = get_dnapayments_admin_fields();
+        $this->form_fields = get_dnapayments_admin_fields($this->subscriptionHelper->is_subscriptions_active());
+    }
+
+    public function init_settings() {
+        parent::init_settings();
+
+        // If WooCommerce Subscriptions is active, force the "enabled_saved_cards" checkbox to be checked
+        if ( isset($this->subscriptionHelper) && $this->subscriptionHelper->is_subscriptions_active() ) {
+            $this->settings['enabled_saved_cards'] = 'yes';
+        }
     }
 
     /**
@@ -361,7 +383,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'available_schemes' => $this->configHelper->available_schemes,
             'card_scheme_icon_path' => WC_DNA_Payments::plugin_url() . '/assets/img/schemes',
             'send_callback_every_failed_attempt' => $this->get_option( 'failed_attempts_limit' ),
-            'cards' => WC_DNA_Payments_Order_Client_Helpers::getCardTokens( $current_user_id, $this->id ),
+            'cards' => $this->paymentTokenHelper->get_tokens( $current_user_id, $this->id ),
             'placeOrderButtonText' => $this->get_option( 'placeOrderButtonText', '' ),
             'auto_redirect_delay_in_ms' => $this->get_option( 'autoRedirectDelayInMs', '' ),
             'nonces' => $this->ajaxInit->get_nonces(),

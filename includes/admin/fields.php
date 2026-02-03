@@ -3,7 +3,7 @@ if ( ! defined( "ABSPATH" ) ) {
 	exit;
 }
 
-function get_dnapayments_admin_fields() {
+function get_dnapayments_admin_fields($is_subscriptions_enabled = false) {
     return [
         "enabled" => [
             "title" => __("Enable Gateway", \WC_DNA_Payments::$text_domain),
@@ -80,8 +80,9 @@ function get_dnapayments_admin_fields() {
             "title" => __("Enable saved cards", \WC_DNA_Payments::$text_domain),
             "label" => __("Enable payment via saved cards", \WC_DNA_Payments::$text_domain),
             "type" => "checkbox",
-            "description" => "",
-            "default" => "no",
+            "description" => $is_subscriptions_enabled ? __("Subscriptions require saved cards for renewals.", \WC_DNA_Payments::$text_domain) : "",
+            "default" => $is_subscriptions_enabled ? "yes" : "no",
+            "custom_attributes" => $is_subscriptions_enabled ? ["disabled" => "disabled"] : [],
         ],
         "enable_ajax_order_status_update" => array(
             "title"   => __( 'Enable frontend order status update (AJAX)', \WC_DNA_Payments::$text_domain ),

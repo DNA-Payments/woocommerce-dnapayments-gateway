@@ -19,6 +19,7 @@ class WC_Gateway_DNA_GooglePay extends WC_Gateway_DNA_Base_Payment_Component {
             'subscription_date_changes',
             'subscription_payment_method_change',
             'subscription_payment_method_change_customer',
+            'subscription_payment_method_change_admin',
             'multiple_subscriptions',
         );
 

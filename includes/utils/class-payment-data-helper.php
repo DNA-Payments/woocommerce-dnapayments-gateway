@@ -2,8 +2,6 @@
 
 namespace WCPG_DNA_Payments\Utils;
 
-use WCPG_DNA_Payments\Utils\Helper;
-
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
@@ -25,6 +23,11 @@ class PaymentDataHelper {
         $page = isset( $options['page'] ) ? $options['page'] : 'checkout';
         $is_change_payment_method = $page === 'change_payment_method';
 
+        $merchant_custom_data = array(
+            'orderId' => $order->get_id(),
+            'storeCardOnFile' => $store_card_on_file
+        );
+
         $payment_data = array_merge(
             array(
                 'currency' => $order->get_currency(),
@@ -39,10 +42,6 @@ class PaymentDataHelper {
                         'deliveryAddress' => $this->get_address_from_order( $order, 'shipping' ),
                     ]
                 ],
-                'merchantCustomData' => json_encode( array(
-                    'orderId' => $order->get_id(),
-                    'storeCardOnFile' => $store_card_on_file
-                ) ),
             ),
             $is_change_payment_method
                 ? array(
@@ -78,11 +77,19 @@ class PaymentDataHelper {
             $payment_data['periodic'] = array(
                 'periodicType' => 'ucof'
             );
+
+            $merchant_custom_data['allowedRecurring'] = true;
         }
 
-        if ( !$is_change_payment_method ) {
-            $this->update_transaction_type( $payment_data );
-        }
+        $payment_data['merchantCustomData'] = json_encode( $merchant_custom_data );
+
+        if ( $is_change_payment_method || ($has_subscription && floatval( $payment_data['amount'] ) == 0) ) {
+            $payment_data['transactionType'] = 'VERIFICATION';
+
+            return $payment_data;
+        } 
+
+        $this->update_transaction_type( $payment_data );    
 
         return $payment_data;
     }
@@ -169,12 +176,17 @@ class PaymentDataHelper {
             'amount'            => 0,
             'currency'          => 'GBP',
             'language'          => 'en-gb',
+            'periodic' => array(
+                'periodicType' => 'ucof'
+            ),
+            'merchantCustomData' => json_encode( array(
+                'allowedRecurring' => true
+            ) ),
             'paymentSettings' => [
                 'terminalId'        => $this->gateway->terminal,
                 'callbackUrl'       => get_rest_url(null, 'dnapayments/success-add-card'),
                 'returnUrl'         => $this->get_payment_return_url( 0, 'add_payment_method', true ),
                 'failureReturnUrl'  => $this->get_payment_return_url( 0, 'add_payment_method', false ),
-                
             ],
             'customerDetails' => [
                 'email'             => $customer->get_billing_email(),

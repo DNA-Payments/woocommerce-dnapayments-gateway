@@ -40,7 +40,7 @@ final class WC_Gateway_DNA_Payments_Blocks_Support extends WC_Gateway_Base_DNA_P
 	}
 
 	/**
-	 * Manually add DNA Payments save tokens to the saved payment methods list.
+	 * Manually add or remove DNA Payments save tokens to the saved payment methods list.
 	 *
 	 * @param array $saved_methods The saved payment methods.
 	 * @param int   $customer_id The customer ID.
@@ -50,6 +50,10 @@ final class WC_Gateway_DNA_Payments_Blocks_Support extends WC_Gateway_Base_DNA_P
 		$name   = 'dnapayments';
 		$gateways = WC()->payment_gateways->payment_gateways();
 		$gateway   = isset($gateways[ $name ]) ? $gateways[ $name ] : null;
+
+		if ( ! isset( $saved_methods['cc'] ) ) {
+			return $saved_methods;
+		}
 
 		$hide_dna_cards = ( isset( $gateway ) && ( ! $gateway->enabled_saved_cards || $gateway->integration_type !== 'seamless' ) );
 		$wallet_gateways = array( 'dnapayments_google_pay', 'dnapayments_apple_pay', 'dnapayments_paypal' );
@@ -71,7 +75,7 @@ final class WC_Gateway_DNA_Payments_Blocks_Support extends WC_Gateway_Base_DNA_P
 		}
 
 		$saved_methods[ 'cc' ] = $new_saved_cards;
-		
+
 		return $saved_methods;
 	}
 }

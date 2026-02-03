@@ -58,7 +58,7 @@ class OrderHelper {
         return $result;
     }
 
-    public function process_payment( $order, $input, $source = '' ) {
+    public function process_payment( \WC_Order $order, array $input, string $source = '' ) {
 
         $transaction_id = $input['id'];
         $order_id       = $order->get_id();
@@ -117,7 +117,7 @@ class OrderHelper {
                 return [ 'status' => $status, 'message' => $message ];
             }
 
-            if ( !\WC_DNA_Payments_Order_Client_Helpers::isDNAPaymentOrder($order) ) {
+            if ( !Helper::is_dna_payments_order($order) ) {
                 $this->gateway->logger->error( 'Order with ID ' . $order_id . ' processed by a different payment method: ' . $order->get_payment_method() . '. But the payment process will continue.' );
             }
 
@@ -125,18 +125,23 @@ class OrderHelper {
                 $this->save_pay_pal_order_detail( $order, $input, false );
             }
 
-            $custom_data = $this->parse_merchant_custom_data( $input );
+            $custom_data = Helper::parse_merchant_custom_data( $input );
+            if ( ! empty( $custom_data['error'] ) ) {
+                $this->gateway->logger->error( $custom_data['error'] );
+            }
             $this->update_payment_method_from_custom_data( $order, $custom_data );
             $new_status = $this->payment_complete( $order, $input, $settled, $source );
 
-            // Handle saving card tokens. Status "on-hold" means that saveCardToken already processed
+            // Handle saving card tokens. Status "on-hold" means that add_token already processed
             $is_processed = $new_status !== $status && $status === 'on-hold';
-            if ( ! $is_processed && $this->gateway->enabled_saved_cards && ($input['storeCardOnFile'] || $custom_data['store_card_on_file']) ) {
-                $msg_save_token = \WC_DNA_Payments_Order_Client_Helpers::saveCardToken($input, $this->gateway->id);
-                if ( empty( $msg_save_token ) ) {
+            $should_add_token = $this->gateway->enabled_saved_cards && ($input['storeCardOnFile'] || $custom_data['store_card_on_file']);
+            if ( ! $is_processed && ($should_add_token || $custom_data['allowed_recurring']) ) {
+                $token_result = $this->gateway->paymentTokenHelper->add_token($input, $order->get_payment_method(), (bool) ($custom_data['allowed_recurring'] ?? false));
+
+                if ( empty( $token_result['error'] ) ) {
                     $this->gateway->logger->info('Card token saved for order ID ' . $order_id);
                 } else {
-                    $this->gateway->logger->info('Card token not saved for order ID ' . $order_id . '. Error: ' . $msg_save_token);
+                    $this->gateway->logger->info('Card token not saved for order ID ' . $order_id . '. Error: ' . $token_result['error']);
                 }
             }
 
@@ -195,6 +200,11 @@ class OrderHelper {
         }
 
         // Update metadata
+        $card_info = $this->gateway->paymentTokenHelper->get_card_info($input);
+        if ( ! empty( $card_info ) ) {
+            $order->update_meta_data( Helper::META_CARD_TYPE, $card_info['card_type'] ?? '');
+            $order->update_meta_data( Helper::META_CARD_LAST4, $card_info['last4'] ?? '');
+        }
         $order->update_meta_data('_dnapayments_state', $settled ? 'charged' : 'authorized');
         $order->update_meta_data('_dnapayments_transaction_id', $transaction_id);
         $order->update_meta_data('rrn', $input['rrn'] ?? '');
@@ -281,27 +291,6 @@ class OrderHelper {
         }
 
         $order->save();
-    }
-
-    // Parse merchant custom data
-    public function parse_merchant_custom_data( $input ) {
-        if ( isset($input['merchantCustomData']) ) {
-            try {
-                $customData = json_decode($input['merchantCustomData']);
-                return [ 
-                    'order_id' => $customData->orderId, 
-                    'store_card_on_file' => $customData->storeCardOnFile ?? false,
-                    'gateway_id' => $customData->gatewayId ?? ''
-                ];
-            } catch (\Exception $e) {
-                $this->gateway->logger->warning('Error parsing merchantCustomData: ' . $e->getMessage());
-            }
-        }
-        return [ 
-            'order_id' => null, 
-            'store_card_on_file' => false,
-            'gateway_id' => ''
-        ];
     }
 
     /**

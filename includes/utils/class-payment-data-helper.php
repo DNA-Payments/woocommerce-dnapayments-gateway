@@ -21,40 +21,69 @@ class PaymentDataHelper {
 
     public function get_payment_data_from_order( \WC_Order $order, $options = array() ) {
         $store_card_on_file = isset( $options['store_card_on_file'] ) ? (bool) $options['store_card_on_file'] : false;
+        $invoice_id = isset( $options['invoice_id'] ) ? $options['invoice_id'] : null;
         $page = isset( $options['page'] ) ? $options['page'] : 'checkout';
+        $is_change_payment_method = $page === 'change_payment_method';
 
-        $payment_data = array(
-            'invoiceId' => strval( $order->get_order_number() ),
-            'description' => $this->gateway->get_option('gatewayOrderDescription'),
-            'amount' => floatval( $order->get_total() ),
-            'currency' => $order->get_currency(),
-            'language' => 'en-gb',
-            'paymentSettings' => array_merge(
-                $this->get_payment_settings(),
-                array(
-                    'returnUrl' => $this->get_payment_return_url($order->get_id(), $page, true),
-                    'failureReturnUrl' => $this->get_payment_return_url($order->get_id(), $page, false),
-                ),
-            ),
-            'customerDetails' => [
-                'email' => $order->get_billing_email(),
-                'accountDetails' => [
-                    'accountId' => $order->get_customer_id() ? strval($order->get_customer_id()) : '',
+        $payment_data = array_merge(
+            array(
+                'currency' => $order->get_currency(),
+                'language' => 'en-gb',
+                'customerDetails' => [
+                    'email' => $order->get_billing_email(),
+                    'accountDetails' => [
+                        'accountId' => $order->get_customer_id() ? strval($order->get_customer_id()) : '',
+                    ],
+                    'billingAddress' => $this->get_address_from_order( $order, 'billing' ),
+                    'deliveryDetails' => [
+                        'deliveryAddress' => $this->get_address_from_order( $order, 'shipping' ),
+                    ]
                 ],
-                'billingAddress' => $this->get_address_from_order( $order, 'billing' ),
-                'deliveryDetails' => [
-                    'deliveryAddress' => $this->get_address_from_order( $order, 'shipping' ),
-                ]
-            ],
-            'amountBreakdown' => $this->get_amount_breakdown( $order ),
-            'orderLines' => $this->get_order_lines_from_order( $order ),
-            'merchantCustomData' => json_encode( array(
-                'orderId' => $order->get_id(),
-                'storeCardOnFile' => $store_card_on_file
-            ) ),
+                'merchantCustomData' => json_encode( array(
+                    'orderId' => $order->get_id(),
+                    'storeCardOnFile' => $store_card_on_file
+                ) ),
+            ),
+            $is_change_payment_method
+                ? array(
+                    'invoiceId' => $invoice_id,
+                    'amount' => 0.0,
+                    'description' => 'Subscription payment method change',
+                    'transactionType' => 'VERIFICATION',
+                    'paymentSettings' => array(
+                        'terminalId' => $this->gateway->terminal,
+                        'callbackUrl' => get_rest_url(null, 'dnapayments/change-payment-method'),
+                        'returnUrl' => $this->get_payment_return_url( $order->get_id(), 'change_payment_method', true ),
+                        'failureReturnUrl' => $this->get_payment_return_url( $order->get_id(), 'change_payment_method', false ),
+                    ),
+                )
+                : array(
+                    'invoiceId' => strval( $order->get_order_number() ),
+                    'amount' => floatval( $order->get_total() ),
+                    'description' => $this->gateway->get_option('gatewayOrderDescription'),
+                    'amountBreakdown' => $this->get_amount_breakdown( $order ),
+                    'orderLines' => $this->get_order_lines_from_order( $order ),
+                    'paymentSettings' => array_merge(
+                        $this->get_payment_settings(),
+                        array(
+                            'returnUrl' => $this->get_payment_return_url($order->get_id(), $page, true),
+                            'failureReturnUrl' => $this->get_payment_return_url($order->get_id(), $page, false),
+                        ),
+                    ),
+                )
         );
 
-        $this->update_transaction_type( $payment_data );
+        $has_subscription = $is_change_payment_method || $this->gateway->subscriptionHelper->order_contains_subscription( $order );
+        if ($has_subscription) {
+            $payment_data['periodic'] = array(
+                'periodicType' => 'ucof'
+            );
+        }
+
+        if ( !$is_change_payment_method ) {
+            $this->update_transaction_type( $payment_data );
+        }
+
         return $payment_data;
     }
 
@@ -344,7 +373,7 @@ class PaymentDataHelper {
      * for a subscription, or paying for a specific order.  Returns a canonical string
      * identifier that can be used to branch logic elsewhere in the gateway.
      *
-     * @return string  One of: 'add_payment_method', 'pay_for_order', 'checkout', 'cart', or empty string.
+     * @return string  One of: 'add_payment_method', 'change_payment_method', 'pay_for_order', 'checkout', 'cart', or empty string.
      */
     public function get_current_payment_page() {
         if ( is_add_payment_method_page() ) {
@@ -352,7 +381,7 @@ class PaymentDataHelper {
         }
 
         if ( is_wc_endpoint_url( 'order-pay' ) ) {
-            return 'pay_for_order';
+            return isset( $_GET['change_payment_method'] ) ? 'change_payment_method' : 'pay_for_order';
         }
 
         if ( is_checkout() ) {

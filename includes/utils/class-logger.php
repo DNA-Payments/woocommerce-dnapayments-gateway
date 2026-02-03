@@ -70,7 +70,7 @@ class Logger {
 
         $formatted_context = $this->format_log_context( $context );
 
-        return $formatted_context ? $message . $formatted_context : $message;
+        return $formatted_context ? $message . ' ' . $formatted_context : $message;
     }
 
     /**
@@ -81,16 +81,28 @@ class Logger {
      */
     private function format_log_context( array $context ): string {
         $parts = [];
-        foreach ( $context as $key => $value ) {
-            if ( $value === null || $value === '' ) {
+        foreach ( $context as $key => $raw_value ) {
+            $value = $raw_value;
+            if ( Helper::is_empty( $value ) ) {
                 continue;
+            }
+            if ( is_array( $value ) ) {
+                $value = $this->format_log_context( $value );
             }
             if ( is_bool( $value ) ) {
                 $value = $value ? 'true' : 'false';
             }
-            $parts[] = $key . '=' . $value;
+            if ( is_int( $key ) ) {
+                $parts[] = (string) $value;
+            } else {
+                $parts[] = $key . '=' . (string) $value;
+            }
         }
 
-        return empty( $parts ) ? '' : ' (' . implode( ', ', $parts ) . ')';
+        if ( Helper::is_empty( $parts ) ) {
+            return '';
+        }
+
+        return '(' . implode( ', ', $parts ) . ')';
     }
 }

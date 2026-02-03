@@ -7,6 +7,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Helper {
+    public const META_PARENT_TRANSACTION_ID = '_dnapayments_parent_transaction_id';
+    public const META_CARD_TYPE = '_dnapayments_card_type';
+    public const META_CARD_LAST4 = '_dnapayments_card_last4';
+    public const META_TOKEN = '_dnapayments_payment_token';
+    public const META_PAYMENT_METHOD = '_dnapayments_payment_method';
 
     /**
      * Safely gets a sanitized string value from $_POST.
@@ -176,5 +181,121 @@ class Helper {
         }
 
         return $parts[0];
+    }
+
+    // Parse merchant custom data
+    public static function parse_merchant_custom_data( $input ) {
+        $default_value = [
+            'order_id' => null, 
+            'store_card_on_file' => false,
+            'gateway_id' => '',
+            'allowed_recurring' => false,
+            'error' => ''
+        ];
+
+        if ( isset($input['merchantCustomData']) ) {
+            try {
+                $customData = json_decode($input['merchantCustomData']);
+                return [ 
+                    'order_id' => $customData->orderId, 
+                    'store_card_on_file' => $customData->storeCardOnFile ?? false,
+                    'gateway_id' => $customData->gatewayId ?? '',
+                    'allowed_recurring' => $customData->allowedRecurring ?? false,
+                    'error' => '',
+                ];
+            } catch (\Exception $e) {
+                $default_value['error'] = 'Error parsing merchantCustomData: ' . $e->getMessage();
+            }
+        }
+
+        return $default_value;
+    }
+
+    /**
+     * Normalize card scheme name to match WooCommerce standard
+     *
+     * @param string $scheme_name Card scheme name from API
+     * @return string Normalized card scheme name
+     */
+    public static function normalize_card_scheme_name($scheme_name) {
+        $normalized = strtolower(trim($scheme_name));
+
+        switch ($normalized) {
+            case 'amex':
+            case 'amexcard': 
+            case 'americanexpress':
+            case 'american express':
+            case 'american-express':
+                return 'amex';
+
+            case 'dci':
+            case 'diners':
+            case 'dinersclub':
+            case 'diners club':
+            case 'diners-club':
+                return 'diners';
+
+            case 'mc':
+            case 'mastercard':
+            case 'master card':
+            case 'master-card':
+                return 'mastercard';
+
+            case 'upi':
+            case 'unionpay':
+            case 'union pay':
+            case 'union-pay':
+                return 'unionpay';
+
+            case 'visa':
+            case 'visacard':
+            case 'visa card':
+            case 'visa-card':
+                return 'visa';
+
+            case 'maestro':
+            case 'maestrocard':
+            case 'maestro card':
+            case 'maestro-card':
+                return 'mastercard';
+
+            case 'discover':
+            case 'discovercard':
+            case 'discover card':
+            case 'discover-card':
+                return 'discover';
+
+            default:
+                return $normalized;
+        }
+    }
+
+    public static function normalize_card_brand($brand) {
+        $allowed_brands = [ 'amex', 'diners', 'discover', 'interac', 'jsb', 'mastercard', 'visa', 'unknown' ];
+
+        if ( ! in_array( $brand, $allowed_brands, true ) ) {
+            $brand = 'unknown';
+        }
+
+        return $brand;
+    }
+
+    /**
+     * Check if the given order was placed using one of DNA Payments' gateways.
+     *
+     * @param \WC_Order $order WooCommerce order instance.
+     * @return bool True if the order was paid via any DNA Payments gateway.
+     */
+    public static function is_dna_payments_order(\WC_Order $order): bool {
+        return self::is_dna_payments($order->get_payment_method());
+    }
+
+    public static function is_dna_payments(string $payment_method): bool {
+        return in_array($payment_method, [
+            'dnapayments',
+            'dnapayments_google_pay',
+            'dnapayments_apple_pay',
+            'dnapayments_paypal',
+        ]);
     }
 }

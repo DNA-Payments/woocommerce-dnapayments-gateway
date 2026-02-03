@@ -6,6 +6,7 @@ import { shouldHideOrderLines } from '../../common/validater'
 import { getGlobalVariables } from './data'
 
 export const createPlaceOrder = ({
+    page,
     setFormLoading,
     allowSavingCards,
     cards,

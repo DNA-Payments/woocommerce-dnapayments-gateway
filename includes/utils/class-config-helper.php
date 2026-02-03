@@ -158,7 +158,7 @@ class ConfigHelper {
         $normalized = [];
 
         foreach ($schemes as $scheme) {
-            $converted = $this->normalize_card_scheme_name($scheme);
+            $converted = Helper::normalize_card_scheme_name($scheme);
             if ($converted !== null) {
                 $normalized[] = $converted;
             }
@@ -210,65 +210,5 @@ class ConfigHelper {
         }
 
         return '';
-    }
-
-    /**
-     * Normalize card scheme name
-     *
-     * @param string $strCardScheme Card scheme to normalize
-     * @return ?string Normalized card scheme or null if not recognized
-     */
-    public function normalize_card_scheme_name(string $strCardScheme): ?string 
-    {
-        $normalized = strtolower(trim($strCardScheme));
-
-        switch ($normalized) {
-            case 'amex':
-            case 'amexcard': 
-            case 'americanexpress':
-            case 'american express':
-            case 'american-express':
-                return 'amex';
-
-            case 'dci':
-            case 'diners':
-            case 'dinersclub':
-            case 'diners club':
-            case 'diners-club':
-                return 'diners';
-
-            case 'mc':
-            case 'mastercard':
-            case 'master card':
-            case 'master-card':
-                return 'mastercard';
-
-            case 'upi':
-            case 'unionpay':
-            case 'union pay':
-            case 'union-pay':
-                return 'unionpay';
-
-            case 'visa':
-            case 'visacard':
-            case 'visa card':
-            case 'visa-card':
-                return 'visa';
-
-            case 'maestro':
-            case 'maestrocard':
-            case 'maestro card':
-            case 'maestro-card':
-                return 'mastercard';
-
-            case 'discover':
-            case 'discovercard':
-            case 'discover card':
-            case 'discover-card':
-                return 'discover';
-
-            default:
-                return $normalized;
-        }
     }
 }

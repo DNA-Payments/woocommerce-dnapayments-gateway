@@ -21,7 +21,6 @@ class OrderHelper {
 
     public function process_payment_using_payment_result( $order, $result_string, $user_id = '', $source = '' ) {
         $order_id = $order->get_id();
-
         $input = Helper::parse_json_to_array($result_string);
 
         if ( empty($input['id']) ) {
@@ -140,13 +139,14 @@ class OrderHelper {
                     $this->gateway->logger->info('Card token not saved for order ID ' . $order_id . '. Error: ' . $msg_save_token);
                 }
             }
+
+            $this->gateway->subscriptionHelper->save_payment_meta_to_subscriptions( $order, $input );
             
             // Release the transaction lock
             delete_transient($lock_key);
             $this->gateway->logger->info('Released processing lock for transaction ' . $transaction_id);
 
             return [ 'status' => $new_status ];
-        
         } catch (\Exception $e) {
             // Make sure to release the lock even if an error occurs
             delete_transient($lock_key);

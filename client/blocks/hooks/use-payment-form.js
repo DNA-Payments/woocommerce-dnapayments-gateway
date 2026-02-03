@@ -16,6 +16,7 @@ import { shouldHideOrderLines } from '../../common/validater'
 import { addGatewayId, setNonces } from '../../common/utils'
 
 import { TEXT_DOMAIN } from '../../common/constants'
+import { getSubscriptionPaymentMethods, hasSubscription } from '../../common/subscription'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
 
 export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
@@ -85,6 +86,10 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                     dnaPaymentsConfig.autoRedirectDelayInMs = autoRedirectDelayInMs
                 }
 
+                if (hasSubscription(paymentData)) {
+                    dnaPaymentsConfig.paymentMethods = getSubscriptionPaymentMethods()
+                }
+
                 switch (integrationType) {
                     case 'seamless': {
                         window.DNAPayments.configure(dnaPaymentsConfig)
@@ -100,6 +105,9 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                             },
                             auth,
                         ).then((result) => {
+                            if (result.data && !result.data.paymentMethod) {
+                                result.data.paymentMethod = 'card'
+                            }
                             completePayment({
                                 paymentResult: result.data,
                                 redirect: result.redirect,

@@ -3,11 +3,11 @@
     "description": "DNA payments library for php",
     "license": "MIT",
     "type": "library",
-    "version": "2.2.0",
+    "version": "2.2.1",
     "authors": [
         {
-            "name": "Alikhan Izbergenov",
-            "email": "alikhan@dnapayments.com"
+            "name": "Nurbol Sarsenbayev",
+            "email": "nurbol@dnapayments.com"
         }
     ],
     "autoload": {

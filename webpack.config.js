@@ -45,6 +45,9 @@ module.exports = {
 		'dnapayments_googlepay': path.resolve(process.cwd(), 'client', 'blocks', 'googlepay.js'),
 		'dnapayments_applepay': path.resolve(process.cwd(), 'client', 'blocks', 'applepay.js'),
 		'dnapayments_paypal': path.resolve(process.cwd(), 'client', 'blocks', 'paypal.js'),
+		'dnapayments_alipay': path.resolve(process.cwd(), 'client', 'blocks', 'alipay.js'),
+		'dnapayments_wechat_pay': path.resolve(process.cwd(), 'client', 'blocks', 'wechat-pay.js'),
+		'dnapayments_alipay_plus': path.resolve(process.cwd(), 'client', 'blocks', 'alipay-plus.js'),
 	},
 	output: {
 		...defaultConfig.output,

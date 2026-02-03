@@ -1,4 +1,4 @@
-import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL } from '../../common/constants'
+import { GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL, GATEWAY_ID_ALIPAY, GATEWAY_ID_ALIPAY_PLUS, GATEWAY_ID_WECHAT_PAY } from '../../common/constants'
 
 export function getGlobalVariables() {
     /* global wc_dna_params */
@@ -42,7 +42,7 @@ export function getGlobalVariables() {
     }
 }
 
-export const DNA_PAYMENTS_GATEWAYS = [GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL]
+export const DNA_PAYMENTS_GATEWAYS = [GATEWAY_ID, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL, GATEWAY_ID_ALIPAY, GATEWAY_ID_ALIPAY_PLUS, GATEWAY_ID_WECHAT_PAY]
 
 export const getRequiredFields = (isShippingIncluded) => {
     const fields = [

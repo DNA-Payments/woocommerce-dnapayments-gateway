@@ -287,7 +287,6 @@ jQuery(function ($) {
                     containerElement: $container[0],
                     events,
                     paymentData,
-                    token: authData ? authData.access_token : tempToken,
                     environment: isTestMode ? 'sandbox' : 'production',
                     terminalId: wc_dna_params.terminal_id,
                 },
@@ -350,6 +349,7 @@ jQuery(function ($) {
                     }),
                 },
                 auth: authData,
+                token: authData?.access_token
             }
         }
 

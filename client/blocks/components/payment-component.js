@@ -39,7 +39,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     // resolve and reject of onCheckoutSuccess
     const checkoutPromiseRef = useRef()
 
-    const { tempToken, isTestMode, terminalId } = dnaPaymentsSettingsData
+    const { isTestMode, terminalId } = dnaPaymentsSettingsData
 
     const paymentDataJSON = useMemo(() => {
         try {
@@ -144,7 +144,6 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         componentInstance.isLoaded = true
                     },
                 },
-                token: tempToken,
                 environment: isTestMode ? 'sandbox' : 'production',
                 terminalId,
             })

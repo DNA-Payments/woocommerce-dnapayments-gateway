@@ -51,6 +51,21 @@ const PAYPAL_INIT_FAIL = {
     message: 'Something went wrong while setting up the PayPal button. Please try again later.',
 }
 
+const ALIPAY_INIT_FAIL = {
+    code: 'ALIPAY_INIT_FAIL',
+    message: 'Something went wrong while setting up the Alipay button. Please try again later.',
+}
+
+const WECHAT_PAY_INIT_FAIL = {
+    code: 'WECHAT_PAY_INIT_FAIL',
+    message: 'Something went wrong while setting up the WeChat Pay button. Please try again later.',
+}
+
+const ALIPAY_PLUS_INIT_FAIL = {
+    code: 'ALIPAY_PLUS_INIT_FAIL',
+    message: 'Something went wrong while setting up the Alipay+ button. Please try again later.',
+}
+
 const APPLE_PAY_VALIDATION_FAIL = {
     code: 'APPLE_PAY_VALIDATION_FAIL',
     message: 'Apple Pay button not rendered. Please fill all required fields correctly and try again.',
@@ -64,6 +79,21 @@ const GOOGLE_PAY_VALIDATION_FAIL = {
 const PAYPAL_VALIDATION_FAIL = {
     code: 'PAYPAL_VALIDATION_FAIL',
     message: 'PayPal button not rendered. Please fill all required fields correctly and try again.',
+}
+
+const ALIPAY_VALIDATION_FAIL = {
+    code: 'ALIPAY_VALIDATION_FAIL',
+    message: 'Alipay button not rendered. Please fill all required fields correctly and try again.',
+}
+
+const WECHAT_PAY_VALIDATION_FAIL = {
+    code: 'WECHAT_PAY_VALIDATION_FAIL',
+    message: 'WeChat Pay button not rendered. Please fill all required fields correctly and try again.',
+}
+
+const ALIPAY_PLUS_VALIDATION_FAIL = {
+    code: 'ALIPAY_PLUS_VALIDATION_FAIL',
+    message: 'Alipay+ button not rendered. Please fill all required fields correctly and try again.',
 }
 
 const TERMS_NOT_ACCEPTED = {
@@ -152,9 +182,15 @@ export default {
     APPLE_PAY_INIT_FAIL,
     GOOGLE_PAY_INIT_FAIL,
     PAYPAL_INIT_FAIL,
+    ALIPAY_INIT_FAIL,
+    WECHAT_PAY_INIT_FAIL,
+    ALIPAY_PLUS_INIT_FAIL,
     APPLE_PAY_VALIDATION_FAIL,
     GOOGLE_PAY_VALIDATION_FAIL,
     PAYPAL_VALIDATION_FAIL,
+    ALIPAY_VALIDATION_FAIL,
+    WECHAT_PAY_VALIDATION_FAIL,
+    ALIPAY_PLUS_VALIDATION_FAIL,
     HOSTED_FIELDS_INIT_FAIL,
     CARD_PAYMENT_FAIL,
     CARD_PAYMENT_CANCEL,

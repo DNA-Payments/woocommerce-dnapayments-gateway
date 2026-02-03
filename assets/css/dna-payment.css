@@ -76,11 +76,14 @@
     cursor: not-allowed;
 }
 
-/** Block checkout - (Card, Apple Pay, Google Pay, PayPal) payment method icons **/
+/** Block checkout - (Card, Apple Pay, Google Pay, PayPal, Alipay, WeChat Pay, Alipay Plus) payment method icons **/
 #radio-control-wc-payment-method-options-dnapayments__label.wc-block-components-radio-control__label img,
 #radio-control-wc-payment-method-options-dnapayments_google_pay__label.wc-block-components-radio-control__label img,
 #radio-control-wc-payment-method-options-dnapayments_apple_pay__label.wc-block-components-radio-control__label img,
-#radio-control-wc-payment-method-options-dnapayments_paypal__label.wc-block-components-radio-control__label img {
+#radio-control-wc-payment-method-options-dnapayments_paypal__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_alipay__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_wechat_pay__label.wc-block-components-radio-control__label img,
+#radio-control-wc-payment-method-options-dnapayments_alipay_plus__label.wc-block-components-radio-control__label img {
     max-height: 24px !important;
     width: auto !important;
     height: 24px !important;
@@ -92,21 +95,27 @@
 
 #dnapayments_apple_pay_container:not(.has-error),
 #dnapayments_google_pay_container:not(.has-error),
-#dnapayments_paypal_container:not(.has-error) {
+#dnapayments_paypal_container:not(.has-error),
+#dnapayments_alipay_container:not(.has-error),
+#dnapayments_wechat_pay_container:not(.has-error),
+#dnapayments_alipay_plus_container:not(.has-error) {
     height: 46px !important;
 }
 
 /**
- * Classic checkout - payment method icons (Card, Apple Pay, Google Pay, PayPal)
+ * Classic checkout - payment method icons (Card, Apple Pay, Google Pay, PayPal, Alipay, WeChat Pay, Alipay Plus)
  * Fixed height: 24px for all icons in payment method selection list
  */
 
 /** DNA Payments gateway icons - specific selectors **/
-/** Classic checkout - (Card, Apple Pay, Google Pay, PayPal) payment method icons **/
+/** Classic checkout - (Card, Apple Pay, Google Pay, PayPal, Alipay, WeChat Pay, Alipay Plus) payment method icons **/
 .wc_payment_method.payment_method_dnapayments img,
 .wc_payment_method.payment_method_dnapayments_apple_pay img,
 .wc_payment_method.payment_method_dnapayments_google_pay img,
-.wc_payment_method.payment_method_dnapayments_paypal img {
+.wc_payment_method.payment_method_dnapayments_paypal img,
+.wc_payment_method.payment_method_dnapayments_alipay img,
+.wc_payment_method.payment_method_dnapayments_wechat_pay img,
+.wc_payment_method.payment_method_dnapayments_alipay_plus img {
     max-height: 24px !important;
     width: auto !important;
     height: 24px !important;
@@ -213,7 +222,11 @@
 }
 
 #dnapayments_google_pay_container iframe,
-#dnapayments_apple_pay_container iframe {
+#dnapayments_apple_pay_container iframe,
+#dnapayments_paypal_container iframe,
+#dnapayments_alipay_container iframe,
+#dnapayments_wechat_pay_container iframe,
+#dnapayments_alipay_plus_container iframe {
     width: 100%;
 }
 

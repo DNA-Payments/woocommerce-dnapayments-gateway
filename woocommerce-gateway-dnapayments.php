@@ -133,6 +133,9 @@ class WC_DNA_Payments {
 		$gateways[] = 'WC_Gateway_DNA_GooglePay';
 		$gateways[] = 'WC_Gateway_DNA_ApplePay';
 		$gateways[] = 'WC_Gateway_DNA_PayPal';
+		$gateways[] = 'WC_Gateway_DNA_Alipay';
+		$gateways[] = 'WC_Gateway_DNA_WeChat_Pay';
+		$gateways[] = 'WC_Gateway_DNA_Alipay_Plus';
 
 		return $gateways;
 	}
@@ -161,6 +164,9 @@ class WC_DNA_Payments {
 		require_once 'includes/gateways/class-wc-gateway-dna-googlepay.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-applepay.php';
 		require_once 'includes/gateways/class-wc-gateway-dna-paypal.php';
+		require_once 'includes/gateways/class-wc-gateway-dna-alipay.php';
+		require_once 'includes/gateways/class-wc-gateway-dna-wechat-pay.php';
+		require_once 'includes/gateways/class-wc-gateway-dna-alipay-plus.php';
 	}
 
 	/**
@@ -191,6 +197,9 @@ class WC_DNA_Payments {
 			require_once 'includes/blocks/class-wc-gateway-dnapayments-googlepay-blocks-support.php';
 			require_once 'includes/blocks/class-wc-gateway-dnapayments-applepay-blocks-support.php';
 			require_once 'includes/blocks/class-wc-gateway-dnapayments-paypal-blocks-support.php';
+			require_once 'includes/blocks/class-wc-gateway-dnapayments-alipay-blocks-support.php';
+			require_once 'includes/blocks/class-wc-gateway-dnapayments-wechat-pay-blocks-support.php';
+			require_once 'includes/blocks/class-wc-gateway-dnapayments-alipay-plus-blocks-support.php';
 
 			add_action(
 				'woocommerce_blocks_payment_method_type_registration',
@@ -199,6 +208,9 @@ class WC_DNA_Payments {
 					$payment_method_registry->register( new WC_Gateway_DNA_Payments_GooglePay_Blocks_Support() );
 					$payment_method_registry->register( new WC_Gateway_DNA_Payments_ApplePay_Blocks_Support() );
 					$payment_method_registry->register( new WC_Gateway_DNA_Payments_PayPal_Blocks_Support() );
+					$payment_method_registry->register( new WC_Gateway_DNA_Payments_Alipay_Blocks_Support() );
+					$payment_method_registry->register( new WC_Gateway_DNA_Payments_WeChat_Pay_Blocks_Support() );
+					$payment_method_registry->register( new WC_Gateway_DNA_Payments_Alipay_Plus_Blocks_Support() );
 				}
 			);
 		}
@@ -221,6 +233,9 @@ class WC_DNA_Payments {
 		wp_register_script( 'dna-google-pay', 'https://pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-apple-pay', 'https://pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-paypal', 'https://pay.dnapayments.com/components/paypal/paypal-component.js', array('dna-payment-api'), self::$version, true );
+		wp_register_script( 'dna-alipay', 'https://pay.dnapayments.com/components/alipay-wechat-pay/alipay-wechat-pay-component.js', array('dna-payment-api'), self::$version, true );
+		wp_register_script( 'dna-wechat-pay', 'https://pay.dnapayments.com/components/alipay-wechat-pay/alipay-wechat-pay-component.js', array('dna-payment-api'), self::$version, true );
+		wp_register_script( 'dna-alipay-plus', 'https://pay.dnapayments.com/components/alipay-wechat-pay/alipay-wechat-pay-component.js', array('dna-payment-api'), self::$version, true );
 	}
 
 	/**

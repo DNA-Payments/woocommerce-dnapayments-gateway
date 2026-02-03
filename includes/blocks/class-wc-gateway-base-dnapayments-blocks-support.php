@@ -71,7 +71,7 @@ abstract class WC_Gateway_Base_DNA_Payments_Blocks_Support extends AbstractPayme
 		$asset_path   = $this->asset_path;
 		$version      = \WC_DNA_Payments::$version;
 		$script_name  = 'wc-' . $this->name . '-blocks-integration';
-		$dependencies = is_admin() || is_login() ? [] : [ 'dna-payment-api', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay'];
+		$dependencies = is_admin() || is_login() ? [] : [ 'dna-payment-api', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-paypal', 'dna-alipay', 'dna-wechat-pay', 'dna-alipay-plus'];
 
 		if ( file_exists( $asset_path ) ) {
 			$asset = require $asset_path;

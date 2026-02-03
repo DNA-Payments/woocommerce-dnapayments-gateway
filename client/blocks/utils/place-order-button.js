@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback } from '@wordpress/element'
-import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_PAYPAL } from '../../common/constants'
+import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_PAYPAL, GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS } from '../../common/constants'
 import { useCheckoutUpdate } from '../hooks/use-checkout-update'
 
 export function isPlaceOrderButtonDisabled(activePaymentMethod) {
-    return [GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL].includes(activePaymentMethod)
+    return [GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL, GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS].includes(activePaymentMethod)
 }
 
 const DNA_PLACE_ORDER_DISABLED_ATTR = 'data-dnapayments-place-order-disabled'

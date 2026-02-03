@@ -1,6 +1,6 @@
 import { logError } from './log'
 import errors from './errors'
-import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_PAYPAL } from './constants'
+import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_PAYPAL, GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS } from './constants'
 
 export function getPaymentComponentErrorMessage(err, initErrorMessage) {
     logError(err)
@@ -45,6 +45,21 @@ export const getPaymentComponentErrorMessages = (paymentMethodId) => {
                 initErrorMessage: errors.PAYPAL_INIT_FAIL.message,
                 validationErrorMessage: errors.PAYPAL_VALIDATION_FAIL.message,
             }
+        case GATEWAY_ID_ALIPAY:
+            return {
+                initErrorMessage: errors.ALIPAY_INIT_FAIL.message,
+                validationErrorMessage: errors.ALIPAY_VALIDATION_FAIL.message,
+            }
+        case GATEWAY_ID_WECHAT_PAY:
+            return {
+                initErrorMessage: errors.WECHAT_PAY_INIT_FAIL.message,
+                validationErrorMessage: errors.WECHAT_PAY_VALIDATION_FAIL.message,
+            }
+        case GATEWAY_ID_ALIPAY_PLUS:
+            return {
+                initErrorMessage: errors.ALIPAY_PLUS_INIT_FAIL.message,
+                validationErrorMessage: errors.ALIPAY_PLUS_VALIDATION_FAIL.message,
+            }
         default:
             return {}
     }
@@ -58,6 +73,12 @@ export const getPaymentComponentObject = (paymentMethodId) => {
             return window.DNAPayments.GooglePayComponent
         case GATEWAY_ID_PAYPAL:
             return window.DNAPayments.PayPalComponent
+        case GATEWAY_ID_ALIPAY:
+            return window.DNAPayments.AlipayComponent
+        case GATEWAY_ID_WECHAT_PAY:
+            return window.DNAPayments.WeChatPayComponent
+        case GATEWAY_ID_ALIPAY_PLUS:
+            return window.DNAPayments.AlipayPlusComponent
         default:
             return null
     }

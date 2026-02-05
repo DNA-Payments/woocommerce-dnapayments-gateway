@@ -26,7 +26,13 @@ export async function requestActionWithFormData(action, formData) {
 
     formData.append(NONCE_FIELD, getNonce(_action))
 
-    return await request('/wp-admin/admin-ajax.php?action=' + _action, {
+    /* global wc_checkout_params */
+    let url = '/?wc-ajax=' + _action
+    if (typeof wc_checkout_params !== 'undefined' && wc_checkout_params.wc_ajax_url) {
+         url = wc_checkout_params.wc_ajax_url.replace('%%endpoint%%', _action)
+    }
+
+    return await request(url, {
         method: 'POST',
         body: formData,
     })

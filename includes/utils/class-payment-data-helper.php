@@ -46,12 +46,7 @@ class PaymentDataHelper {
                     'deliveryAddress' => $this->get_address_from_order( $order, 'shipping' ),
                 ]
             ],
-            'amountBreakdown' => array(
-                'itemTotal' => array('totalAmount' => Helper::number_format($order->get_subtotal())),
-                'shipping' => array('totalAmount' => Helper::number_format($order->get_shipping_total())),
-                'taxTotal' => array('totalAmount' => Helper::number_format($order->get_total_tax())),
-                'discount' => array('totalAmount' => Helper::number_format($order->get_total_discount()))
-            ),
+            'amountBreakdown' => $this->get_amount_breakdown( $order ),
             'orderLines' => $this->get_order_lines_from_order( $order ),
             'merchantCustomData' => json_encode( array(
                 'orderId' => $order->get_id(),
@@ -84,17 +79,50 @@ class PaymentDataHelper {
                     'deliveryAddress' => $this->get_address_from_post_data( $posted_data, 'shipping' ),
                 ]
             ],
-            'amountBreakdown' => array(
-                'itemTotal' => array('totalAmount' => Helper::number_format($cart->get_subtotal())),
-                'shipping' => array('totalAmount' => Helper::number_format($cart->get_shipping_total())),
-                'taxTotal' => array('totalAmount' => Helper::number_format($cart->get_total_tax())),
-                'discount' => array('totalAmount' => Helper::number_format($cart->get_discount_total())),
-            ),
+            'amountBreakdown' => $this->get_amount_breakdown( $cart ),
             'orderLines' => $this->get_order_lines_from_cart( $cart ),
         ];
 
         $this->update_transaction_type( $payment_data );
         return $payment_data;
+    }
+
+    /**
+     * Build the amount-breakdown array from a WooCommerce cart or order.
+     *
+     * @param \WC_Cart|\WC_Order $source
+     * @return array
+     */
+    private function get_amount_breakdown( $source ) {
+        $discount = 0;
+        $fee = 0;
+        $extra = array();
+
+        if ( $source instanceof \WC_Cart ) {
+            $discount = $source->get_discount_total();
+            $fee = $source->get_fee_total();
+        } else if ( $source instanceof \WC_Order ) { // WC_Order
+            $discount = $source->get_total_discount();
+            $fee = $source->get_total_fees();
+        }
+
+        if ( ! empty( $fee ) ) {
+            if ( $fee < 0 ) {
+                $discount -= $fee;
+            } else {
+                $extra['handling'] = array( 'totalAmount' => Helper::number_format( $fee ) );
+            }
+        }
+
+        return array_merge(
+            array(
+                'itemTotal' => array( 'totalAmount' => Helper::number_format( $source->get_subtotal() ) ),
+                'shipping'  => array( 'totalAmount' => Helper::number_format( $source->get_shipping_total() ) ),
+                'taxTotal'  => array( 'totalAmount' => Helper::number_format( $source->get_total_tax() ) ),
+                'discount'  => array( 'totalAmount' => Helper::number_format( $discount ) ),
+            ),
+            $extra
+        );
     }
 
     /**

@@ -84,6 +84,7 @@ class OrderHelper {
         set_transient($lock_key, true, 10);
 
         try {
+            $order->read_meta_data(true);
 
             if ( ! $input['success'] ) {
                 if( ! empty($input['paypalCaptureStatus']) ) {

@@ -376,7 +376,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
             $dna_params = $this->get_settings_for_frontend();
         } else {
-            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-paypal', 'dna-alipay', 'dna-wechat-pay', 'dna-alipay-plus', 'dna-payment-api') , \WC_DNA_Payments::$version, true);
+            wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-paypal', 'dna-alipay-wechat-pay', 'dna-payment-api') , \WC_DNA_Payments::$version, true);
 
             $dna_params = array_merge(
                 array('order_id' => absint(get_query_var('order-pay'))),

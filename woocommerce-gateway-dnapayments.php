@@ -233,9 +233,7 @@ class WC_DNA_Payments {
 		wp_register_script( 'dna-google-pay', 'https://pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-apple-pay', 'https://pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-paypal', 'https://pay.dnapayments.com/components/paypal/paypal-component.js', array('dna-payment-api'), self::$version, true );
-		wp_register_script( 'dna-alipay', 'https://pay.dnapayments.com/components/alipay-wechat-pay/alipay-wechat-pay-component.js', array('dna-payment-api'), self::$version, true );
-		wp_register_script( 'dna-wechat-pay', 'https://pay.dnapayments.com/components/alipay-wechat-pay/alipay-wechat-pay-component.js', array('dna-payment-api'), self::$version, true );
-		wp_register_script( 'dna-alipay-plus', 'https://pay.dnapayments.com/components/alipay-wechat-pay/alipay-wechat-pay-component.js', array('dna-payment-api'), self::$version, true );
+		wp_register_script( 'dna-alipay-wechat-pay', 'https://pay.dnapayments.com/components/alipay-wechat-pay/alipay-wechat-pay-component.js', array('dna-payment-api'), self::$version, true );
 	}
 
 	/**

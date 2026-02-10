@@ -2,6 +2,30 @@
 
 Changelog
 
+2026-02-10 - version 4.2.0
+
+= Features =
+	- Add WooCommerce Subscriptions support for DNA Payments gateways (Card, Apple Pay, Google Pay), including below capabilities:
+		- Subscriptions support so customers can purchase recurring products with DNA Payments.
+		- Subscription cancellation support so canceled subscriptions stop future automatic renewal charges.
+		- Subscription suspension support so paused subscriptions do not attempt renewals until resumed.
+		- Subscription reactivation support so suspended subscriptions can restart recurring payments.
+		- Subscription amount changes support so renewal charges follow updated subscription pricing.
+		- Subscription date changes support so renewals run on updated billing schedules.
+		- Subscription payment method change support so existing subscriptions can switch to a different DNA Payments method.
+		- Customer-initiated subscription payment method change support from the My Account subscription pages.
+		- Admin-initiated subscription payment method change support from WooCommerce admin subscription management.
+		- Multiple subscriptions support so one checkout can include more than one subscription product.
+
+= Improvements =
+	- Introduce PaymentTokenHelper to centralize token validation, storage, updates, and retrieval for checkout and renewals.
+	- Centralize merchant custom data parsing and card-scheme normalization in shared helpers, replacing legacy token helper usage.
+	- Improve WooCommerce Blocks saved payment method filtering to remove unsupported DNA wallet token entries.
+	- Persist card metadata (brand and last4) on orders and subscriptions for consistent payment method display.
+	- Force saved cards to remain enabled when WooCommerce Subscriptions is active because subscription feature is based on saved cards.
+	- Add fallback to manual renewal when a changed subscription token does not contain a parent transaction ID.
+
+
 2026-05-08 - version 4.1.10
 
 = Fixes =

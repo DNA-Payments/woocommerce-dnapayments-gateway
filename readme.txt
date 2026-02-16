@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.1.5
+Stable tag: 4.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,15 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.1.6 - 2026-02-16 =
+
+= Fixes =
+	- Switch to WooCommerce's wc_ajax endpoints to improve compatibility with wallet plugins.
+	- Avoid issues caused by is_admin returning true in admin-ajax.php requests used by some wallet plugins.
+	- Update form change handler to ignore "payment token" and "new payment method" inputs when rendering payment components.
+	- Read order meta before updating to ensure consistency.
+
 
 = 4.1.5 - 2026-01-27 =
 

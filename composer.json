@@ -1,5 +1,5 @@
 {
-    "version": "4.1.5",
+    "version": "4.1.6",
     "name": "dna/woocommerce",
     "description": "DNA payments gateway for Woocommerce",
     "type": "wordpress-plugin",

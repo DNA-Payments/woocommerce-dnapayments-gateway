@@ -16,23 +16,9 @@ export function initPaymentComponent(paymentMethodId, options, ctx) {
             return reject(validationErrorMessage)
         }
 
-        // Watch the WooCommerce payment-methods list so we can detect if the user switches
-        // to another gateway (which removes the current container from the DOM).
-        // When that happens we stop observing and resolve the promise so the caller
-        // can clean up or abort the component initialisation.
-        const parentElement = document.querySelector('form #payment')
-        const observer = new MutationObserver((mutations) => {
-            if (!parentElement.contains(options.containerElement)) {
-                observer.disconnect()
-                resolve()
-            }
-        })
-        observer.observe(parentElement, { childList: true, subtree: true })
-
         const events = {
             ...options.events,
             onError: (err) => {
-                observer.disconnect()
                 const message = getPaymentComponentErrorMessage(err, initErrorMessage)
                 if (!paymentMethodObject.isLoaded) {
                     reject(initErrorMessage)
@@ -42,7 +28,6 @@ export function initPaymentComponent(paymentMethodId, options, ctx) {
             },
             onLoad: () => {
                 paymentMethodObject.isLoaded = true
-                observer.disconnect()
                 resolve()
             },
         }

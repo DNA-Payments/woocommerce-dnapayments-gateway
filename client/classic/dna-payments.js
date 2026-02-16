@@ -209,18 +209,16 @@ jQuery(function ($) {
 
     // WooCommerce updated_checkout - don't scroll as it triggers blur on all fields
     $(document.body).on('updated_checkout', () => {
+        isRendering = false
+        pendingRenderRequest = null
         render({ shouldFetchPaymentData: true, shouldScrollToError: isFirstRender })
     })
 
-    // Payment method change - allow scroll to show validation errors
-    $form.on('change', 'input[name="payment_method"]', function () {
-        render({ selectedGateway: $(this).val(), shouldScrollToError: true })
-    })
     $form.on('change', 'input, textarea, select', function (e) {
         const elem = e.target
 
-        // Skip processing if the element is missing, or if it's a radio/checkbox that isn't the "terms" checkbox
-        if (!elem || ((elem.type === 'radio' || elem.type === 'checkbox') && elem.name !== 'terms')) return
+        // Skip processing if the element is missing, or if it's a radio/checkbox that satisfies /payment-token|new-payment-method/.test(elem.name)
+        if (!elem || ((elem.type === 'radio' || elem.type === 'checkbox') && /payment-token|new-payment-method/.test(elem.name))) return
         // we check form data is changed or not to avoid unnessary rendering. We do not check on event updated_checkout, because it reinserts html part where payment components renrder.
         if (serializedFormData && serializedFormData === $form.serialize()) return
 
@@ -230,8 +228,9 @@ jQuery(function ($) {
         const required = elem.getAttribute('aria-required')
         const isRequired = (required && required === 'true') || getRequiredFields(isShippingIncluded).includes(name)
 
-        if (!isUpdating && isRequired) {
-            render({ shouldFetchPaymentData: name !== 'terms', shouldScrollToError: false })
+        if (!isUpdating) {
+            const selectedGateway = name === 'payment_method' ? $(this).val() : undefined
+            render({ shouldFetchPaymentData: isRequired && name !== 'terms', shouldScrollToError: Boolean(selectedGateway), selectedGateway })
         }
     })
 

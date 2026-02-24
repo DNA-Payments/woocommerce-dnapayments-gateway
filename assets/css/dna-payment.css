@@ -71,6 +71,16 @@
     width: calc(50% - 8px);
 }
 
+.wc-block-dnapayments-card-elements .wc-block-gateway-input {
+    height: 3.1em;
+    padding: .8em 0 .8em 16px;
+}
+
+.wc-block-dnapayments-card-elements .wc-block-gateway-container .wc-block-gateway-input.focused.empty,
+.wc-block-dnapayments-card-elements .wc-block-gateway-container .wc-block-gateway-input:not(.empty) {
+    padding: 1.25em 0 0 16px;
+}
+
 .wc-block-components-checkout-place-order-button[disabled] {
     opacity: 0.2;
     cursor: not-allowed;

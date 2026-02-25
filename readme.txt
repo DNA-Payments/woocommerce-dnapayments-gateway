@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.1.6
+Stable tag: 4.1.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,15 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.1.7 - 2026-02-25 =
+
+= Features =
+	- Integrate Alipay, Alipay+, and WeChat Pay components.
+
+= Fixes =
+	- Fix character clipping issue in card holder name field.
+
 
 = 4.1.6 - 2026-02-16 =
 

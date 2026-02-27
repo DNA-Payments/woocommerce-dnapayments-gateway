@@ -85,6 +85,11 @@ class OrderHelper {
 
         try {
             $order->read_meta_data(true);
+            // Added to fix the issue in third party plugin WooCommerce Giveaways
+            if ( class_exists( 'LTY_Order_Handler' ) && property_exists( 'LTY_Order_Handler', 'order_object_saved' ) ) {
+                /** @disregard P1009 */
+                \LTY_Order_Handler::$order_object_saved = true;
+            }
 
             if ( ! $input['success'] ) {
                 if( ! empty($input['paypalCaptureStatus']) ) {

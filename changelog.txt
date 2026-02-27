@@ -2,6 +2,12 @@
 
 Changelog
 
+2026-02-27 - version 4.1.8
+
+= Fixes =
+	- Set order_object_saved flag for WooCommerce Giveaways third-party plugin to prevent duplicate ticket numbers.
+
+
 2026-02-25 - version 4.1.7
 
 = Features =

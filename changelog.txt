@@ -2,6 +2,17 @@
 
 Changelog
 
+2026-04-02 - version 4.1.9
+
+= Fixes =
+	- Resolved a race condition affecting merchants using WooCommerce Block-based
+	Checkout with payment methods (Apple Pay, Google Pay). When a payment was
+	initiated, the DNA Payments webhook could arrive before WooCommerce had
+	transitioned the order from `checkout-draft` to `pending`, causing the
+	webhook to be rejected and the order to remain in `checkout-draft` despite
+	a successful payment.
+
+
 2026-02-27 - version 4.1.8
 
 = Fixes =

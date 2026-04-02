@@ -109,7 +109,7 @@ class OrderHelper {
             }
 
             // If the order status is 'on-hold' and the settled parameter is true, the webhook should complete the order.
-            if ( ! in_array($status, ['draft', 'pending', 'failed', 'cancelled']) && ($status !== 'on-hold' || ! $settled) ) {
+            if ( ! in_array($status, ['checkout-draft', 'draft', 'pending', 'failed', 'cancelled']) && ($status !== 'on-hold' || ! $settled) ) {
                 if( ! empty($input['paypalCaptureStatus']) ) {
                     $this->save_pay_pal_order_detail( $order, $input, true );
                 }

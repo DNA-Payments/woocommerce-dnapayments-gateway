@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.1.8
+Stable tag: 4.1.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,17 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.1.9 - 2026-04-02 =
+
+= Fixes =
+	- Resolved a race condition affecting merchants using WooCommerce Block-based
+	Checkout with payment methods (Apple Pay, Google Pay). When a payment was
+	initiated, the DNA Payments webhook could arrive before WooCommerce had
+	transitioned the order from `checkout-draft` to `pending`, causing the
+	webhook to be rejected and the order to remain in `checkout-draft` despite
+	a successful payment.
+
 
 = 4.1.8 - 2026-02-27 =
 

@@ -455,6 +455,9 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                 }
 
                 $order->read_meta_data(true);
+                if ( $order->get_status() === 'checkout-draft' ) {
+                    $order->update_status( 'pending', __( 'DNA Payments: Order status changed to pending during payment initiation.', \WC_DNA_Payments::$text_domain ) );
+                }
                 $order->update_meta_data('_dnapayments_state', 'initiated');
                 $order->add_order_note(__( 'DNA Payments: Payment initiated. Awaiting customer action.', \WC_DNA_Payments::$text_domain ));
                 $order->save();

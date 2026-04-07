@@ -47,26 +47,31 @@ final class WC_Gateway_DNA_Payments_Blocks_Support extends WC_Gateway_Base_DNA_P
 	 * @return array $saved_methods Modified saved payment methods.
 	 */
 	public function add_saved_payment_methods( $saved_methods, $customer_id ) {
+		$name   = 'dnapayments';
+		$gateways = WC()->payment_gateways->payment_gateways();
+		$gateway   = isset($gateways[ $name ]) ? $gateways[ $name ] : null;
 
-		$name 		= 'dnapayments';
-		$gateways	= WC()->payment_gateways->payment_gateways();
-		$gateway  	= $gateways[ $name ];
+		$hide_dna_cards = ( isset( $gateway ) && ( ! $gateway->enabled_saved_cards || $gateway->integration_type !== 'seamless' ) );
+		$wallet_gateways = array( 'dnapayments_google_pay', 'dnapayments_apple_pay', 'dnapayments_paypal' );
 
-		// If saved cards are not enabled for the gateway, or the integration type is not "Hosted Fields", then saved card payment options should be hidden in the Checkout page.
-		if ( isset( $saved_methods[ 'cc' ] ) && isset ( $gateway ) && ( ! $gateway->enabled_saved_cards || $gateway->integration_type !== 'seamless')) {
-			$saved_cards 		= $saved_methods[ 'cc' ];
-			$new_saved_cards 	= [];
+		$new_saved_cards = [];
 
-			foreach ( $saved_methods[ 'cc' ] as $item ) {
-				if ( ! $item['method'] || $item['method']['gateway'] !== $name ) {
-					array_push($new_saved_cards, $item);
-				}
+		foreach ( $saved_methods[ 'cc' ] as $item ) {
+			$item_gateway = isset($item['method']['gateway']) ? $item['method']['gateway'] : '';
+
+			if ( in_array( $item_gateway, $wallet_gateways ) ) {
+				continue;
 			}
 
-			$saved_methods[ 'cc' ] = $new_saved_cards;
-			return $saved_methods;
+			if ( $hide_dna_cards && $item_gateway === $name ) {
+				continue;
+			}
+
+			array_push($new_saved_cards, $item);
 		}
 
+		$saved_methods[ 'cc' ] = $new_saved_cards;
+		
 		return $saved_methods;
 	}
 }

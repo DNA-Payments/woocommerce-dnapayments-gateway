@@ -172,7 +172,12 @@ class OrderHelper {
         // Handle settlement
         if ($settled) {
             $new_status = $order->needs_processing() ? 'processing' : 'completed';
-            $order->payment_complete( $transaction_id );
+            if ( ! $order->payment_complete( $transaction_id ) ) {
+                $this->gateway->logger->error( 'Could not complete payment for order #' . $order_id .' with status ' . $status );
+                $order->add_order_note(sprintf(__('DNA Payments: Could not complete payment order with status %s. Source: %s.'), \WC_DNA_Payments::$text_domain), $status, $source);
+                $order->save();
+                throw new \Exception( 'Could not complete payment for order #' . $order_id .' with status ' . $status );
+            }
             $order->add_order_note(sprintf(__( 'DNA Payments: Payment was charged (Transaction ID: %s). Order status updated from %s to %s. Source: %s.', \WC_DNA_Payments::$text_domain ), $transaction_id, ucfirst($status), ucfirst($new_status), $source ));
 
             if ($new_status === 'processing' && 'yes' === $this->gateway->get_option('enable_order_complete')) {

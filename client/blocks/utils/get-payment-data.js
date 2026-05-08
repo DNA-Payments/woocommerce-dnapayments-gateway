@@ -34,7 +34,7 @@ export function getPaymentData(props) {
             },
             billingAddress: getAddress(billing.billingAddress),
             deliveryDetails: {
-                deliveryAddress: getAddress(shippingData.shippingAddress),
+                deliveryAddress: shippingData?.needsShipping ? getAddress(shippingData.shippingAddress) : null,
             },
         },
         amountBreakdown: {

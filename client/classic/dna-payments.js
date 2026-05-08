@@ -17,7 +17,6 @@ import { validate } from './utils/validate'
 import { initPaymentComponent } from './utils/payment-component'
 
 import { fetchPaymentAndAuthData } from '../common/api/fetch-payment-and-auth-data'
-import { isInitFailed } from '../common/payment-component-helper'
 import { completePayment, getOrderIdFromPaymentData } from '../common/complete-payment'
 import { requestActionWithFormData } from '../common/api/request'
 import { tryParse } from '../common/try-parse'
@@ -272,9 +271,7 @@ jQuery(function ($) {
             },
             onError: (message) => {
                 setFormLoading(false)
-                if (paymentMethodId !== GATEWAY_ID_APPLE_PAY || !isInitFailed(err)) {
-                    showError(message, true)
-                }
+                showError(message, true)
             },
         }
 

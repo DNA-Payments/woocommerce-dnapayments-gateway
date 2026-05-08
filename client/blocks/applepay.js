@@ -59,7 +59,7 @@ const dnapaymentsApplePayPaymentMethod = {
     label: <Label />,
     content: <ApplePayButton />,
     edit: <Content />,
-    canMakePayment: () => true,
+    canMakePayment: checkApplePayAvailability,
     ariaLabel: label,
     supports: {
         features: settings?.supports ?? [],
@@ -67,8 +67,4 @@ const dnapaymentsApplePayPaymentMethod = {
     placeOrderButtonLabel: label,
 }
 
-checkApplePayAvailability().then((isAvailable) => {
-    if (isAvailable) {
-        registerPaymentMethod(dnapaymentsApplePayPaymentMethod)
-    }
-})
+registerPaymentMethod(dnapaymentsApplePayPaymentMethod)

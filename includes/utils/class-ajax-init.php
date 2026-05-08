@@ -75,10 +75,17 @@ class AjaxInit {
 		try {
 			$order = wc_get_order( $order_id );
 
+            if ( ! $order instanceof \WC_Order ) {
+                throw new \Exception( 'Order not found' );
+            }
+
             $auth_data = $this->gateway->authDataHelper->get_auth_data_from_order( $order );
             $payment_data = $this->gateway->paymentDataHelper->get_payment_data_from_order( $order, array(
                 'page' => $page,
             ) );
+
+            $order->add_order_note( sprintf( __( 'DNA Payments: Fetched payment and auth data', \WC_DNA_Payments::$text_domain )) );
+            $order->save();
 
 			wp_send_json_success( array(
 				'auth'			=> $auth_data,

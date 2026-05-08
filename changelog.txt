@@ -2,6 +2,15 @@
 
 Changelog
 
+2026-05-08 - version 4.1.10
+
+= Fixes =
+	- Include delivery address in payment data only when shipping is required
+	- Register Apple Pay payment method immediately for block-based checkout, relying on dynamic availability check
+	- Handle order payment completion failure with proper error logging and order notes
+	- Remove incorrect error handling for Apple Pay initialization failures
+
+
 2026-04-02 - version 4.1.9
 
 = Fixes =

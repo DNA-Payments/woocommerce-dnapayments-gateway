@@ -2,6 +2,12 @@
 
 Changelog
 
+2026-06-11 - version 4.2.1
+
+= Fixes =
+	- Fix classic checkout AJAX submission to merge form data when multiple WooCommerce checkout forms are present.
+
+
 2026-02-10 - version 4.2.0
 
 = Features =

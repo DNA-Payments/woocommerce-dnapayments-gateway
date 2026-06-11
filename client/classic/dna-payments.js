@@ -316,6 +316,20 @@ jQuery(function ($) {
         }
     }
 
+    function getCheckoutFormData() {
+        const formData = new FormData()
+
+        $form.each(function () {
+            const currentFormData = new FormData(this)
+
+            currentFormData.forEach((value, key) => {
+                formData.append(key, value)
+            })
+        })
+
+        return formData
+    }
+
     async function fetchPaymentData() {
         if (isPayForOrderPage && getOrderIdFromPaymentData(paymentData) === orderId) {
             return true
@@ -323,7 +337,7 @@ jQuery(function ($) {
 
         const { success, data } = await (isPayForOrderPage
             ? fetchPaymentAndAuthData(orderId, page)
-            : requestActionWithFormData('get_payment_data_from_cart', new FormData($form[0])))
+            : requestActionWithFormData('get_payment_data_from_cart', getCheckoutFormData()))
 
         if (!success) {
             showError(data.errors, true)
@@ -356,7 +370,7 @@ jQuery(function ($) {
 
         const response = await fetch(wc_checkout_params.checkout_url, {
             method: 'POST',
-            body: new FormData($form[0]),
+            body: getCheckoutFormData(),
         })
 
         const result = await response.json()

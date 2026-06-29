@@ -216,6 +216,92 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 	}
 
     /**
+	 * Whether the required API credentials for the selected environment are present.
+	 *
+	 * client_id, client_secret and terminal are already resolved to the active
+	 * (Test or Production) environment in the constructor.
+	 *
+	 * @return bool
+	 */
+	public function has_required_credentials() {
+		return ! empty( $this->client_id )
+			&& ! empty( $this->client_secret )
+			&& ! empty( $this->terminal );
+	}
+
+	/**
+	 * Tell WooCommerce the gateway isn't ready to be enabled until it's configured.
+	 *
+	 * When this returns true, the Payments screen shows "Set up" / "Finish setup"
+	 * instead of the Enable toggle, until the required credentials are filled in for
+	 * the selected (Test or Production) environment.
+	 *
+	 * @return bool
+	 */
+	public function needs_setup() {
+		return ! $this->has_required_credentials();
+	}
+
+	/**
+	 * Whether the gateway is safe to talk to DNA Payments: enabled AND fully configured
+	 * for the selected environment. Gates every outbound auth/token request so the plugin
+	 * never calls DNA while disabled or missing credentials.
+	 *
+	 * @return bool
+	 */
+	public function is_ready() {
+		return 'yes' === $this->enabled && $this->has_required_credentials();
+	}
+
+	/**
+	 * Save admin options. When the gateway is enabled, validate that the required
+	 * credentials exist for the selected environment. Missing fields do NOT block the
+	 * save (the merchant may enable now and configure shortly after) — a warning is
+	 * shown instead. No outbound DNA request can fire in this state because every token
+	 * path is gated by is_ready(), which also checks that credentials are present.
+	 *
+	 * @return bool
+	 */
+	public function process_admin_options() {
+		$saved = parent::process_admin_options();
+
+		if ( 'yes' !== $this->get_option( 'enabled' ) ) {
+			return $saved;
+		}
+
+		$is_test_mode  = 'yes' === $this->get_option( 'is_test_mode' );
+		$client_id     = $is_test_mode ? $this->get_option( 'test_client_id' ) : $this->get_option( 'client_id' );
+		$client_secret = $is_test_mode ? $this->get_option( 'test_client_secret' ) : $this->get_option( 'client_secret' );
+		$terminal      = $is_test_mode ? $this->get_option( 'test_terminal' ) : $this->get_option( 'terminal' );
+
+		$missing = array();
+
+		if ( empty( $client_id ) ) {
+			$missing[] = __( 'Client ID', \WC_DNA_Payments::$text_domain );
+		}
+		if ( empty( $client_secret ) ) {
+			$missing[] = __( 'Client Secret', \WC_DNA_Payments::$text_domain );
+		}
+		if ( empty( $terminal ) ) {
+			$missing[] = __( 'Terminal ID', \WC_DNA_Payments::$text_domain );
+		}
+
+		if ( ! empty( $missing ) ) {
+			$environment = $is_test_mode ? __( 'Test', \WC_DNA_Payments::$text_domain ) : __( 'Production', \WC_DNA_Payments::$text_domain );
+
+			$message = sprintf(
+				__( 'DNA Payments is enabled but not fully configured: the required %1$s field(s) %2$s are empty.', \WC_DNA_Payments::$text_domain ),
+				$environment,
+				implode( ', ', $missing )
+			);
+
+			WC_Admin_Settings::add_error( $message );
+		}
+
+		return $saved;
+	}
+
+	/**
 	 * Check if this gateway is available for use.
 	 *
 	 * @return bool

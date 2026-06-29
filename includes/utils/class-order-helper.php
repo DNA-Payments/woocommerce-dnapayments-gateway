@@ -369,6 +369,10 @@ class OrderHelper {
      * @return array                       ['state', 'id', 'paymentMethod', 'rrn']
      */
     public function get_transaction_info( $order, $transaction_id = null, $user_id = null ) {
+        if ( ! $this->gateway->is_ready() ) {
+            return [ 'state' => '' ];
+        }
+
         $client_token = $this->gateway->dnaPayment->get_client_token(
             $this->gateway->client_id,
             $this->gateway->client_secret

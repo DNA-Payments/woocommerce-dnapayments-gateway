@@ -40,14 +40,17 @@ function get_dnapayments_admin_fields($is_subscriptions_enabled = false) {
         "client_id" => [
             "title" => __("LIVE Client ID", \WC_DNA_Payments::$text_domain),
             "type" => "text",
+            "custom_attributes" => [ "autocomplete" => "off" ],
         ],
         "client_secret" => [
             "title" => __("LIVE Secret ", \WC_DNA_Payments::$text_domain),
             "type" => "password",
+            "custom_attributes" => [ "autocomplete" => "new-password" ],
         ],
         "terminal" => [
             "title" => __("LIVE Terminal ID", \WC_DNA_Payments::$text_domain),
             "type" => "text",
+            "custom_attributes" => [ "autocomplete" => "off" ],
         ],
         "transactionType" => [
             "title" => __("Transaction type", \WC_DNA_Payments::$text_domain),
@@ -130,14 +133,17 @@ function get_dnapayments_admin_fields($is_subscriptions_enabled = false) {
         "test_client_id" => [
             "title" => __("Test Client ID", \WC_DNA_Payments::$text_domain),
             "type" => "text",
+            "custom_attributes" => [ "autocomplete" => "off" ],
         ],
         "test_client_secret" => [
             "title" => __("Test Client secret", \WC_DNA_Payments::$text_domain),
             "type" => "password",
+            "custom_attributes" => [ "autocomplete" => "new-password" ],
         ],
         "test_terminal" => [
             "title" => __("Test Terminal ID", \WC_DNA_Payments::$text_domain),
             "type" => "text",
+            "custom_attributes" => [ "autocomplete" => "off" ],
         ],
         "backLink" => [
             "title" => __("Back link", \WC_DNA_Payments::$text_domain),

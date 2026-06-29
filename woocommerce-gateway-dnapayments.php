@@ -71,6 +71,9 @@ class WC_DNA_Payments {
 		// Register DNA scripts globally for blocks compatibility (runs early)
 		add_action( 'init', array( __CLASS__, 'register_dna_scripts_globally' ) );
 
+		// Conditional "required" indicators on the gateway settings page (test vs live credentials).
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'admin_settings_assets' ) );
+
 		// This hook is used to execute code after all active plugins have fully loaded, 
 		// ensuring that WooCommerce is loaded before executing WooCommerce-specific code.
 		add_action( 'plugins_loaded', array( __CLASS__, 'includes' ), 0 );
@@ -187,6 +190,38 @@ class WC_DNA_Payments {
 	 */
 	public static function plugin_abspath() {
 		return trailingslashit( plugin_dir_path( __FILE__ ) );
+	}
+
+	/**
+	 * Enqueue the admin helper script on the DNA Payments gateway settings page only.
+	 *
+	 * It marks the credential fields as required depending on the "Enable Test Mode"
+	 * checkbox: the Test trio (test_client_id / test_client_secret / test_terminal) when
+	 * test mode is on, otherwise the Live trio (client_id / client_secret / terminal).
+	 *
+	 * @param string $hook Current admin page hook suffix.
+	 * @return void
+	 */
+	public static function admin_settings_assets( $hook ) {
+		if ( 'woocommerce_page_wc-settings' !== $hook ) {
+			return;
+		}
+
+		$tab     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+		$section = isset( $_GET['section'] ) ? sanitize_text_field( wp_unslash( $_GET['section'] ) ) : '';
+
+		// Only on WooCommerce > Settings > Payments > DNA Payments (main card gateway).
+		if ( 'checkout' !== $tab || self::$id !== $section ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'wc-dnapayments-admin-settings',
+			plugins_url( 'assets/admin/admin-settings.js', WC_DNA_MAIN_FILE ),
+			array( 'jquery' ),
+			self::$version,
+			true
+		);
 	}
 
 	/**

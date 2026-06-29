@@ -37,6 +37,10 @@ class AuthDataHelper {
     public function get_auth_data( $invoice_id, $amount, $currency, $source = '' ) {
         $log_context = array( 'invoice_id' => $invoice_id, 'amount' => $amount, 'currency' => $currency, 'source' => $source );
 
+        if ( ! $this->gateway->is_ready() ) {
+            throw new \Exception( 'DNA Payments gateway is disabled or missing credentials; skipping auth token request.' );
+        }
+
         try {
             \DNAPayments\DNAPayments::configure($this->gateway->get_config());
 

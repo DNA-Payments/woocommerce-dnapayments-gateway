@@ -312,6 +312,10 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 			return false;
 		}
 
+		if ( ! $this->has_required_credentials() ) {
+			return false;
+		}
+
 		// Check visibility for non-admin users
 		if ('yes' === $this->hide_for_non_admin_users) {
 			$is_admin = current_user_can('manage_options');
@@ -486,11 +490,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             return;
         }
 
-        if ( 'no' === $this->enabled ) {
-            return;
-        }
-
-        if ( empty( $this->client_id ) || empty( $this->client_secret ) ) {
+        if ( ! $this->is_ready() ) {
             return;
         }
 

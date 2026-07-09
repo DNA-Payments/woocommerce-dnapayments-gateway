@@ -3,8 +3,7 @@ import errors from './errors'
 import { logError } from './log'
 
 export async function createHostedFields({
-    isTestMode,
-    accessToken,
+    env,
     threeDSModal,
     domElements: { number, name, expDate, cvv, cvvToken },
     sendCallbackEveryFailedAttempt = 0,
@@ -60,8 +59,7 @@ export async function createHostedFields({
     }
 
     const options = {
-        isTestMode,
-        accessToken,
+        env,
         styles,
         styleConfig: {
             containerClasses: {

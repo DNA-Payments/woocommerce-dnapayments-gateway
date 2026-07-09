@@ -373,10 +373,7 @@ class OrderHelper {
             return [ 'state' => '' ];
         }
 
-        $client_token = $this->gateway->dnaPayment->get_client_token(
-            $this->gateway->client_id,
-            $this->gateway->client_secret
-        );
+        $client_token = $this->gateway->authDataHelper->get_client_token();
 
         $transactions = $this->gateway->dnaPayment->get_transactions_by_invoice_id(
             $client_token['access_token'],

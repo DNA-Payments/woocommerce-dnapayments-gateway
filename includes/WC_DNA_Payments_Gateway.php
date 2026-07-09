@@ -462,7 +462,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         return array(
             'is_test_mode' => $this->is_test_mode,
             'integration_type' => $this->integration_type,
-            'temp_token' => $this->authDataHelper->get_temp_token(),
             'terminal_id' => $this->terminal,
             'terminal_config' => $this->configHelper->get_terminal_config(),
             'transaction_type' => $this->configHelper->get_transaction_type(),

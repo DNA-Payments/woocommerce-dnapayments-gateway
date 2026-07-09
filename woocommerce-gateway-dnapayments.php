@@ -266,7 +266,7 @@ class WC_DNA_Payments {
 	 */
 	public static function register_dna_scripts_globally() {
 		wp_register_script( 'dna-payment-api', 'https://pay.dnapayments.com/checkout/payment-api.js' , array(), self::$version, true );
-		wp_register_script( 'dna-hosted-fields', 'https://cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), self::$version, true );
+		wp_register_script( 'dna-hosted-fields', 'https://test-pay.dnapayments.com/components/hosted-fields/hosted-fields.js' , array(), self::$version, true );
 		wp_register_script( 'dna-google-pay', 'https://pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-apple-pay', 'https://pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-paypal', 'https://pay.dnapayments.com/components/paypal/paypal-component.js', array('dna-payment-api'), self::$version, true );

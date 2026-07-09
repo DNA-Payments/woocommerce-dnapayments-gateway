@@ -41,7 +41,7 @@ let serializedFormData = null
 let pendingRenderRequest = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, cards, allowSavingCards, placeOrderButtonText } =
+    const { isTestMode, gatewayId, isHostedFields, cards, allowSavingCards, placeOrderButtonText } =
         getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
@@ -240,11 +240,6 @@ jQuery(function ($) {
         }
     })
 
-    if (!tempToken) {
-        globalError = `Authentication failed. Please check that your credentials are correct. If you are using the Hosted Fields integration, make sure it is enabled for your account by your payment provider.`
-        displayError(globalError)
-    }
-
     // On the Pay for Order page, ensure initialization of payment components
     if (isPayForOrderPage || isElementorBased) {
         render({ shouldScrollToError: isFirstRender })
@@ -288,7 +283,7 @@ jQuery(function ($) {
                     containerElement: $container[0],
                     events,
                     paymentData,
-                    token: authData ? authData.access_token : tempToken,
+                    token: authData?.access_token,
                     environment: isTestMode ? 'sandbox' : 'production',
                     terminalId: wc_dna_params.terminal_id,
                 },

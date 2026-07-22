@@ -188,6 +188,10 @@ class AjaxInit {
                 $order = wc_get_order( $order_id );
                 $status = $order->get_status();
                 $message = __( 'Refreshed order data', \WC_DNA_Payments::$text_domain );
+
+                if ( Helper::is_paid_status( $status ) ) {
+                    Helper::empty_cart_and_persist();
+                }
             }
 
             $success = $status !== 'failed';

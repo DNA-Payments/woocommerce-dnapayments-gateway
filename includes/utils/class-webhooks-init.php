@@ -29,8 +29,44 @@ class WebhooksInit {
 
         add_action( 'rest_api_init', array( $this, 'register_routes' ));
         add_action( 'woocommerce_api_' . $this->gateway->id, array( $this, 'handle_payment_return_page' ) );
+        add_action( 'woocommerce_before_thankyou', array( $this, 'handle_order_received_cart_cleanup' ), 5 );
+        add_action( 'shutdown', array( $this, 'prevent_stale_cart_replay_on_shutdown' ), -1 );
 
         self::$hooks_initialized = true;
+    }
+
+    public function prevent_stale_cart_replay_on_shutdown() {
+        $this->prevent_stale_cart_replay();
+    }
+
+    private function prevent_stale_cart_replay() {
+        if (
+            ( is_admin() && ! wp_doing_ajax() )
+            || wp_doing_cron()
+            || ! function_exists( 'WC' )
+            || ! WC()->cart
+            || WC()->cart->is_empty()
+        ) {
+            return;
+        }
+
+        Helper::empty_cart_if_stale_replay_request();
+    }
+
+    /**
+     * Empty the cart on the order-received (thank-you) page once a DNA order is confirmed paid.
+     * Backstop for the checkpoints that run earlier in the async payment flow.
+     */
+    public function handle_order_received_cart_cleanup( $order_id ) {
+        $order = wc_get_order( absint( $order_id ) );
+
+        if ( ! $order || ! Helper::is_dna_payments_order( $order ) ) {
+            return;
+        }
+
+        if ( Helper::is_paid_status( $order->get_status() ) ) {
+            Helper::empty_cart_and_persist();
+        }
     }
 
     public function register_routes() {
@@ -271,6 +307,10 @@ class WebhooksInit {
             if ( ! $order ) {
                 wp_safe_redirect( wc_get_endpoint_url( 'order-received', '', wc_get_checkout_url() ) );
                 exit;
+            }
+
+            if ( $state === 'success' && $order && Helper::is_paid_status( $order->get_status() ) ) {
+                Helper::empty_cart_and_persist();
             }
 
             $return_url = $this->gateway->get_option( $state === 'failed' ? 'failureBackLink' : 'backLink' );

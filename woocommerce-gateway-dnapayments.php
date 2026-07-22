@@ -217,7 +217,7 @@ class WC_DNA_Payments {
 
 		wp_enqueue_script(
 			'wc-dnapayments-admin-settings',
-			plugins_url( 'assets/admin/admin-settings.js', WC_DNA_MAIN_FILE ),
+			plugins_url( 'assets/admin/admin-payment-credential-settings.js', WC_DNA_MAIN_FILE ),
 			array( 'jquery' ),
 			self::$version,
 			true

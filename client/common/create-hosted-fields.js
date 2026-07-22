@@ -4,6 +4,7 @@ import { logError } from './log'
 
 export async function createHostedFields({
     env,
+    terminalId,
     threeDSModal,
     domElements: { number, name, expDate, cvv, cvvToken },
     sendCallbackEveryFailedAttempt = 0,
@@ -60,6 +61,7 @@ export async function createHostedFields({
 
     const options = {
         env,
+        terminalId,
         styles,
         styleConfig: {
             containerClasses: {

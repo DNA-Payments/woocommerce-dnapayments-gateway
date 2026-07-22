@@ -48,7 +48,7 @@ export const DnapaymentsCreditCardFields = ({
     })
 
     const setupIntegration = async () => {
-        const { isTestMode, cards, sendCallbackEveryFailedAttempt, availableSchemes } =
+        const { isTestMode, terminalId, cards, sendCallbackEveryFailedAttempt, availableSchemes } =
             dnaPaymentsSettingsData
         const selectedCard = cards.find((c) => String(c.id) === String(token))
 
@@ -57,6 +57,7 @@ export const DnapaymentsCreditCardFields = ({
         threeDSRef.current = createModal(HOSTED_FIELD_IDS.threeDS)
         hostedFieldsInstance = await createHostedFields({
             env: isTestMode ? 'sandbox' : 'production',
+            terminalId,
             threeDSModal: threeDSRef.current,
             domElements: {
                 number: document.getElementById(HOSTED_FIELD_IDS.number),

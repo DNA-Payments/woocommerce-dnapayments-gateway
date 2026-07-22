@@ -11,18 +11,17 @@ export async function completePayment({
     setLoading = () => {},
     setErrors = () => {},
     page = 'checkout',
+    waitForNavigation = true,
 }) {
     // Helper function to handle redirects while keeping loading state active
     const handleRedirect = (url) => {
         setLoading(true)
+        window.location.href = url
 
-        // Use setTimeout to ensure the loading state remains active during the entire redirection process
-        // This addresses the 4-5 second gap some merchants experience during redirection
-        setTimeout(() => {
-            window.location.href = url
-            // We don't call setLoading(false) here because the page will be unloaded anyway
-            // and we want to keep the loading indicator visible during the entire navigation process
-        }, 100)
+        // Navigation is already in flight; the loading state stays active. Callers that resolve
+        // the checkout themselves (e.g. the Blocks payment component) pass waitForNavigation:false
+        // so they aren't held back by the fallback timeout when navigation is slow/blocked.
+        return waitForNavigation ? new Promise((resolve) => setTimeout(resolve, 5000)) : Promise.resolve()
     }
 
     if (paymentResult) {
@@ -32,8 +31,7 @@ export async function completePayment({
             const { success, data } = await updateOrderStatus(orderId, paymentResult, page)
 
             if (success) {
-                handleRedirect(data.redirect)
-                return
+                return handleRedirect(data.redirect)
             } else {
                 setErrors(data.errors)
                 setLoading(false)
@@ -45,7 +43,7 @@ export async function completePayment({
     }
 
     if (redirect) {
-        handleRedirect(redirect)
+        return handleRedirect(redirect)
     }
 }
 

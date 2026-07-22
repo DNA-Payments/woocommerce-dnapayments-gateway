@@ -4,7 +4,7 @@ import { createModal } from '../../common/create-modal'
 import { getGlobalVariables } from './data'
 
 export const renderHostedFields = async ({ setFormLoading, onSuccess, onError }) => {
-    const { gatewayId, cards, isTestMode, iconPath, sendCallbackEveryFailedAttempt, availableSchemes } =
+    const { gatewayId, cards, isTestMode, terminalId, iconPath, sendCallbackEveryFailedAttempt, availableSchemes } =
         getGlobalVariables()
 
     const $payment_form = jQuery('#wc-' + gatewayId + '-form')
@@ -24,6 +24,7 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError })
     try {
         const hostedFieldsInstance = await createHostedFields({
             env: isTestMode ? 'sandbox' : 'production',
+            terminalId,
             domElements: {
                 name: $payment_form.find('#dna-card-name')[0],
                 number: $payment_form.find('#dna-card-number')[0],

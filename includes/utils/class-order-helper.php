@@ -50,9 +50,8 @@ class OrderHelper {
         }
 
         // Only clear cart if the order status was successfully updated to a paid status
-        if ( in_array($status, ['on-hold', 'processing', 'completed']) ) {
-            // Remove cart
-            WC()->cart->empty_cart();
+        if ( Helper::is_paid_status( $status ) ) {
+            Helper::empty_cart_and_persist();
         }
 
         return $result;
@@ -370,7 +369,7 @@ class OrderHelper {
      */
     public function get_transaction_info( $order, $transaction_id = null, $user_id = null ) {
         if ( ! $this->gateway->is_ready() ) {
-            return [ 'state' => '' ];
+            return [ 'state' => '', 'id' => '', 'paymentMethod' => '', 'rrn' => '' ];
         }
 
         $client_token = $this->gateway->authDataHelper->get_client_token();

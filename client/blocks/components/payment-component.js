@@ -117,6 +117,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                             setLoading: (isLoading) => setLoadingState(isLoading ? 'loading' : 'done'),
                             setErrors,
                             page: 'checkout',
+                            waitForNavigation: false,
                         })
                         resolveCheckoutPromise(redirect)
                     },

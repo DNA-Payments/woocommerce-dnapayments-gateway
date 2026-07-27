@@ -2,6 +2,11 @@
 
 Changelog
 
+2026-07-27 - version 4.2.2
+
+= Fixes = 
+	- Adding a null guard to prevent "Undefined array key storeCardOnFile" PHP warning when processing payments whose confirmation data omits the field
+
 2026-06-11 - version 4.2.1
 
 = Fixes =

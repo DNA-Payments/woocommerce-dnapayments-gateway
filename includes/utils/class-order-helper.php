@@ -134,7 +134,7 @@ class OrderHelper {
 
             // Handle saving card tokens. Status "on-hold" means that add_token already processed
             $is_processed = $new_status !== $status && $status === 'on-hold';
-            $should_add_token = $this->gateway->enabled_saved_cards && ($input['storeCardOnFile'] || $custom_data['store_card_on_file']);
+            $should_add_token = $this->gateway->enabled_saved_cards && ( ! empty( $input['storeCardOnFile'] ) || $custom_data['store_card_on_file'] );
             if ( ! $is_processed && ($should_add_token || $custom_data['allowed_recurring']) ) {
                 $token_result = $this->gateway->paymentTokenHelper->add_token($input, $order->get_payment_method(), (bool) ($custom_data['allowed_recurring'] ?? false));
 

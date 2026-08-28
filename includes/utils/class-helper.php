@@ -12,6 +12,8 @@ class Helper {
     public const META_CARD_LAST4 = '_dnapayments_card_last4';
     public const META_TOKEN = '_dnapayments_payment_token';
     public const META_PAYMENT_METHOD = '_dnapayments_payment_method';
+    public const CART_CLEANUP_OPTION_PREFIX = 'dna_payments_cart_cleared_';
+    public const CART_CLEANUP_REPLAY_WINDOW = 300;
 
     /**
      * Safely gets a sanitized string value from $_POST.
@@ -285,6 +287,178 @@ class Helper {
     }
 
     /**
+     * Whether an order status counts as "paid" for cart-cleanup purposes.
+     *
+     * @param string $status Order status slug (without the "wc-" prefix).
+     * @return bool
+     */
+    public static function is_paid_status( $status ): bool {
+        return in_array( $status, array( 'on-hold', 'processing', 'completed' ), true );
+    }
+
+    public static function get_request_started_at(): float {
+        if ( isset( $_SERVER['REQUEST_TIME_FLOAT'] ) ) {
+            return (float) $_SERVER['REQUEST_TIME_FLOAT'];
+        }
+
+        if ( isset( $_SERVER['REQUEST_TIME'] ) ) {
+            return (float) $_SERVER['REQUEST_TIME'];
+        }
+
+        return microtime( true );
+    }
+
+    public static function get_recent_cart_cleanup_time(): float {
+        $cleared_at = self::get_cart_cleanup_option_time();
+
+        if ( ! $cleared_at || microtime( true ) - $cleared_at > self::CART_CLEANUP_REPLAY_WINDOW ) {
+            return 0.0;
+        }
+
+        return $cleared_at;
+    }
+
+    private static function get_cart_cleanup_option_time(): float {
+        $option_name = self::get_cart_cleanup_option_name();
+        if ( ! $option_name ) {
+            return 0.0;
+        }
+
+        return self::get_cart_cleanup_option_time_from_db( $option_name );
+    }
+
+    private static function get_cart_cleanup_option_time_from_db( string $option_name ): float {
+        global $wpdb;
+
+        if ( ! $wpdb ) {
+            return 0.0;
+        }
+
+        return (float) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+                $option_name
+            )
+        );
+    }
+
+    public static function is_stale_cart_replay_request(): bool {
+        $cleared_at = self::get_recent_cart_cleanup_time();
+
+        return $cleared_at && self::get_request_started_at() < $cleared_at;
+    }
+
+    public static function empty_cart_if_stale_replay_request(): bool {
+        if (
+            ! self::is_stale_cart_replay_request()
+            || ! function_exists( 'WC' )
+            || ! WC()->cart
+            || WC()->cart->is_empty()
+        ) {
+            return false;
+        }
+
+        return self::empty_cart_and_persist();
+    }
+
+    private static function remember_cart_cleanup_time(): void {
+        $option_name = self::get_cart_cleanup_option_name();
+        if ( ! $option_name ) {
+            return;
+        }
+
+        self::set_cart_cleanup_option_time( $option_name, microtime( true ) );
+        self::delete_expired_cart_cleanup_options();
+    }
+
+    private static function set_cart_cleanup_option_time( string $option_name, float $cleared_at ): void {
+        global $wpdb;
+
+        if ( ! $wpdb ) {
+            return;
+        }
+
+        $wpdb->replace(
+            $wpdb->options,
+            array(
+                'option_name'  => $option_name,
+                'option_value' => (string) $cleared_at,
+                'autoload'     => 'no',
+            ),
+            array( '%s', '%s', '%s' )
+        );
+    }
+
+    private static function delete_expired_cart_cleanup_options(): void {
+        global $wpdb;
+
+        if ( ! $wpdb ) {
+            return;
+        }
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s AND CAST(option_value AS DECIMAL(20,6)) < %f",
+                $wpdb->esc_like( self::CART_CLEANUP_OPTION_PREFIX ) . '%',
+                microtime( true ) - self::CART_CLEANUP_REPLAY_WINDOW
+            )
+        );
+    }
+
+    private static function get_cart_cleanup_option_name(): string {
+        $customer_id = '';
+
+        if ( function_exists( 'WC' ) && WC()->session ) {
+            $customer_id = method_exists( WC()->session, 'get_customer_id' )
+                ? (string) WC()->session->get_customer_id()
+                : '';
+        }
+
+        if ( ! $customer_id && get_current_user_id() ) {
+            $customer_id = 'user_' . get_current_user_id();
+        }
+
+        if ( ! $customer_id ) {
+            return '';
+        }
+
+        return self::CART_CLEANUP_OPTION_PREFIX . md5( $customer_id );
+    }
+
+    public static function empty_cart_and_persist(): bool {
+        if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+            return false;
+        }
+
+        /*
+         * empty_cart() already handles most of the teardown for us: it fires
+         * woocommerce_cart_emptied -> destroy_cart_session() (which nulls every cart session
+         * key) and calls persistent_cart_destroy() (which deletes _woocommerce_persistent_cart_).
+         * Cart cookies are refreshed for an empty cart by WC core on shutdown. So we only need to
+         * add what WC core does NOT do below.
+         */
+        WC()->cart->empty_cart();
+        self::remember_cart_cleanup_time();
+
+        if ( WC()->session ) {
+            /*
+             * destroy_cart_session() leaves the session 'cart' key as null. On the next request
+             * WC_Cart_Session::get_cart_from_session() treats a null cart as "merge the saved
+             * persistent cart back in" (WC core, class-wc-cart-session.php ~line 118), which can
+             * resurrect a just-cleared cart. An empty array is unambiguously "empty cart" and
+             * skips that merge branch entirely.
+             */
+            WC()->session->set( 'cart', array() );
+
+            if ( method_exists( WC()->session, 'save_data' ) ) {
+                WC()->session->save_data();
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Check if the given order was placed using one of DNA Payments' gateways.
      *
      * @param \WC_Order $order WooCommerce order instance.
@@ -300,6 +474,9 @@ class Helper {
             'dnapayments_google_pay',
             'dnapayments_apple_pay',
             'dnapayments_paypal',
-        ]);
+            'dnapayments_alipay',
+            'dnapayments_wechat_pay',
+            'dnapayments_alipay_plus',
+        ], true);
     }
 }

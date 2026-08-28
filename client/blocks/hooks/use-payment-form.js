@@ -112,6 +112,7 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                                 paymentResult: result.data,
                                 redirect: result.redirect,
                                 page: 'checkout',
+                                waitForNavigation: false,
                             }).finally(() => {
                                 resolve(
                                     !result.error

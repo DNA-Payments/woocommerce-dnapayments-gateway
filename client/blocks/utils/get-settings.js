@@ -11,7 +11,6 @@ const autoRedirectDelayInMs =
 export const dnaPaymentsSettingsData = {
     isTestMode: settings.is_test_mode,
     integrationType: settings.integration_type,
-    tempToken: settings.temp_token,
     terminalId: settings.terminal_id,
     allowSavingCards: settings.allow_saving_cards,
     sendCallbackEveryFailedAttempt: Number(settings.send_callback_every_failed_attempt),

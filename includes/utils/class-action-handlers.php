@@ -170,6 +170,10 @@ class ActionHandlers {
             return $cancel;
         }
 
+        if ( ! $this->gateway->is_ready() ) {
+            return $cancel;
+        }
+
         if ( $this->gateway->orderHelper->get_order_state($order) !== 'initiated' ) {
             return $cancel;
         }

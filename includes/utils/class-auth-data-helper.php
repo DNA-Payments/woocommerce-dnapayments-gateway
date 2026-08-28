@@ -6,19 +6,12 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-use WCPG_DNA_Payments\Utils\Helper;
-
 class AuthDataHelper {
 
 	/**
      * @var WC_DNA_Payments_Gateway
      */
     public $gateway;
-
-    /**
-     * @var string|null Temporary authentication token
-     */
-    public $temp_token = null;
 
     public function __construct( $gateway ) {
         $this->gateway = $gateway;
@@ -36,6 +29,10 @@ class AuthDataHelper {
      */
     public function get_auth_data( $invoice_id, $amount, $currency, $source = '' ) {
         $log_context = array( 'invoice_id' => $invoice_id, 'amount' => $amount, 'currency' => $currency, 'source' => $source );
+
+        if ( ! $this->gateway->is_ready() ) {
+            throw new \Exception( 'DNA Payments gateway is disabled or missing credentials; skipping auth token request.' );
+        }
 
         try {
             \DNAPayments\DNAPayments::configure($this->gateway->get_config());
@@ -91,26 +88,21 @@ class AuthDataHelper {
     }
 
     /**
-     * Fetches a temporary authentication token
-     * Uses current timestamp as invoice ID and zero amount in GBP currency
-     * 
-     * @return string|null Authentication token or null if request fails
+     * Fetches a client-credentials access token
+     *
+     * @return array Auth data containing 'access_token'
+     * @throws \Exception If the gateway isn't ready or the request fails
      */
-    public function fetch_temp_token() {
-        return $this->get_auth_data_with_try( Helper::build_invoice_id_with_prefix('temp'), 0, 'GBP' )['access_token'];
-    }
-
-    /**
-     * Gets a temporary authentication token
-     * Returns cached token if available, otherwise fetches a new one
-     * 
-     * @return string|null Authentication token or null if request fails
-     */
-    public function get_temp_token() {
-        if ( $this->temp_token === null ) {
-            $this->temp_token = $this->fetch_temp_token();
+    public function get_client_token() {
+        if ( ! $this->gateway->is_ready() ) {
+            throw new \Exception( 'DNA Payments gateway is disabled or missing credentials; skipping client token request.' );
         }
-        
-        return $this->temp_token;
+
+        \DNAPayments\DNAPayments::configure( $this->gateway->get_config() );
+
+        return $this->gateway->dnaPayment->get_client_token(
+            $this->gateway->client_id,
+            $this->gateway->client_secret
+        );
     }
 }

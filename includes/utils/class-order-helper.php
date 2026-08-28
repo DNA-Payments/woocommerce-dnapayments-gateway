@@ -50,9 +50,8 @@ class OrderHelper {
         }
 
         // Only clear cart if the order status was successfully updated to a paid status
-        if ( in_array($status, ['on-hold', 'processing', 'completed']) ) {
-            // Remove cart
-            WC()->cart->empty_cart();
+        if ( Helper::is_paid_status( $status ) ) {
+            Helper::empty_cart_and_persist();
         }
 
         return $result;
@@ -369,10 +368,11 @@ class OrderHelper {
      * @return array                       ['state', 'id', 'paymentMethod', 'rrn']
      */
     public function get_transaction_info( $order, $transaction_id = null, $user_id = null ) {
-        $client_token = $this->gateway->dnaPayment->get_client_token(
-            $this->gateway->client_id,
-            $this->gateway->client_secret
-        );
+        if ( ! $this->gateway->is_ready() ) {
+            return [ 'state' => '', 'id' => '', 'paymentMethod' => '', 'rrn' => '' ];
+        }
+
+        $client_token = $this->gateway->authDataHelper->get_client_token();
 
         $transactions = $this->gateway->dnaPayment->get_transactions_by_invoice_id(
             $client_token['access_token'],

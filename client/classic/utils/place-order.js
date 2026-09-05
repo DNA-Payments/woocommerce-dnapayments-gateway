@@ -4,6 +4,14 @@ import { payHostedFields } from '../../common/pay-hosted-fields'
 import { getSubscriptionPaymentMethods, hasSubscription, getSubscriptionVerificationConfig } from '../../common/subscription'
 import { shouldHideOrderLines } from '../../common/validater'
 import { getGlobalVariables } from './data'
+import {
+    getFieldDecline,
+    getValidationEvents,
+    publishOrderId,
+    setLastDeclineReason,
+    takeLastDeclineReason,
+    traceGate,
+} from '../../common/validators'
 
 export const createPlaceOrder = ({
     page,
@@ -16,26 +24,48 @@ export const createPlaceOrder = ({
     onComplete,
 }) =>
     debounce(async (hostedFieldsInstance) => {
-        const { isTestMode, integrationType, terminalConfig, autoRedirectDelayInMs } = getGlobalVariables()
+        const { isTestMode, integrationType, terminalConfig, autoRedirectDelayInMs, paymentMethodsSettings } =
+            getGlobalVariables()
 
         setFormLoading(true)
 
         if (integrationType === 'seamless') {
             const { isValid } = await hostedFieldsInstance.validate()
             if (!isValid) {
-                cardError.show(errors.CARD_DETAILS_INVALID.message)
+                // Prefer the reason the card was refused; see the blocks equivalent.
+                const decline = getFieldDecline()
+
+                cardError.show(decline ? decline.message : errors.CARD_DETAILS_INVALID.message)
                 return setFormLoading(false)
             }
         }
 
-        const { paymentData, auth } = (await fetchPaymentData()) || {}
+        const { paymentData, auth, paymentMethodsSettings: freshSettings } = (await fetchPaymentData()) || {}
 
         if (!paymentData || !auth) {
             return setFormLoading(false)
         }
 
+        publishOrderId(paymentData)
+
+        // Prefer the rules recomputed alongside this payload; they reflect the final order.
+        const acceptanceRules = freshSettings || paymentMethodsSettings
+
         if (shouldHideOrderLines(terminalConfig) && paymentData?.orderLines) {
             delete paymentData.orderLines
+        }
+
+        const validationEvents = getValidationEvents('events')
+
+        // The embedded widget renders no failure screen for wallet declines: it calls
+        // `declined` instead, with no reason attached. Keep our own reason so it can be shown.
+        const wrappedValidationEvents = validationEvents && {
+            onCardNumberValidate: validationEvents.onCardNumberValidate,
+            onValidate: async (context) => {
+                const decision = await validationEvents.onValidate(context)
+                setLastDeclineReason(decision === true ? null : decision?.reason)
+                return decision
+            },
         }
 
         const events =
@@ -44,14 +74,30 @@ export const createPlaceOrder = ({
                       paid: () => {
                           setFormLoading(true)
                       },
+                      declined: () => {
+                          const reason = takeLastDeclineReason()
+                          traceGate('DNA Checkout -> events.declined() fired', reason || '(no reason from our rule)')
+                          if (reason) {
+                              cardError.show(reason)
+                          }
+                      },
+                      ...wrappedValidationEvents,
                   }
-                : undefined
+                : wrappedValidationEvents
 
         const config = {
             isTestMode,
             cards,
             allowSavingCards,
             events,
+        }
+
+        // Omit the key entirely when there are no rules, so the terminal config applies.
+        if (acceptanceRules && Object.keys(acceptanceRules).length) {
+            config.paymentMethodsSettings = acceptanceRules
+            traceGate('DNA Checkout -> configure({ paymentMethodsSettings }) [' + integrationType + ']: acceptance rules applied', acceptanceRules)
+        } else {
+            traceGate('DNA Checkout -> configure() [' + integrationType + ']: no acceptance rules, terminal configuration applies')
         }
 
         if (autoRedirectDelayInMs) {
@@ -74,9 +120,22 @@ export const createPlaceOrder = ({
             case 'seamless': {
                 const result = await payHostedFields(hostedFieldsInstance, paymentData, auth)
 
+                // Stop here on failure rather than falling through. onComplete() happens to
+                // be harmless for an error result today, but only because payHostedFields
+                // never returns `data` alongside `error` - an invariant nothing enforces.
                 if (result.error) {
-                    setFormLoading(false)
                     cardError.show(result.error)
+
+                    // CLOSE_TRANSACTION is the one failure that still navigates, to the
+                    // gateway's failure page; keep the mask up while the browser leaves.
+                    if (result.redirect) {
+                        setFormLoading(true)
+                        window.location.href = result.redirect
+                        break
+                    }
+
+                    setFormLoading(false)
+                    break
                 }
 
                 if (onComplete) {

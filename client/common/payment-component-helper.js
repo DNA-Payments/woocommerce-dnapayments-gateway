@@ -6,6 +6,12 @@ export function getPaymentComponentErrorMessage(err, initErrorMessage) {
     logError(err)
     let message = ''
 
+    // A funding-type decline carries the normalised decision object in additionalInfo,
+    // which has a `reason` rather than a `message`, so read it explicitly.
+    if (isFundingDeclined(err)) {
+        return err.additionalInfo?.reason || err.message || errors.CARD_PAYMENT_FAIL.message
+    }
+
     // TODO: rejected text in additionalInfo
     if (typeof err.additionalInfo === 'string') {
         message = err.additionalInfo
@@ -25,6 +31,8 @@ export function getPaymentComponentErrorMessage(err, initErrorMessage) {
 }
 
 export const isInitFailed = (err) => [1002, 1003].includes(err.code) // Failed to initialize / validate the Google / Apple Pay button
+
+export const isFundingDeclined = (err) => err?.code === 1011 // FUNDING_DECLINED_BY_MERCHANT
 
 export const isProcessFailed = (err) => [1005].includes(err.code) // Failed to process the Google Pay / Apple Pay payment
 
@@ -82,4 +90,46 @@ export const getPaymentComponentObject = (paymentMethodId) => {
         default:
             return null
     }
+}
+
+const WALLET_SETTINGS_KEY = {
+    [GATEWAY_ID_APPLE_PAY]: 'applepay',
+    [GATEWAY_ID_GOOGLE_PAY]: 'googlepay',
+}
+
+/**
+ * Map the server-supplied acceptance rules onto the shape a wallet component reads.
+ *
+ * The wallet components take the merchant-side funding rules as FLAT keys on the object
+ * passed to init() - the same object they read `environment` from. The nested
+ * `paymentMethodsSettings` shape is how they read the *terminal* configuration fetched from
+ * DNA, so anything nested we pass from the page is simply ignored. Merchant values win over
+ * the terminal ones.
+ *
+ * This is what narrows the wallet sheet: Google Pay turns the list into
+ * `allowCreditCards` / `allowPrepaidCards`, Apple Pay into `merchantCapabilities`.
+ *
+ * Returns null for PayPal, Alipay and WeChat Pay - they carry no card BIN, so there is
+ * nothing to restrict and nothing to send.
+ */
+export const getWalletFundingConfig = (paymentMethodsSettings, paymentMethodId) => {
+    const key = WALLET_SETTINGS_KEY[paymentMethodId]
+
+    if (!key || !paymentMethodsSettings) {
+        return null
+    }
+
+    const rules = paymentMethodsSettings[key] || paymentMethodsSettings.bankCard
+
+    if (!rules || !Array.isArray(rules.acceptedCardFundingTypes) || !rules.acceptedCardFundingTypes.length) {
+        return null
+    }
+
+    const config = { acceptedCardFundingTypes: rules.acceptedCardFundingTypes }
+
+    if (rules.acceptedCardFundingTypesErrorMessage) {
+        config.acceptedCardFundingTypesErrorMessage = rules.acceptedCardFundingTypesErrorMessage
+    }
+
+    return config
 }

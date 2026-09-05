@@ -17,6 +17,37 @@ class PaymentDataHelper {
         $this->gateway = $gateway;
     }
 
+    /**
+     * Apply the public payment-data filter.
+     *
+     * Companion plugins use this to inject or adjust fields on any payment payload the
+     * gateway builds, without needing to know which flow produced it.
+     *
+     * @since 4.3.0
+     *
+     * @param array $payment_data Payload about to be handed to the DNA SDK.
+     * @param array $context      'source' => order|cart|customer, plus the objects available
+     *                            for that source, the current page, and the gateway id.
+     * @return array
+     */
+    private function filter_payment_data( array $payment_data, array $context ) {
+        $context = array_merge(
+            array(
+                'source'     => '',
+                'order'      => null,
+                'cart'       => null,
+                'customer'   => null,
+                'page'       => '',
+                'gateway_id' => isset( $this->gateway->id ) ? $this->gateway->id : \WC_DNA_Payments::$id,
+            ),
+            $context
+        );
+
+        $filtered = apply_filters( 'dnapayments_payment_data', $payment_data, $context );
+
+        return is_array( $filtered ) ? $filtered : $payment_data;
+    }
+
     public function get_payment_data_from_order( \WC_Order $order, $options = array() ) {
         $store_card_on_file = isset( $options['store_card_on_file'] ) ? (bool) $options['store_card_on_file'] : false;
         $invoice_id = isset( $options['invoice_id'] ) ? $options['invoice_id'] : null;
@@ -83,15 +114,21 @@ class PaymentDataHelper {
 
         $payment_data['merchantCustomData'] = json_encode( $merchant_custom_data );
 
+        $filter_context = array(
+            'source' => 'order',
+            'order'  => $order,
+            'page'   => $page,
+        );
+
         if ( $is_change_payment_method || ($has_subscription && floatval( $payment_data['amount'] ) == 0) ) {
             $payment_data['transactionType'] = 'VERIFICATION';
 
-            return $payment_data;
+            return $this->filter_payment_data( $payment_data, $filter_context );
         } 
 
         $this->update_transaction_type( $payment_data );    
 
-        return $payment_data;
+        return $this->filter_payment_data( $payment_data, $filter_context );
     }
 
     public function get_payment_data_from_cart( \WC_Checkout $checkout, \WC_Cart $cart, \WC_Customer $customer ) {
@@ -120,7 +157,16 @@ class PaymentDataHelper {
         ];
 
         $this->update_transaction_type( $payment_data );
-        return $payment_data;
+
+        return $this->filter_payment_data(
+            $payment_data,
+            array(
+                'source'   => 'cart',
+                'cart'     => $cart,
+                'customer' => $customer,
+                'page'     => $this->get_current_payment_page(),
+            )
+        );
     }
 
     /**
@@ -169,7 +215,7 @@ class PaymentDataHelper {
      * @return array Payment data payload used to initiate the card-addition flow.
      */
     public function get_payment_data_from_customer( \WC_Customer $customer, $invoice_id ) {
-        return [
+        $payment_data = [
             'transactionType'   => 'VERIFICATION',
             'invoiceId'         => $invoice_id,
             'description'       => 'Add card to ' . get_bloginfo('name'),
@@ -199,6 +245,15 @@ class PaymentDataHelper {
                 ]
             ]
         ];
+
+        return $this->filter_payment_data(
+            $payment_data,
+            array(
+                'source'   => 'customer',
+                'customer' => $customer,
+                'page'     => 'add_payment_method',
+            )
+        );
     }
 
     private function update_transaction_type( &$payment_data ) {

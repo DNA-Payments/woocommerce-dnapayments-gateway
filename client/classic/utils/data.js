@@ -13,9 +13,11 @@ export function getGlobalVariables() {
     const sendCallbackEveryFailedAttempt = Number(wc_dna_params.send_callback_every_failed_attempt)
     const availableSchemes = wc_dna_params.available_schemes || []
     const iconPath = wc_dna_params.card_scheme_icon_path
+    const terminalId = wc_dna_params.terminal_id
     const terminalConfig = wc_dna_params.terminal_config
     const transactionType = wc_dna_params.transaction_type
     const placeOrderButtonText = (wc_dna_params.placeOrderButtonText || '').trim()
+    const paymentMethodsSettings = wc_dna_params.payment_methods_settings || null
 
     const parsedAutoRedirectDelay = Number(wc_dna_params.auto_redirect_delay_in_ms)
     const autoRedirectDelayInMs =
@@ -35,10 +37,12 @@ export function getGlobalVariables() {
         availableSchemes,
         iconPath,
         tempToken,
+        terminalId,
         terminalConfig,
         transactionType,
         placeOrderButtonText,
         autoRedirectDelayInMs,
+        paymentMethodsSettings,
     }
 }
 

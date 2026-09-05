@@ -80,6 +80,22 @@ class AjaxInit {
                 throw new \Exception( 'Order not found' );
             }
 
+            // Mirror the veto applied in process_payment(); this flow bypasses it entirely.
+            $can_process = apply_filters(
+                'dnapayments_can_process_payment',
+                true,
+                $order,
+                array(
+                    'gateway_id'        => $this->gateway->id,
+                    'page'              => $page,
+                    'is_block_checkout' => false,
+                )
+            );
+
+            if ( is_wp_error( $can_process ) ) {
+                throw new \Exception( $can_process->get_error_message() );
+            }
+
 			$auth_data = $page === 'change_payment_method'
                 ? $this->gateway->authDataHelper->get_auth_data( $invoice_id, 0.0, $order->get_currency() ) 
                 : $this->gateway->authDataHelper->get_auth_data_from_order( $order );
@@ -95,6 +111,11 @@ class AjaxInit {
 			wp_send_json_success( array(
 				'auth'			=> $auth_data,
 				'paymentData'	=> $payment_data,
+				'paymentMethodsSettings' => $this->gateway->get_payment_methods_settings( array(
+					'source' => 'order',
+					'order'  => $order,
+					'page'   => $page,
+				) ),
 			) );
 		} catch (\Exception $e) {
             // Log the error
@@ -124,7 +145,11 @@ class AjaxInit {
             }
 
             wp_send_json_success( array(
-                'paymentData' => $this->gateway->paymentDataHelper->get_payment_data_from_cart( $checkout, $cart, $customer )
+                'paymentData' => $this->gateway->paymentDataHelper->get_payment_data_from_cart( $checkout, $cart, $customer ),
+                'paymentMethodsSettings' => $this->gateway->get_payment_methods_settings( array(
+                    'source' => 'cart',
+                    'cart'   => $cart,
+                ) ),
             ) );
         } catch (\Exception $e) {
             // Log the error

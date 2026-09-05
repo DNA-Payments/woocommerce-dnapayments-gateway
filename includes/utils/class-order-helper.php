@@ -210,6 +210,22 @@ class OrderHelper {
         $order->update_meta_data('rrn', $input['rrn'] ?? '');
         $order->update_meta_data('payment_method', $input['paymentMethod'] ?? '');
 
+        /**
+         * Fires once a DNA payment has been recorded as complete, before the order is saved.
+         *
+         * Runs on every confirmation path (webhook, AJAX result, subscription renewal), so a
+         * listener sees each successful payment exactly once. Meta written here rides the
+         * single $order->save() below - do not call $order->save() from a listener.
+         *
+         * @since 4.3.0
+         *
+         * @param \WC_Order $order   Order being completed.
+         * @param array     $input   Raw DNA payment result / webhook payload.
+         * @param bool      $settled Whether the payment is settled (charged) or authorized.
+         * @param string    $source  Origin of the call, e.g. webhook or update_order_status.
+         */
+        do_action( 'dnapayments_payment_completed', $order, $input, $settled, $source );
+
         $manage_stock_option = get_option('woocommerce_manage_stock');
         // if the order status changed from pending to processing (on-hold), woocommerce automatically reduces stock
         if ($manage_stock_option !== 'yes' || $status !== 'pending') {

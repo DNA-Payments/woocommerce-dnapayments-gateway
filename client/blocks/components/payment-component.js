@@ -8,7 +8,8 @@ import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
 import { addGatewayId, setNonces } from '../../common/utils'
 import { GATEWAY_ID_APPLE_PAY } from '../../common/constants'
-import { getPaymentComponentErrorMessage, isInitFailed } from '../../common/payment-component-helper'
+import { getPaymentComponentErrorMessage, isInitFailed, getWalletFundingConfig } from '../../common/payment-component-helper'
+import { getValidationEvents, traceGate } from '../../common/validators'
 
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
@@ -39,7 +40,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     // resolve and reject of onCheckoutSuccess
     const checkoutPromiseRef = useRef()
 
-    const { tempToken, isTestMode, terminalId } = dnaPaymentsSettingsData
+    const { tempToken, isTestMode, terminalId, paymentMethodsSettings } = dnaPaymentsSettingsData
 
     const paymentDataJSON = useMemo(() => {
         try {
@@ -93,10 +94,23 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
             containerRef.current.innerHTML = ''
 
             componentInstance.isLoaded = false
+            const fundingConfig = getWalletFundingConfig(paymentMethodsSettings, gatewayId)
+
+            traceGate(
+                fundingConfig
+                    ? 'Wallet -> ' + gatewayId + '.init(): card acceptance rules applied'
+                    : 'Wallet -> ' + gatewayId + '.init(): no acceptance rules sent, terminal configuration applies',
+                fundingConfig || undefined
+            )
+
             componentInstance.init({
                 containerElement: containerRef.current,
                 paymentData: draftPaymentDataRef.current,
+                // Flat keys: the merchant-side contract the wallet components read. Omitted
+                // entirely when there are no rules, so terminal configuration applies.
+                ...(fundingConfig || {}),
                 events: {
+                    ...getValidationEvents('wallet'),
                     onClick: () => {
                         setErrors([])
                         setLoadingState('loading')

@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.2.3
+Stable tag: 4.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -75,10 +75,12 @@ For support, please contact DNA Payments directly through their website at https
 
 == Changelog ==
 
-= 4.2.3 - 2026-08-27 =
-
-= Fixes = 
-	- Adding a null guard to prevent "Undefined property: stdClass::$orderId" PHP warning when processing webhooks whose merchant custom data omits the field
+= 4.3.0 - 2026-08-25 =
+* Feature - Public extension hook API (`dnapayments_payment_data`, `dnapayments_payment_methods_settings`, `dnapayments_can_process_payment`, `dnapayments_payment_completed`, `dnapayments_card_info`, `dnapayments_token_extra_data`) for companion plugins.
+* Feature - DNA funding-type validation across Hosted Fields, DNA Checkout and the Apple Pay / Google Pay components via `window.wcDnaPayments.validators`.
+* Tweak - Show the merchant decline reason for funding-type declines, including from the embedded widget.
+* Tweak - Await `selectCard()` so a declined saved card reports an error instead of rejecting unhandled.
+* Fix - Load Hosted Fields from `pay.dnapayments.com`, which serves the current build.
 
 = 4.2.2 - 2026-07-27 =
 

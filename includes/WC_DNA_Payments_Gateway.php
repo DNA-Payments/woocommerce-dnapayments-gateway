@@ -359,6 +359,48 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
     }
 
     /**
+     * Build the DNA `paymentMethodsSettings` object for the current context.
+     *
+     * Returns an empty array unless a companion plugin supplies rules, in which case the
+     * value is merged into `DNAPayments.configure()` and `hostedFields.create({ config })`
+     * on the client. Card acceptance rules require the CONFIGURATION capability on the
+     * terminal; without it DNA ignores anything passed from the page.
+     *
+     * @since 4.3.0
+     *
+     * @param array $context Optional context: 'source', 'order', 'cart', 'page'.
+     * @return array
+     */
+    public function get_payment_methods_settings( $context = array() ) {
+        $context = array_merge(
+            array(
+                'source'     => 'cart',
+                'order'      => null,
+                'cart'       => null,
+                'page'       => $this->paymentDataHelper->get_current_payment_page(),
+                'gateway_id' => $this->id,
+            ),
+            $context
+        );
+
+        /**
+         * Filter the DNA card acceptance rules sent with this payment.
+         *
+         * Shape mirrors the DNA SDK, e.g.
+         * [ 'bankCard' => [ 'acceptedCardFundingTypes' => [ 'DEBIT', 'PREPAID' ],
+         *                   'acceptedCardFundingTypesErrorMessage' => '...' ] ]
+         *
+         * @since 4.3.0
+         *
+         * @param array $settings Acceptance rules, empty by default.
+         * @param array $context  Context describing the payment being prepared.
+         */
+        $settings = apply_filters( 'dnapayments_payment_methods_settings', array(), $context );
+
+        return is_array( $settings ) ? $settings : array();
+    }
+
+    /**
      * Returns the settings data exposed to the frontend JavaScript.
      *
      * Overrides the method from WC_Gateway_Abstract_Dnapayments.
@@ -388,6 +430,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             'auto_redirect_delay_in_ms' => $this->get_option( 'autoRedirectDelayInMs', '' ),
             'nonces' => $this->ajaxInit->get_nonces(),
             'page' => $this->paymentDataHelper->get_current_payment_page(),
+            'payment_methods_settings' => $this->get_payment_methods_settings(),
         );
     }
 
@@ -469,6 +512,34 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             $order = wc_get_order( $order_id );
             $result_string = Helper::get_posted_value('wc-' . $this->id . '-result');
 
+            /**
+             * Allow companion plugins to veto a payment before anything is sent to DNA.
+             *
+             * Runs before the payment payload is built and before the order is marked as
+             * initiated, so a veto leaves the order exactly as a declined payment would.
+             * Return a WP_Error to block; its message is shown to the customer.
+             *
+             * @since 4.3.0
+             *
+             * @param true|\WP_Error $can_process Whether the payment may proceed.
+             * @param \WC_Order      $order       Order being paid.
+             * @param array          $context     'gateway_id', 'page', 'is_block_checkout'.
+             */
+            $can_process = apply_filters(
+                'dnapayments_can_process_payment',
+                true,
+                $order,
+                array(
+                    'gateway_id'        => $this->id,
+                    'page'              => $this->paymentDataHelper->get_current_payment_page(),
+                    'is_block_checkout' => WC()->is_rest_api_request(),
+                )
+            );
+
+            if ( is_wp_error( $can_process ) ) {
+                throw new \Exception( $can_process->get_error_message() );
+            }
+
             // Check if this is a block-based checkout (REST API request)
             $is_block_checkout = WC()->is_rest_api_request();
             $page = $this->paymentDataHelper->get_current_payment_page();
@@ -512,6 +583,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                     'auth'          => json_encode($auth_data),
                     'token'         => $auth_data['access_token'],
                     'nonces'        => json_encode($this->ajaxInit->get_nonces()),
+                    'paymentMethodsSettings' => json_encode( $this->get_payment_methods_settings( array(
+                        'source' => 'order',
+                        'order'  => $order,
+                        'page'   => $page,
+                    ) ) ),
                 ); 
             }
 

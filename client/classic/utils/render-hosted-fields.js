@@ -3,17 +3,28 @@ import { createHostedFields } from '../../common/create-hosted-fields'
 import { createModal } from '../../common/create-modal'
 import { getGlobalVariables } from './data'
 
-export const renderHostedFields = async ({ setFormLoading, onSuccess, onError }) => {
-    const { gatewayId, cards, isTestMode, iconPath, sendCallbackEveryFailedAttempt, tempToken, availableSchemes } =
-        getGlobalVariables()
+export const renderHostedFields = async ({ setFormLoading, onSuccess, onError, force = false }) => {
+    const {
+        gatewayId,
+        cards,
+        isTestMode,
+        iconPath,
+        sendCallbackEveryFailedAttempt,
+        tempToken,
+        availableSchemes,
+        paymentMethodsSettings,
+        terminalId,
+    } = getGlobalVariables()
 
     const $payment_form = jQuery('#wc-' + gatewayId + '-form')
     const $card_form = $payment_form.find('.wc-credit-card-form')
     const $payment_token = $payment_form.find('input[name="wc-' + gatewayId + '-payment-token"]')
     const $tokenized_cvc = $payment_form.find('#dna-card-cvc-token-container')
 
-    // If the element exists and contains an iframe, return
-    if ($payment_form.find('#dna-card-number').has('iframe').length) {
+    // If the element exists and contains an iframe, return.
+    // `force` rebuilds anyway: DNA caches declined cards for the lifetime of an instance,
+    // so a new instance is the only way to clear a decline once the basket changes.
+    if (!force && $payment_form.find('#dna-card-number').has('iframe').length) {
         return null
     }
 
@@ -25,6 +36,7 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError })
         const hostedFieldsInstance = await createHostedFields({
             isTestMode,
             accessToken: tempToken,
+            terminalId,
             domElements: {
                 name: $payment_form.find('#dna-card-name')[0],
                 number: $payment_form.find('#dna-card-number')[0],
@@ -35,6 +47,19 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError })
             threeDSModal: createModal('three-d-secure'),
             sendCallbackEveryFailedAttempt,
             showPlaceholderOnlyOnFocus: false,
+            paymentMethodsSettings,
+            onFieldError: ({ field, message, code }) => {
+                // Only a refusal gets promoted to the visible error area. Ordinary
+                // "not filled in yet" invalidity carries no code and would otherwise shout
+                // at the customer while they are still typing.
+                if ('number' !== field && 'cardNumber' !== field) {
+                    return
+                }
+
+                if (code && message) {
+                    onError && onError(message)
+                }
+            },
         })
 
         let prevScheme = null
@@ -62,26 +87,35 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError })
             setFormLoading(true)
         })
 
-        const onPaymentTokenChange = (selected) => {
+        const onPaymentTokenChange = async (selected) => {
             if (!selected || selected === 'new') {
                 $tokenized_cvc.hide()
                 $card_form.show()
-                hostedFieldsInstance.selectCard(null)
-            } else {
-                const card = cards.find((c) => String(c.id) === String(selected))
-                const cvvState = hostedFieldsInstance.getTokenizedCardCvvState(card)
+                await hostedFieldsInstance.selectCard(null)
+                return
+            }
 
-                if (cvvState === 'required') {
-                    $tokenized_cvc.show()
-                } else {
-                    $tokenized_cvc.hide()
-                }
-                hostedFieldsInstance.selectCard(card)
+            const card = cards.find((c) => String(c.id) === String(selected))
+            const cvvState = hostedFieldsInstance.getTokenizedCardCvvState(card)
+
+            if (cvvState === 'required') {
+                $tokenized_cvc.show()
+            } else {
+                $tokenized_cvc.hide()
+            }
+
+            // selectCard runs the card acceptance rules and the cardNumberValidate handler,
+            // and rejects when either declines the saved card.
+            try {
+                await hostedFieldsInstance.selectCard(card)
                 $card_form.hide()
+            } catch (err) {
+                $tokenized_cvc.hide()
+                onError && onError(err.message)
             }
         }
 
-        onPaymentTokenChange($payment_token.filter(':checked').val())
+        await onPaymentTokenChange($payment_token.filter(':checked').val())
         $payment_token.change(function () {
             onPaymentTokenChange(jQuery(this).val())
         })

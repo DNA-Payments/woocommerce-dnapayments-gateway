@@ -37,7 +37,7 @@ class PaymentTokenHelper {
 
             $date_arr = explode("/", $input['cardExpiryDate']);
 
-            return [
+            $card_info = [
                 'token' => $input['cardTokenId'] ?? '',
                 'expiry_month' => $date_arr[0] ?? '',
                 'expiry_year' => '20' . $date_arr[1] ?? '',
@@ -45,6 +45,19 @@ class PaymentTokenHelper {
                 'last4' => substr( $input['cardPanStarred'], -4 ) ?? '',
                 'user_id' => $input['accountId'] ?? '',
             ];
+
+            /**
+             * Filter the card metadata extracted from a DNA payment payload.
+             *
+             * Companion plugins use this to carry extra BIN-derived fields (for example the
+             * card funding type) alongside the scheme and last4 the gateway already reads.
+             *
+             * @since 4.3.0
+             *
+             * @param array $card_info Extracted card metadata.
+             * @param array $input     Raw DNA payment result / webhook payload.
+             */
+            return apply_filters( 'dnapayments_card_info', $card_info, $input );
         } catch (\Exception $e) {
             return [];
         }
@@ -168,14 +181,30 @@ class PaymentTokenHelper {
         $token->set_expiry_year( '20' . $date_arr[1] );
         $token->set_user_id( $input['accountId'] );
 
-        $token->update_meta_data( self::META_EXTRA_DATA, [
+        $extra_data = [
             'cardSchemeId' => $input['cardSchemeId'],
             'cardSchemeName' => $input['cardSchemeName'],
             'cardName' => $input['cardholderName'],
             'panStar' => $input['cardPanStarred'],
             'expiryDate' => $input['cardExpiryDate'],
             'paymentMethod' => $input['paymentMethod'] ?? 'card',
-        ] );
+        ];
+
+        /**
+         * Filter the extra data persisted against a saved card token.
+         *
+         * Lets companion plugins remember BIN-derived attributes (funding type, issuer
+         * country, corporate flag) so a repeat payment with a stored card can be judged
+         * without a fresh lookup.
+         *
+         * @since 4.3.0
+         *
+         * @param array $extra_data Data to persist on the token.
+         * @param array $input      Raw DNA payment result / webhook payload.
+         */
+        $extra_data = apply_filters( 'dnapayments_token_extra_data', $extra_data, $input );
+
+        $token->update_meta_data( self::META_EXTRA_DATA, $extra_data );
 
         if ( ! $token->validate() ) {
             throw new \Exception('Invalid card token data.');

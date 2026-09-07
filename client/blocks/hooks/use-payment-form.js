@@ -18,6 +18,14 @@ import { addGatewayId, setNonces } from '../../common/utils'
 import { TEXT_DOMAIN } from '../../common/constants'
 import { getSubscriptionPaymentMethods, hasSubscription } from '../../common/subscription'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
+import {
+    getFieldDecline,
+    getValidationEvents,
+    publishOrderId,
+    setLastDeclineReason,
+    takeLastDeclineReason,
+    traceGate,
+} from '../../common/validators'
 
 export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
     const {
@@ -26,8 +34,15 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
         eventRegistration: { onCheckoutSuccess, onPaymentSetup, onCheckoutValidation },
         shouldSavePayment,
     } = props
-    const { isTestMode, integrationType, allowSavingCards, cards, terminalConfig, autoRedirectDelayInMs } =
-        dnaPaymentsSettingsData
+    const {
+        isTestMode,
+        integrationType,
+        allowSavingCards,
+        cards,
+        terminalConfig,
+        autoRedirectDelayInMs,
+        paymentMethodsSettings,
+    } = dnaPaymentsSettingsData
 
     const onMessages = useCallback(
         (messages) => {
@@ -44,9 +59,14 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
             if (integrationType === 'seamless') {
                 const { isValid } = await hostedFieldsInstance.validate()
                 if (!isValid) {
+                    // Prefer the reason the card was refused. validate() only says a field
+                    // is invalid, so the generic message would blame the card details for a
+                    // funding restriction the customer cannot fix by re-typing.
+                    const decline = getFieldDecline()
+
                     return {
                         type: responseTypes.ERROR,
-                        message: errors.CARD_DETAILS_INVALID.message,
+                        message: decline ? decline.message : errors.CARD_DETAILS_INVALID.message,
                         messageContext: noticeContexts.PAYMENTS,
                     }
                 }
@@ -80,10 +100,38 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                 }
 
                 paymentData.merchantCustomData = addGatewayId(paymentData.merchantCustomData, gatewayId)
+                publishOrderId(paymentData)
                 const dnaPaymentsConfig = { isTestMode, cards, allowSavingCards }
 
                 if (autoRedirectDelayInMs) {
                     dnaPaymentsConfig.autoRedirectDelayInMs = autoRedirectDelayInMs
+                }
+
+                // Prefer rules recomputed with this payload; fall back to the page-load value.
+                const acceptanceRules = tryParse(paymentDetails.paymentMethodsSettings) || paymentMethodsSettings
+
+                if (acceptanceRules && Object.keys(acceptanceRules).length) {
+                    dnaPaymentsConfig.paymentMethodsSettings = acceptanceRules
+                    traceGate('DNA Checkout (blocks) -> configure({ paymentMethodsSettings }) [' + integrationType + ']: acceptance rules applied', acceptanceRules)
+                } else {
+                    traceGate('DNA Checkout (blocks) -> configure() [' + integrationType + ']: no acceptance rules, terminal configuration applies')
+                }
+
+                const validationEvents = getValidationEvents('events')
+
+                // The embedded widget shows no failure screen for wallet declines; it calls
+                // `declined` instead, with no reason, so keep ours to display there.
+                const wrappedValidationEvents = validationEvents && {
+                    onCardNumberValidate: validationEvents.onCardNumberValidate,
+                    onValidate: async (context) => {
+                        const decision = await validationEvents.onValidate(context)
+                        setLastDeclineReason(decision === true ? null : decision?.reason)
+                        return decision
+                    },
+                }
+
+                if (wrappedValidationEvents) {
+                    dnaPaymentsConfig.events = { ...wrappedValidationEvents }
                 }
 
                 if (hasSubscription(paymentData)) {
@@ -105,22 +153,31 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                             },
                             auth,
                         ).then((result) => {
+                            // Fail fast rather than handing an error result to
+                            // completePayment(). It is a no-op for one today only because
+                            // payHostedFields never returns `data` alongside `error`.
+                            if (result.error) {
+                                resolve({ ...failedResponse, message: result.error })
+
+                                // CLOSE_TRANSACTION still navigates to the failure page.
+                                if (result.redirect) {
+                                    window.location.href = result.redirect
+                                }
+
+                                return
+                            }
+
                             if (result.data && !result.data.paymentMethod) {
                                 result.data.paymentMethod = 'card'
                             }
+
                             completePayment({
                                 paymentResult: result.data,
                                 redirect: result.redirect,
                                 page: 'checkout',
                             }).finally(() => {
-                                resolve(
-                                    !result.error
-                                        ? successResponse
-                                        : {
-                                              ...failedResponse,
-                                              message: result.error,
-                                          },
-                                )
+                                resolve(successResponse)
+
                                 if (result.redirect) {
                                     window.location.href = result.redirect
                                 }
@@ -132,17 +189,22 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
                         window.DNAPayments.configure({
                             ...dnaPaymentsConfig,
                             events: {
+                                ...wrappedValidationEvents,
                                 cancelled: () =>
                                     resolve({
                                         ...failedResponse,
                                         message: __(errors.CARD_PAYMENT_CANCEL.message, TEXT_DOMAIN),
                                     }),
                                 paid: () => resolve(successResponse),
-                                declined: () =>
-                                    resolve({
+                                declined: () => {
+                                    const reason = takeLastDeclineReason()
+                                    traceGate('DNA Checkout (blocks) -> events.declined() fired', reason || '(no reason from our rule)')
+
+                                    return resolve({
                                         ...failedResponse,
-                                        message: __(errors.CARD_PAYMENT_FAIL.message, TEXT_DOMAIN),
-                                    }),
+                                        message: reason || __(errors.CARD_PAYMENT_FAIL.message, TEXT_DOMAIN),
+                                    })
+                                },
                             },
                         })
 

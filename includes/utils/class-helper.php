@@ -183,11 +183,7 @@ class Helper {
         return $parts[0];
     }
 
-    /**
-     * Parse merchant custom data from webhook payloads.
-     *
-     * Used by success, failure, add-card, and subscription change payment method webhooks.
-     */
+    // Parse merchant custom data
     public static function parse_merchant_custom_data( $input ) {
         $default_value = [
             'order_id' => null, 
@@ -201,7 +197,7 @@ class Helper {
             try {
                 $customData = json_decode($input['merchantCustomData']);
                 return [ 
-                    'order_id' => $customData->orderId ?? null, 
+                    'order_id' => $customData->orderId, 
                     'store_card_on_file' => $customData->storeCardOnFile ?? false,
                     'gateway_id' => $customData->gatewayId ?? '',
                     'allowed_recurring' => $customData->allowedRecurring ?? false,

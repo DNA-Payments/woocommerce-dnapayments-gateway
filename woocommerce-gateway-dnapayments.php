@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce DNA Payments Gateway
  * Plugin URI: https://www.dnapayments.com
  * Description: Take credit card payments on your store.
- * Version: 4.2.3
+ * Version: 4.3.0
  *
  * Author: DNA Payments Integration
  * Author URI: https://www.dnapayments.com
@@ -31,6 +31,14 @@ define( 'WC_DNA_PLUGIN_PATH', untrailingslashit( plugin_dir_path( __FILE__ ) ) )
 define( 'WC_DNA_MAIN_FILE', __FILE__ );
 
 /**
+ * Version of the extension hook API exposed to companion plugins.
+ *
+ * Companion plugins (e.g. DNA Payments - Card Controls) should assert this constant
+ * exists and is compatible before attaching to any dnapayments_* hook.
+ */
+define( 'WC_DNA_HOOK_API_VERSION', '1.0' );
+
+/**
  * WC DnaPayments payment gateway plugin class.
  *
  * @class WC_DNA_Payments
@@ -44,7 +52,7 @@ class WC_DNA_Payments {
 	public static $name = 'DNA Payments';
 
 	// Plugin version
-	public static $version = '4.2.3';
+	public static $version = '4.3.0';
 
 	// Wordpress supported min version
 	public static $wp_min_version = '4.2';
@@ -231,7 +239,7 @@ class WC_DNA_Payments {
 	 */
 	public static function register_dna_scripts_globally() {
 		wp_register_script( 'dna-payment-api', 'https://pay.dnapayments.com/checkout/payment-api.js' , array(), self::$version, true );
-		wp_register_script( 'dna-hosted-fields', 'https://cdn.dnapayments.com/js/hosted-fields/hosted-fields.js' , array(), self::$version, true );
+		wp_register_script( 'dna-hosted-fields', 'https://pay.dnapayments.com/components/hosted-fields/hosted-fields.js', array(), self::$version, true );
 		wp_register_script( 'dna-google-pay', 'https://pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-apple-pay', 'https://pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-paypal', 'https://pay.dnapayments.com/components/paypal/paypal-component.js', array('dna-payment-api'), self::$version, true );

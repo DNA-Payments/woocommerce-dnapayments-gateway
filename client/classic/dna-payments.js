@@ -34,6 +34,7 @@ let isUpdating = false // is event updated_checkout will be triggered
 let hostedFieldsInstance = null
 let paymentData = null
 let authData = null
+let paymentMethodsSettings = null
 let globalError = null
 let isFirstRender = true
 let isRendering = false
@@ -291,6 +292,7 @@ jQuery(function ($) {
                     token: authData ? authData.access_token : tempToken,
                     environment: isTestMode ? 'sandbox' : 'production',
                     terminalId: wc_dna_params.terminal_id,
+                    paymentMethodsSettings,
                 },
                 { paymentData, $form },
             )
@@ -347,6 +349,7 @@ jQuery(function ($) {
             hideError()
             paymentData = data.paymentData
             authData = data.auth || null
+            paymentMethodsSettings = data.paymentMethodsSettings || null
         }
 
         return success
@@ -365,6 +368,7 @@ jQuery(function ($) {
                     }),
                 },
                 auth: authData,
+                paymentMethodsSettings,
             }
         }
 
@@ -394,6 +398,9 @@ jQuery(function ($) {
             if (typeof result.nonces === 'string') {
                 result.nonces = JSON.parse(result.nonces)
             }
+            if (typeof result.paymentMethodsSettings === 'string') {
+                result.paymentMethodsSettings = JSON.parse(result.paymentMethodsSettings)
+            }
         } catch (err) {
             console.error(err)
         }
@@ -402,6 +409,7 @@ jQuery(function ($) {
 
         paymentData = result.paymentData
         authData = result.auth
+        paymentMethodsSettings = result.paymentMethodsSettings || null
         setNonces(result.nonces)
 
         return result

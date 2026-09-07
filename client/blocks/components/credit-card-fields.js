@@ -5,6 +5,8 @@ import { __ } from '@wordpress/i18n'
 import { useState, useEffect, useRef } from '@wordpress/element'
 import { ValidationInputError } from '@woocommerce/blocks-checkout'
 
+import { ErrorMessage } from './error-message'
+
 /**
  * Internal dependencies
  */
@@ -47,9 +49,20 @@ export const DnapaymentsCreditCardFields = ({
         cvv: '',
     })
 
+    // Shown above the fields as well as under the card number: a refusal explains why a
+    // whole payment method is unavailable, which is easy to miss as small inline text.
+    const [declineMessage, setDeclineMessage] = useState('')
+
     const setupIntegration = async () => {
-        const { isTestMode, tempToken, cards, sendCallbackEveryFailedAttempt, availableSchemes } =
-            dnaPaymentsSettingsData
+        const {
+            isTestMode,
+            tempToken,
+            terminalId,
+            cards,
+            sendCallbackEveryFailedAttempt,
+            availableSchemes,
+            paymentMethodsSettings,
+        } = dnaPaymentsSettingsData
         const selectedCard = cards.find((c) => String(c.id) === String(token))
 
         setPlaceOrderButtonDisabled(true)
@@ -58,6 +71,7 @@ export const DnapaymentsCreditCardFields = ({
         hostedFieldsInstance = await createHostedFields({
             isTestMode: isTestMode,
             accessToken: tempToken,
+            terminalId,
             threeDSModal: threeDSRef.current,
             domElements: {
                 number: document.getElementById(HOSTED_FIELD_IDS.number),
@@ -68,6 +82,29 @@ export const DnapaymentsCreditCardFields = ({
             },
             sendCallbackEveryFailedAttempt,
             showPlaceholderOnlyOnFocus: true,
+            paymentMethodsSettings,
+            onFieldError: ({ field, message, code }) => {
+                // createHostedFields reports DNA's own field keys; our error state is keyed
+                // by the names used in the markup below.
+                const map = {
+                    cardNumber: 'number',
+                    cardholderName: 'name',
+                    expirationDate: 'expirationDate',
+                    cvv: 'cvv',
+                    tokenizedCardCvv: 'cvv',
+                }
+                const key = map[field]
+
+                if (!key) {
+                    return
+                }
+
+                setError((prev) => ({ ...prev, [key]: message }))
+
+                if ('cardNumber' === field) {
+                    setDeclineMessage(code ? message : '')
+                }
+            },
         })
 
         hostedFieldsInstance.on('change', () => {
@@ -80,12 +117,28 @@ export const DnapaymentsCreditCardFields = ({
         if (selectedCard) {
             const cvvState = hostedFieldsInstance.getTokenizedCardCvvState(selectedCard)
             setIsCvvTokenVisible(cvvState === 'required')
-            hostedFieldsInstance.selectCard(selectedCard)
+            await selectSavedCard(selectedCard)
         }
 
         setPlaceOrderButtonDisabled(false)
 
         onLoad(hostedFieldsInstance)
+    }
+
+    /**
+     * Select a saved card.
+     *
+     * selectCard() runs the card acceptance rules and the cardNumberValidate handler, and
+     * rejects when either declines the card, so the rejection has to be surfaced rather
+     * than left unhandled.
+     */
+    const selectSavedCard = async (card) => {
+        try {
+            await hostedFieldsInstance.selectCard(card)
+            setError((prev) => ({ ...prev, number: '' }))
+        } catch (err) {
+            setError((prev) => ({ ...prev, number: err.message }))
+        }
     }
 
     useEffect(() => {
@@ -95,7 +148,7 @@ export const DnapaymentsCreditCardFields = ({
             if (selectedCard) {
                 const cvvState = hostedFieldsInstance.getTokenizedCardCvvState(selectedCard)
                 setIsCvvTokenVisible(cvvState === 'required')
-                hostedFieldsInstance.selectCard(selectedCard)
+                selectSavedCard(selectedCard)
             } else {
                 hostedFieldsInstance.selectCard(null)
             }
@@ -126,6 +179,8 @@ export const DnapaymentsCreditCardFields = ({
 
     return (
         <LoadingMask isLoading={!isLoaded} showSpinner={true}>
+            <ErrorMessage messages={declineMessage ? [declineMessage] : []} />
+
             <div className='wc-block-dnapayments-card-elements' style={{ display: !token ? 'flex' : 'none' }}>
                 <div className='wc-block-gateway-container'>
                     <div id={HOSTED_FIELD_IDS.number} className={`wc-block-gateway-input empty`} />

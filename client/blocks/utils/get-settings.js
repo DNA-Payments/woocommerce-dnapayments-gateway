@@ -22,4 +22,5 @@ export const dnaPaymentsSettingsData = {
     availableSchemes: settings.available_schemes || [],
     nonces: settings.nonces || {},
     autoRedirectDelayInMs,
+    paymentMethodsSettings: settings.payment_methods_settings || null,
 }

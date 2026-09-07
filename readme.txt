@@ -75,12 +75,32 @@ For support, please contact DNA Payments directly through their website at https
 
 == Changelog ==
 
-= 4.3.0 - 2026-08-25 =
-* Feature - Public extension hook API (`dnapayments_payment_data`, `dnapayments_payment_methods_settings`, `dnapayments_can_process_payment`, `dnapayments_payment_completed`, `dnapayments_card_info`, `dnapayments_token_extra_data`) for companion plugins.
-* Feature - DNA funding-type validation across Hosted Fields, DNA Checkout and the Apple Pay / Google Pay components via `window.wcDnaPayments.validators`.
-* Tweak - Show the merchant decline reason for funding-type declines, including from the embedded widget.
-* Tweak - Await `selectCard()` so a declined saved card reports an error instead of rejecting unhandled.
-* Fix - Load Hosted Fields from `pay.dnapayments.com`, which serves the current build.
+= 4.3.0 - 2026-09-07 =
+
+= Features =
+	- Add a public extension hook API so companion plugins can take part in the payment flow without forking the gateway:
+		- `dnapayments_payment_data` filter on every payment payload the gateway builds (order, cart and add-card flows).
+		- `dnapayments_payment_methods_settings` filter to supply DNA card acceptance rules, merged into DNA Checkout and Hosted Fields.
+		- `dnapayments_can_process_payment` filter to veto a payment before anything is sent to DNA.
+		- `dnapayments_payment_completed` action fired on every successful payment confirmation path.
+		- `dnapayments_card_info` and `dnapayments_token_extra_data` filters to carry extra card metadata onto orders and saved cards.
+		- `WC_DNA_HOOK_API_VERSION` constant so dependants can assert compatibility.
+	- Support DNA funding-type validation across all card-backed surfaces. Handlers registered on `window.wcDnaPayments.validators` are invoked for Hosted Fields, DNA Checkout manual card entry and saved cards, and the Apple Pay and Google Pay components.
+
+= Improvements =
+	- Surface the merchant reason for a funding-type decline (code 1011) instead of the generic payment-component error.
+	- Show the decline reason from the embedded widget's `declined` event, which renders no failure screen of its own.
+	- Await `selectCard()` when choosing a saved card, so a declined card reports an error instead of rejecting unhandled.
+	- Allow Hosted Fields to be re-created on demand, which clears DNA's per-card decline cache.
+	- Load Hosted Fields from pay.dnapayments.com, the only build that carries the funding-type validation hooks.
+	- Surface Hosted Fields field-level refusals through a new `onFieldError` callback, so a card refused by the card acceptance rules shows the merchant's message instead of an unexplained red field.
+	- Send both `isTestMode` and `env` when creating Hosted Fields, so either build resolves the correct environment.
+
+
+= 4.2.3 - 2026-08-27 =
+
+= Fixes = 
+	- Adding a null guard to prevent "Undefined property: stdClass::$orderId" PHP warning when processing webhooks whose merchant custom data omits the field
 
 = 4.2.2 - 2026-07-27 =
 

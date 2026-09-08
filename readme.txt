@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.3.0
+Stable tag: 4.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,14 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.4.0 - 2026-09-07 =
+
+= Improvements =
+	- Remove the temporary token requirement from Hosted Fields and wallet components.
+	- Load wallet SDKs on demand and avoid duplicate wallet initialization in Blocks checkout.
+	- Prevent DNA Payments API requests when the gateway is disabled or missing credentials.
+	- Guard asynchronous SDK initialization when the payment component is unmounted.
 
 = 4.3.0 - 2026-09-07 =
 

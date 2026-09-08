@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce DNA Payments Gateway
  * Plugin URI: https://www.dnapayments.com
  * Description: Take credit card payments on your store.
- * Version: 4.3.0
+ * Version: 4.4.0
  *
  * Author: DNA Payments Integration
  * Author URI: https://www.dnapayments.com
@@ -52,7 +52,7 @@ class WC_DNA_Payments {
 	public static $name = 'DNA Payments';
 
 	// Plugin version
-	public static $version = '4.3.0';
+	public static $version = '4.4.0';
 
 	// Wordpress supported min version
 	public static $wp_min_version = '4.2';

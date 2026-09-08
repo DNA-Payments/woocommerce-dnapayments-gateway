@@ -385,20 +385,26 @@ class OrderHelper {
      * @return array                       ['state', 'id', 'paymentMethod', 'rrn']
      */
     public function get_transaction_info( $order, $transaction_id = null, $user_id = null ) {
-        $client_token = $this->gateway->dnaPayment->get_client_token(
-            $this->gateway->client_id,
-            $this->gateway->client_secret
-        );
+        if ( ! $this->gateway->is_ready() ) {
+            return [ 'state' => '' ];
+        }
 
-        $transactions = $this->gateway->dnaPayment->get_transactions_by_invoice_id(
-            $client_token['access_token'],
-            (string) $order->get_order_number()
-        );
+        $default_info = [ 'id' => '', 'paymentMethod' => '', 'rrn' => '' ];
+
+        try {
+            $client_token = $this->gateway->authDataHelper->get_client_token();
+
+            $transactions = $this->gateway->dnaPayment->get_transactions_by_invoice_id(
+                $client_token['access_token'],
+                (string) $order->get_order_number()
+            );
+        } catch ( \Throwable $exception ) {
+            return [ 'state' => '' ] + $default_info;
+        }
 
         $matched_states = [];
         $refunded_amount = 0;
         $state_details = [];
-        $default_info = [ 'id' => '', 'paymentMethod' => '', 'rrn' => '' ];
 
         foreach ( $transactions as $item ) {
             $state = $item['transactionState'];

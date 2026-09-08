@@ -79,6 +79,9 @@ class WC_DNA_Payments {
 		// Register DNA scripts globally for blocks compatibility (runs early)
 		add_action( 'init', array( __CLASS__, 'register_dna_scripts_globally' ) );
 
+		// Start loading card SDK scripts before WooCommerce Blocks renders payment methods.
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_block_checkout_scripts' ), 5 );
+
 		// This hook is used to execute code after all active plugins have fully loaded, 
 		// ensuring that WooCommerce is loaded before executing WooCommerce-specific code.
 		add_action( 'plugins_loaded', array( __CLASS__, 'includes' ), 0 );
@@ -239,11 +242,32 @@ class WC_DNA_Payments {
 	 */
 	public static function register_dna_scripts_globally() {
 		wp_register_script( 'dna-payment-api', 'https://pay.dnapayments.com/checkout/payment-api.js' , array(), self::$version, true );
-		wp_register_script( 'dna-hosted-fields', 'https://pay.dnapayments.com/components/hosted-fields/hosted-fields.js', array(), self::$version, true );
+		wp_register_script( 'dna-hosted-fields', 'https://pay.dnapayments.com/components/hosted-fields/hosted-fields.js', array( 'dna-payment-api' ), self::$version, true );
 		wp_register_script( 'dna-google-pay', 'https://pay.dnapayments.com/components/google-pay/google-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-apple-pay', 'https://pay.dnapayments.com/components/apple-pay/apple-pay-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-paypal', 'https://pay.dnapayments.com/components/paypal/paypal-component.js', array('dna-payment-api'), self::$version, true );
 		wp_register_script( 'dna-alipay-wechat-pay', 'https://pay.dnapayments.com/components/alipay-wechat-pay/alipay-wechat-pay-component.js', array('dna-payment-api'), self::$version, true );
+	}
+
+	public static function enqueue_block_checkout_scripts() {
+		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() || ! function_exists( 'is_wc_endpoint_url' ) || is_wc_endpoint_url( 'order-pay' ) || ! function_exists( 'has_block' ) ) {
+			return;
+		}
+
+		$post = get_post();
+		if ( ! $post || ! has_block( 'woocommerce/checkout', $post ) || ! function_exists( 'WC' ) || ! WC()->payment_gateways ) {
+			return;
+		}
+
+		$gateways = WC()->payment_gateways->payment_gateways();
+		$gateway  = $gateways[ self::$id ] ?? null;
+
+		if ( ! $gateway || ! $gateway->is_available() || 'seamless' !== $gateway->integration_type ) {
+			return;
+		}
+
+		wp_enqueue_script( 'dna-payment-api' );
+		wp_enqueue_script( 'dna-hosted-fields' );
 	}
 
 	/**

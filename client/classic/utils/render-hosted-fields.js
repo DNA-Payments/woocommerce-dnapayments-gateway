@@ -10,7 +10,6 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError, f
         isTestMode,
         iconPath,
         sendCallbackEveryFailedAttempt,
-        tempToken,
         availableSchemes,
         paymentMethodsSettings,
         terminalId,
@@ -34,8 +33,7 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError, f
 
     try {
         const hostedFieldsInstance = await createHostedFields({
-            isTestMode,
-            accessToken: tempToken,
+            env: isTestMode ? 'sandbox' : 'production',
             terminalId,
             domElements: {
                 name: $payment_form.find('#dna-card-name')[0],

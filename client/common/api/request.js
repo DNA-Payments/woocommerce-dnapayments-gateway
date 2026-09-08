@@ -5,7 +5,18 @@ import errors from '../errors'
 export async function request(...args) {
     try {
         const response = await fetch(...args)
-        return await response.json()
+        const data = await response.json().catch(() => null)
+
+        if (!response.ok) {
+            return {
+                success: false,
+                data: data?.data || {
+                    errors: [`DNA Payments AJAX request failed (${response.status})`],
+                },
+            }
+        }
+
+        return data
     } catch (err) {
         return { success: false, data: { errors: [errors.CRITICAL_WEBSITE_ERROR.message] } }
     }

@@ -2,6 +2,14 @@
 
 Changelog
 
+2026-09-07 - version 4.4.0
+
+= Improvements =
+	- Remove the temporary token requirement from Hosted Fields and wallet components.
+	- Load wallet SDKs on demand and avoid duplicate wallet initialization in Blocks checkout.
+	- Prevent DNA Payments API requests when the gateway is disabled or missing credentials.
+	- Guard asynchronous SDK initialization when the payment component is unmounted.
+
 2026-09-07 - version 4.3.0
 
 = Features =

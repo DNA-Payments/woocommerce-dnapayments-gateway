@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from '@wordpress/el
 import { __ } from '@wordpress/i18n'
 
 import errors from '../../common/errors'
-import { logData, logError } from '../../common/log'
+import { logError } from '../../common/log'
 import { tryParse } from '../../common/try-parse'
 import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
@@ -10,6 +10,7 @@ import { addGatewayId, setNonces } from '../../common/utils'
 import { GATEWAY_ID_APPLE_PAY } from '../../common/constants'
 import { getPaymentComponentErrorMessage, isInitFailed, getWalletFundingConfig } from '../../common/payment-component-helper'
 import { getValidationEvents, traceGate } from '../../common/validators'
+import { loadScript } from '../../common/load-script'
 
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
@@ -18,7 +19,9 @@ import { useCheckoutValidation } from '../hooks/use-checkout-validation'
 
 import { ErrorMessage } from './error-message'
 
-export const PaymentComponent = ({ containerId, componentInstance, gatewayId, errorMessage, props }) => {
+const PAYMENT_API_SCRIPT_URL = 'https://pay.dnapayments.com/checkout/payment-api.js'
+
+export const PaymentComponent = ({ containerId, componentInstance, componentScriptUrl, gatewayId, errorMessage, props }) => {
     const {
         activePaymentMethod,
         emitResponse: { responseTypes, noticeContexts },
@@ -40,7 +43,8 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     // resolve and reject of onCheckoutSuccess
     const checkoutPromiseRef = useRef()
 
-    const { tempToken, isTestMode, terminalId, paymentMethodsSettings } = dnaPaymentsSettingsData
+    const { isTestMode, terminalId, paymentMethodsSettings } = dnaPaymentsSettingsData
+    const getComponentInstance = componentInstance
 
     const paymentDataJSON = useMemo(() => {
         try {
@@ -93,7 +97,36 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
             containerRef.current.innerHTML = ''
 
-            componentInstance.isLoaded = false
+            try {
+                if (!window.DNAPayments) {
+                    await loadScript(PAYMENT_API_SCRIPT_URL, () => Boolean(window.DNAPayments))
+                }
+
+                if (!getComponentInstance()) {
+                    await loadScript(componentScriptUrl, getComponentInstance)
+                }
+            } catch (err) {
+                if (!containerRef.current) {
+                    return
+                }
+                logError(err)
+                setLoadingState('failed')
+                setErrors([errorMessage])
+                return
+            }
+
+            if (!containerRef.current) {
+                return
+            }
+
+            const resolvedComponentInstance = getComponentInstance()
+            if (!resolvedComponentInstance) {
+                setLoadingState('failed')
+                setErrors([errorMessage])
+                return
+            }
+
+            resolvedComponentInstance.isLoaded = false
             const fundingConfig = getWalletFundingConfig(paymentMethodsSettings, gatewayId)
 
             traceGate(
@@ -103,7 +136,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 fundingConfig || undefined
             )
 
-            componentInstance.init({
+            resolvedComponentInstance.init({
                 containerElement: containerRef.current,
                 paymentData: draftPaymentDataRef.current,
                 // Flat keys: the merchant-side contract the wallet components read. Omitted
@@ -123,7 +156,6 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         })
                     },
                     onPaymentSuccess: async (paymentResult) => {
-                        logData('onPaymentSuccess', paymentResult)
                         const redirect = paymentDataRef.current?.paymentSettings?.returnUrl
                         await completePayment({
                             paymentResult,
@@ -141,9 +173,8 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         }
                     },
                     onError: (err) => {
-                        logData('onError', err)
                         const notShowError =
-                            isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
+                            isInitFailed(err) && resolvedComponentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
                         const message = getPaymentComponentErrorMessage(err, errorMessage)
                         setLoadingState('failed')
                         if (!notShowError) {
@@ -155,15 +186,14 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                     },
                     onLoad: () => {
                         setLoadingState('done')
-                        componentInstance.isLoaded = true
+                        resolvedComponentInstance.isLoaded = true
                     },
                 },
-                token: tempToken,
                 environment: isTestMode ? 'sandbox' : 'production',
                 terminalId,
             })
         }),
-        [componentInstance, rejectCheckoutPromise, resolveCheckoutPromise],
+        [componentScriptUrl, errorMessage, gatewayId, getComponentInstance, rejectCheckoutPromise, resolveCheckoutPromise],
     )
 
     useEffect(() => {
@@ -192,8 +222,6 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
     useEffect(() => {
         const handler = async (params) => {
-            logData('onCheckoutFail', params)
-
             const {
                 processingResponse: {
                     message,
@@ -221,7 +249,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     }, [paymentDataJSON])
 
     useEffect(() => {
-        if (containerRef.current && componentInstance) {
+        if (containerRef.current) {
             setupIntegration()
         }
     }, [setupIntegration, props.billing?.cartTotal?.value])

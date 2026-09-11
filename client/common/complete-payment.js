@@ -35,12 +35,15 @@ export async function completePayment({
                 handleRedirect(data.redirect)
                 return
             } else {
-                setErrors(data.errors)
+                const responseErrors = data?.errors || ['DNA Payments could not update the order status.']
+                setErrors(responseErrors)
                 setLoading(false)
+                return
             }
         } catch (err) {
             setErrors([err.message])
             setLoading(false)
+            return
         }
     }
 

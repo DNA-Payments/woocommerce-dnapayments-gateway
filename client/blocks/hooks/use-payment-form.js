@@ -29,6 +29,7 @@ import {
 
 export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
     const {
+        activePaymentMethod,
         setExpressPaymentError,
         emitResponse: { responseTypes, noticeContexts },
         eventRegistration: { onCheckoutSuccess, onPaymentSetup, onCheckoutValidation },
@@ -46,16 +47,24 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
 
     const onMessages = useCallback(
         (messages) => {
+            if (activePaymentMethod !== gatewayId) {
+                return
+            }
+
             if (messages.length) {
                 setExpressPaymentError(messages)
             }
         },
-        [setExpressPaymentError],
+        [activePaymentMethod, gatewayId, setExpressPaymentError],
     )
     useCheckoutValidation({ onCheckoutValidation, onMessages })
 
     useEffect(() => {
         const handler = async () => {
+            if (activePaymentMethod !== gatewayId) {
+                return true
+            }
+
             if (integrationType === 'seamless') {
                 const { isValid } = await hostedFieldsInstance.validate()
                 if (!isValid) {
@@ -75,11 +84,19 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
         }
 
         return onPaymentSetup(handler)
-    }, [onPaymentSetup, hostedFieldsInstance, responseTypes, noticeContexts])
+    }, [onPaymentSetup, hostedFieldsInstance, responseTypes, noticeContexts, activePaymentMethod, gatewayId, integrationType])
 
     useEffect(() => {
         const handler = ({ processingResponse: { paymentDetails } }) =>
             new Promise((resolve) => {
+                if (activePaymentMethod !== gatewayId) {
+                    resolve({
+                        type: responseTypes.SUCCESS,
+                        messageContext: noticeContexts.PAYMENTS,
+                    })
+                    return
+                }
+
                 const paymentData = tryParse(paymentDetails.paymentData)
                 const auth = tryParse(paymentDetails.auth)
                 const nonces = tryParse(paymentDetails.nonces)
@@ -219,5 +236,5 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
             })
 
         return onCheckoutSuccess(handler)
-    }, [onCheckoutSuccess, hostedFieldsInstance, responseTypes, noticeContexts, shouldSavePayment])
+    }, [onCheckoutSuccess, hostedFieldsInstance, responseTypes, noticeContexts, shouldSavePayment, activePaymentMethod, gatewayId])
 }

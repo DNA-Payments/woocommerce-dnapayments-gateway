@@ -17,6 +17,7 @@ final class WC_Gateway_DNA_Payments_Blocks_Support extends WC_Gateway_Base_DNA_P
 		$this->name       = 'dnapayments';
 		$this->asset_path = WC_DNA_Payments::plugin_abspath() . '/assets/js/blocks/dnapayments.asset.php';
 		$this->script_url = WC_DNA_Payments::plugin_url() . '/assets/js/blocks/dnapayments.js';
+		$this->script_dependencies = array( 'dna-payment-api', 'dna-hosted-fields' );
 	}
 
 	/**

@@ -79,11 +79,10 @@ For support, please contact DNA Payments directly through their website at https
 
 = Features =
 	- Add a public extension hook API so companion plugins can take part in the payment flow without forking the gateway:
-		- `dnapayments_payment_data` filter on every payment payload the gateway builds (order, cart and add-card flows).
 		- `dnapayments_payment_methods_settings` filter to supply DNA card acceptance rules, merged into DNA Checkout and Hosted Fields.
 		- `dnapayments_can_process_payment` filter to veto a payment before anything is sent to DNA.
 		- `dnapayments_payment_completed` action fired on every successful payment confirmation path.
-		- `dnapayments_card_info` and `dnapayments_token_extra_data` filters to carry extra card metadata onto orders and saved cards.
+		- `dnapayments_token_extra_data` filter to carry extra card metadata onto saved cards.
 		- `WC_DNA_HOOK_API_VERSION` constant so dependants can assert compatibility.
 	- Support DNA funding-type validation across all card-backed surfaces. Handlers registered on `window.wcDnaPayments.validators` are invoked for Hosted Fields, DNA Checkout manual card entry and saved cards, and the Apple Pay and Google Pay components.
 

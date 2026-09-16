@@ -197,7 +197,7 @@ class Helper {
             try {
                 $customData = json_decode($input['merchantCustomData']);
                 return [ 
-                    'order_id' => $customData->orderId, 
+                    'order_id' => $customData->orderId ?? null, 
                     'store_card_on_file' => $customData->storeCardOnFile ?? false,
                     'gateway_id' => $customData->gatewayId ?? '',
                     'allowed_recurring' => $customData->allowedRecurring ?? false,

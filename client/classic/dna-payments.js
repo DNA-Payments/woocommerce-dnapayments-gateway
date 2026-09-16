@@ -185,7 +185,7 @@ jQuery(function ($) {
                         hostedFieldsInstance = instance
                         cardError.hide()
                     },
-                    onError: (errMsg) => cardError.show(errMsg),
+                    onError: (errMsg) => (errMsg ? cardError.show(errMsg) : cardError.hide()),
                 })
             }
         } catch (err) {

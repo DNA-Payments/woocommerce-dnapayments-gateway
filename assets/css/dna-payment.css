@@ -81,6 +81,10 @@
     padding: 1.25em 0 0 16px;
 }
 
+.wc-block-dnapayments-card-elements .wc-dnapayments-card-selected {
+    top: 1.5em;
+}
+
 .wc-block-components-checkout-place-order-button[disabled] {
     opacity: 0.2;
     cursor: not-allowed;

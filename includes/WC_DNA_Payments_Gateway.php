@@ -651,6 +651,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 	 */
 	public function elements_form() {
 		?>
+        <div class="dna-source-errors" role="alert"></div>
 
         <div id="dna-card-cvc-token-container" class="form-row" style="display: none">
             <label for="dna-card-cvc-token"><?php esc_html_e( 'Card code (CVC)', 'woocommerce-gateway-dna' ); ?></label>
@@ -692,8 +693,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             <div class="clear"></div>
 		</fieldset>
 
-        <!-- Used to display form errors -->
-        <div class="dna-source-errors" role="alert"></div>
 
 		<?php
 	}

@@ -16,6 +16,8 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError, f
         terminalId,
     } = getGlobalVariables()
 
+    let hasFieldDecline = false
+
     const $payment_form = jQuery('#wc-' + gatewayId + '-form')
     const $card_form = $payment_form.find('.wc-credit-card-form')
     const $payment_token = $payment_form.find('input[name="wc-' + gatewayId + '-payment-token"]')
@@ -57,7 +59,11 @@ export const renderHostedFields = async ({ setFormLoading, onSuccess, onError, f
                 }
 
                 if (code && message) {
+                    hasFieldDecline = true
                     onError && onError(message)
+                } else if (hasFieldDecline) {
+                    hasFieldDecline = false
+                    onError && onError('')
                 }
             },
         })

@@ -74,11 +74,25 @@ class AjaxInit {
 
 		try {
 			$order = wc_get_order( $order_id );
-            $invoice_id = Helper::build_invoice_id_with_prefix($order->get_order_number());
 
             if ( ! $order instanceof \WC_Order ) {
-                throw new \Exception( 'Order not found' );
+                wp_send_json_error( array(
+                    'errors' => array( __( 'Order not found.', \WC_DNA_Payments::$text_domain ) ),
+                ), 404 );
             }
+
+            if ( ! $this->current_user_can_access_order( $order ) ) {
+                if ( isset( $this->gateway->logger ) ) {
+                    $this->gateway->logger->error(
+                        'Unauthorized get_payment_and_auth_data attempt for order ' . $order_id . ' by user ' . get_current_user_id()
+                    );
+                }
+                wp_send_json_error( array(
+                    'errors' => array( __( 'You are not allowed to access this order.', \WC_DNA_Payments::$text_domain ) ),
+                ), 403 );
+            }
+
+            $invoice_id = Helper::build_invoice_id_with_prefix($order->get_order_number());
 
             // Mirror the veto applied in process_payment(); this flow bypasses it entirely.
             $can_process = apply_filters(
@@ -238,5 +252,36 @@ class AjaxInit {
 		$raw = (string) ($this->gateway->enable_ajax_order_status_update ?? '');
 
 		return wc_string_to_bool($raw);
+	}
+
+	/**
+	 * Determines whether the current request may access the given order.
+	 *
+	 *
+	 * @param \WC_Order $order
+	 * @return bool
+	 */
+	private function current_user_can_access_order( \WC_Order $order ): bool {
+		$current_user_id = get_current_user_id();
+		$customer_id     = $order->get_customer_id();
+
+		// Logged-in order owner, or a user who can manage the shop
+		if ( $current_user_id > 0 && ( $customer_id === $current_user_id || current_user_can( 'manage_woocommerce' ) ) ) {
+			return true;
+		}
+
+		// Guest pay-for-order link
+		$order_key = isset( $_POST['order_key'] ) ? sanitize_text_field( wp_unslash( $_POST['order_key'] ) ) : '';
+		
+        if ( $order_key !== '' ) {
+			$key_valid = method_exists( $order, 'key_is_valid' )
+				? $order->key_is_valid( $order_key )
+				: hash_equals( (string) $order->get_order_key(), $order_key );
+			if ( $key_valid ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

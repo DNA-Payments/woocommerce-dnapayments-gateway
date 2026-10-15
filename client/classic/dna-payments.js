@@ -27,6 +27,7 @@ import { addGatewayId, setNonces } from '../common/utils'
 /* global wc_checkout_params */
 /* global wc_dna_params */
 const orderId = Number(wc_dna_params.order_id) || 0
+const orderKey = wc_dna_params.order_key || ''
 const isPayForOrderPage = Boolean(orderId)
 const page = wc_dna_params.page || ''
 
@@ -338,7 +339,7 @@ jQuery(function ($) {
         }
 
         const { success, data } = await (isPayForOrderPage
-            ? fetchPaymentAndAuthData(orderId, page)
+            ? fetchPaymentAndAuthData(orderId, page, orderKey)
             : requestActionWithFormData('get_payment_data_from_cart', getCheckoutFormData()))
 
         if (!success) {

@@ -11,6 +11,7 @@ export async function completePayment({
     setLoading = () => {},
     setErrors = () => {},
     page = 'checkout',
+    orderKey = '',
 }) {
     // Helper function to handle redirects while keeping loading state active
     const handleRedirect = (url) => {
@@ -29,7 +30,7 @@ export async function completePayment({
         setLoading(true)
         try {
             const orderId = getOrderIdFromPaymentData(paymentResult)
-            const { success, data } = await updateOrderStatus(orderId, paymentResult, page)
+            const { success, data } = await updateOrderStatus(orderId, paymentResult, page, orderKey)
 
             if (success) {
                 handleRedirect(data.redirect)

@@ -179,6 +179,12 @@ class AjaxInit {
 	public function handle_get_payment_and_auth_data_for_saving_card() {
         check_ajax_referer($this->get_payment_and_auth_data_for_saving_card_action(), $this->get_nonce_field(), true);
 
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( array(
+                'errors' => array( __( 'Authentication required.', \WC_DNA_Payments::$text_domain ) ),
+            ), 403 );
+        }
+
         $user_id    = get_current_user_id();
         $invoice_id = Helper::build_invoice_id_with_prefix($user_id);
 		$customer 	= new \WC_Customer( $user_id );
@@ -210,8 +216,16 @@ class AjaxInit {
 		try {
 			$order 	= wc_get_order( $order_id );
 
-            if ( ! $order ) {
-                throw new \Exception('Order not found for ID: ' . $order_id, 400);
+            if ( ! $order instanceof \WC_Order ) {
+                wp_send_json_error( array(
+                    'errors' => array( __( 'Order not found.', \WC_DNA_Payments::$text_domain ) ),
+                ), 404 );
+            }
+
+            if ( ! $this->current_user_can_access_order( $order ) ) {
+                wp_send_json_error( array(
+                    'errors' => array( __( 'You are not allowed to access this order.', \WC_DNA_Payments::$text_domain ) ),
+                ), 403 );
             }
 
             // Check if AJAX order status update is enabled and skip is false
@@ -230,7 +244,7 @@ class AjaxInit {
             }
 
             $success = $status !== 'failed';
-            $redirect = $this->gateway->paymentDataHelper->get_payment_return_url( $order_id, $page, $success );
+            $redirect = $this->gateway->paymentDataHelper->get_payment_return_url( $order, $page, $success );
 
 			wp_send_json_success( array(
                 'status'    => $status,
@@ -262,26 +276,7 @@ class AjaxInit {
 	 * @return bool
 	 */
 	private function current_user_can_access_order( \WC_Order $order ): bool {
-		$current_user_id = get_current_user_id();
-		$customer_id     = $order->get_customer_id();
-
-		// Logged-in order owner, or a user who can manage the shop
-		if ( $current_user_id > 0 && ( $customer_id === $current_user_id || current_user_can( 'manage_woocommerce' ) ) ) {
-			return true;
-		}
-
-		// Guest pay-for-order link
-		$order_key = isset( $_POST['order_key'] ) ? sanitize_text_field( wp_unslash( $_POST['order_key'] ) ) : '';
-		
-        if ( $order_key !== '' ) {
-			$key_valid = method_exists( $order, 'key_is_valid' )
-				? $order->key_is_valid( $order_key )
-				: hash_equals( (string) $order->get_order_key(), $order_key );
-			if ( $key_valid ) {
-				return true;
-			}
-		}
-
-		return false;
+		$order_key = Helper::get_posted_value( 'order_key' );
+		return Helper::current_user_can_access_order( $order, $order_key );
 	}
 }

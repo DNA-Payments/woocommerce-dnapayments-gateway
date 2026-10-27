@@ -52,8 +52,8 @@ class PaymentDataHelper {
                     'paymentSettings' => array(
                         'terminalId' => $this->gateway->terminal,
                         'callbackUrl' => get_rest_url(null, 'dnapayments/change-payment-method'),
-                        'returnUrl' => $this->get_payment_return_url( $order->get_id(), 'change_payment_method', true ),
-                        'failureReturnUrl' => $this->get_payment_return_url( $order->get_id(), 'change_payment_method', false ),
+                        'returnUrl' => $this->get_payment_return_url( $order, 'change_payment_method', true ),
+                        'failureReturnUrl' => $this->get_payment_return_url( $order, 'change_payment_method', false ),
                     ),
                 )
                 : array(
@@ -65,8 +65,8 @@ class PaymentDataHelper {
                     'paymentSettings' => array_merge(
                         $this->get_payment_settings(),
                         array(
-                            'returnUrl' => $this->get_payment_return_url($order->get_id(), $page, true),
-                            'failureReturnUrl' => $this->get_payment_return_url($order->get_id(), $page, false),
+                            'returnUrl' => $this->get_payment_return_url( $order, $page, true ),
+                            'failureReturnUrl' => $this->get_payment_return_url( $order, $page, false ),
                         ),
                     ),
                 )
@@ -186,8 +186,8 @@ class PaymentDataHelper {
             'paymentSettings' => [
                 'terminalId'        => $this->gateway->terminal,
                 'callbackUrl'       => get_rest_url(null, 'dnapayments/success-add-card'),
-                'returnUrl'         => $this->get_payment_return_url( 0, 'add_payment_method', true ),
-                'failureReturnUrl'  => $this->get_payment_return_url( 0, 'add_payment_method', false ),
+                'returnUrl'         => $this->get_payment_return_url( null, 'add_payment_method', true ),
+                'failureReturnUrl'  => $this->get_payment_return_url( null, 'add_payment_method', false ),
             ],
             'customerDetails' => [
                 'email'             => $customer->get_billing_email(),
@@ -361,24 +361,27 @@ class PaymentDataHelper {
     /**
      * Build the return URL for a payment flow.
      *
-     * @param int    $order_id The order (or subscription) ID.
-     * @param string $page     Page identifier. Can be: change_payment_method, add_payment_method, pay_for_order
+     * @param \WC_Order|null $order Authorized order or subscription; null when adding a payment method.
+     * @param string $page     Page identifier: checkout, change_payment_method, add_payment_method, pay_for_order.
      * @param bool   $success  Whether the flow succeeded.
      * @return string The fully-qualified return URL.
      */
-    public function get_payment_return_url( $order_id, $page, $success ) {
+    public function get_payment_return_url( ?\WC_Order $order, $page, $success ) {
         // Build the base API URL for the gateway
         $base = WC()->api_request_url( $this->gateway->id );
-        // Append query parameters to indicate order, page and state
-        $url  = add_query_arg(
-            [
-                'order_id' => $order_id,
-                'page'     => $page,
-                'state'    => $success ? 'success' : 'failed',
-            ],
-            $base
-        );
-        return $url;
+        $args = [
+            'order_id' => $order ? $order->get_id() : 0,
+            'page'     => $page,
+            'state'    => $success ? 'success' : 'failed',
+        ];
+
+        // Registered customers use ownership checks; only guest orders need a key.
+        if ( $order && (int) $order->get_customer_id() === 0
+            && in_array( $page, array( 'checkout', 'pay_for_order' ), true ) ) {
+            $args['order_key'] = $order->get_order_key();
+        }
+
+        return add_query_arg( $args, $base );
     }
 
     /**

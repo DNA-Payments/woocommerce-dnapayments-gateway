@@ -173,6 +173,7 @@ export const usePaymentForm = ({ props, hostedFieldsInstance, gatewayId }) => {
 
                             completePayment({
                                 paymentResult: result.data,
+                                orderKey: paymentDetails.orderKey || '',
                                 redirect: result.redirect,
                                 page: 'checkout',
                             }).finally(() => {

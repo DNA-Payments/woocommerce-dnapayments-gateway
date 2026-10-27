@@ -464,17 +464,9 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         } else {
             wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-paypal', 'dna-alipay-wechat-pay', 'dna-payment-api') , \WC_DNA_Payments::$version, true);
 
-            // Exposing order key for order-scoped calls
+            // Forward only the key supplied in the payment link; AJAX validates it.
             $order_pay_id = absint( get_query_var( 'order-pay' ) );
-            $order_key    = '';
-            
-            if ( $order_pay_id ) {
-                $order_pay = wc_get_order( $order_pay_id );
-                
-                if ( $order_pay instanceof \WC_Order ) {
-                    $order_key = $order_pay->get_order_key();
-                }
-            }
+            $order_key    = Helper::get_query_string( 'key' );
 
             $dna_params = array_merge(
                 array(
@@ -558,6 +550,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             // Check if this is a block-based checkout (REST API request)
             $is_block_checkout = WC()->is_rest_api_request();
             $page = $this->paymentDataHelper->get_current_payment_page();
+            // Blocks checkout processes payment through the Store API, where
+            // is_checkout() has no storefront page context to identify checkout.
+            if ( $is_block_checkout && $page === '' ) {
+                $page = 'checkout';
+            }
 
             // This block is used generate payment data
             if ( empty ($result_string) ) {
@@ -594,6 +591,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
                 return array(
                     'result'        => 'success',
+                    'orderKey'     => $order->get_order_key(),
                     'paymentData'   => json_encode($payment_data),
                     'auth'          => json_encode($auth_data),
                     'token'         => $auth_data['access_token'],
@@ -615,7 +613,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             // Return thankyou redirect
             return array(
                 'result' 	=> 'success',
-                'redirect'	=> $this->paymentDataHelper->get_payment_return_url( $order_id, $page, true )
+                'redirect'	=> $this->paymentDataHelper->get_payment_return_url( $order, $page, true )
             );
         } catch (Exception $e) {
             $this->logger->error('Error in process_payment: ' . $e->getMessage());

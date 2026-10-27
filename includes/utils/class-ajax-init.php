@@ -74,11 +74,25 @@ class AjaxInit {
 
 		try {
 			$order = wc_get_order( $order_id );
-            $invoice_id = Helper::build_invoice_id_with_prefix($order->get_order_number());
 
             if ( ! $order instanceof \WC_Order ) {
-                throw new \Exception( 'Order not found' );
+                wp_send_json_error( array(
+                    'errors' => array( __( 'Order not found.', \WC_DNA_Payments::$text_domain ) ),
+                ), 404 );
             }
+
+            if ( ! $this->current_user_can_access_order( $order ) ) {
+                if ( isset( $this->gateway->logger ) ) {
+                    $this->gateway->logger->error(
+                        'Unauthorized get_payment_and_auth_data attempt for order ' . $order_id . ' by user ' . get_current_user_id()
+                    );
+                }
+                wp_send_json_error( array(
+                    'errors' => array( __( 'You are not allowed to access this order.', \WC_DNA_Payments::$text_domain ) ),
+                ), 403 );
+            }
+
+            $invoice_id = Helper::build_invoice_id_with_prefix($order->get_order_number());
 
             // Mirror the veto applied in process_payment(); this flow bypasses it entirely.
             $can_process = apply_filters(
@@ -165,6 +179,12 @@ class AjaxInit {
 	public function handle_get_payment_and_auth_data_for_saving_card() {
         check_ajax_referer($this->get_payment_and_auth_data_for_saving_card_action(), $this->get_nonce_field(), true);
 
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( array(
+                'errors' => array( __( 'Authentication required.', \WC_DNA_Payments::$text_domain ) ),
+            ), 403 );
+        }
+
         $user_id    = get_current_user_id();
         $invoice_id = Helper::build_invoice_id_with_prefix($user_id);
 		$customer 	= new \WC_Customer( $user_id );
@@ -196,8 +216,16 @@ class AjaxInit {
 		try {
 			$order 	= wc_get_order( $order_id );
 
-            if ( ! $order ) {
-                throw new \Exception('Order not found for ID: ' . $order_id, 400);
+            if ( ! $order instanceof \WC_Order ) {
+                wp_send_json_error( array(
+                    'errors' => array( __( 'Order not found.', \WC_DNA_Payments::$text_domain ) ),
+                ), 404 );
+            }
+
+            if ( ! $this->current_user_can_access_order( $order ) ) {
+                wp_send_json_error( array(
+                    'errors' => array( __( 'You are not allowed to access this order.', \WC_DNA_Payments::$text_domain ) ),
+                ), 403 );
             }
 
             // Check if AJAX order status update is enabled and skip is false
@@ -216,7 +244,7 @@ class AjaxInit {
             }
 
             $success = $status !== 'failed';
-            $redirect = $this->gateway->paymentDataHelper->get_payment_return_url( $order_id, $page, $success );
+            $redirect = $this->gateway->paymentDataHelper->get_payment_return_url( $order, $page, $success );
 
 			wp_send_json_success( array(
                 'status'    => $status,
@@ -238,5 +266,17 @@ class AjaxInit {
 		$raw = (string) ($this->gateway->enable_ajax_order_status_update ?? '');
 
 		return wc_string_to_bool($raw);
+	}
+
+	/**
+	 * Determines whether the current request may access the given order.
+	 *
+	 *
+	 * @param \WC_Order $order
+	 * @return bool
+	 */
+	private function current_user_can_access_order( \WC_Order $order ): bool {
+		$order_key = Helper::get_posted_value( 'order_key' );
+		return Helper::current_user_can_access_order( $order, $order_key );
 	}
 }

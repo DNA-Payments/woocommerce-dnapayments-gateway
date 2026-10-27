@@ -33,6 +33,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     const containerRef = useRef(null)
     // full payment data
     const paymentDataRef = useRef()
+    const orderKeyRef = useRef('')
     // preliminary payment data
     const draftPaymentDataRef = useRef()
     // resolve and reject of onBeforeProcessPayment
@@ -127,6 +128,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         const redirect = paymentDataRef.current?.paymentSettings?.returnUrl
                         await completePayment({
                             paymentResult,
+                            orderKey: orderKeyRef.current,
                             redirect,
                             setLoading: (isLoading) => setLoadingState(isLoading ? 'loading' : 'done'),
                             setErrors,
@@ -174,6 +176,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 const paymentData = tryParse(paymentDetails.paymentData)
                 const auth = tryParse(paymentDetails.auth)
                 const nonces = tryParse(paymentDetails.nonces)
+                orderKeyRef.current = paymentDetails.orderKey || ''
 
                 setNonces(nonces)
 

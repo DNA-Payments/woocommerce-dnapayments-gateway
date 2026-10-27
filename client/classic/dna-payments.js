@@ -26,8 +26,13 @@ import { addGatewayId, setNonces } from '../common/utils'
 
 /* global wc_checkout_params */
 /* global wc_dna_params */
-const orderId = Number(wc_dna_params.order_id) || 0
-const isPayForOrderPage = Boolean(orderId)
+// Existing order from the order-pay page and its optional URL key.
+// Normal checkout has no order ID yet; guest payment links must supply a key.
+const payForOrderId = Number(wc_dna_params.order_id) || 0
+const payForOrderKey = wc_dna_params.order_key || ''
+const isPayForOrderPage = Boolean(payForOrderId)
+// Updated from the checkout response when a new order is created.
+let paymentOrderKey = payForOrderKey
 const page = wc_dna_params.page || ''
 
 let isUpdating = false // is event updated_checkout will be triggered
@@ -96,6 +101,7 @@ jQuery(function ($) {
             }
             completePayment({
                 paymentResult: result.data,
+                orderKey: paymentOrderKey,
                 redirect: result.redirect,
                 setLoading: setFormLoading,
                 setErrors: showError,
@@ -267,6 +273,7 @@ jQuery(function ($) {
             onPaymentSuccess: (paymentResult) =>
                 completePayment({
                     paymentResult,
+                    orderKey: paymentOrderKey,
                     redirect: paymentData?.paymentSettings?.returnUrl,
                     setLoading: setFormLoading,
                     setErrors: showError,
@@ -333,12 +340,12 @@ jQuery(function ($) {
     }
 
     async function fetchPaymentData() {
-        if (isPayForOrderPage && getOrderIdFromPaymentData(paymentData) === orderId) {
+        if (isPayForOrderPage && getOrderIdFromPaymentData(paymentData) === payForOrderId) {
             return true
         }
 
         const { success, data } = await (isPayForOrderPage
-            ? fetchPaymentAndAuthData(orderId, page)
+            ? fetchPaymentAndAuthData(payForOrderId, page, payForOrderKey)
             : requestActionWithFormData('get_payment_data_from_cart', getCheckoutFormData()))
 
         if (!success) {
@@ -408,6 +415,7 @@ jQuery(function ($) {
         result.paymentData.merchantCustomData = addGatewayId(result.paymentData.merchantCustomData, selectedGatewayId)
 
         paymentData = result.paymentData
+        paymentOrderKey = result.orderKey || ''
         authData = result.auth
         paymentMethodsSettings = result.paymentMethodsSettings || null
         setNonces(result.nonces)

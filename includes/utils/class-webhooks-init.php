@@ -206,33 +206,27 @@ class WebhooksInit {
      * This method processes the return page after payment flows such as subscription
      * payment method changes, adding a payment method, or paying for an order, or checkout.
      *
-     * URL format: /?wc-api={gateway-id}&page={page}&order_id={order_id}&state={success|failed}
+     * Order returns also carry order_key for guest authorization. The state
+     * parameter controls navigation only; it is not proof of payment.
      *
      * @return void
      */
     public function handle_payment_return_page() {
-        $order_id = absint( $_GET['order_id'] ?? 0 );
-        $state    = sanitize_text_field( $_GET['state'] ?? '' );
-        $page     = sanitize_text_field( $_GET['page'] ?? '' );
+        // Return redirects can contain private order links and must not be cached.
+        nocache_headers();
 
-        // Handle subscription change-method flow
-        if ( $page === 'change_payment_method' ) {
-            $subscription = wcs_get_subscription( $order_id );
+        $order_id  = absint( Helper::get_query_string( 'order_id', '0' ) );
+        $state     = Helper::get_query_string( 'state' );
+        $page      = Helper::get_query_string( 'page' );
+        $order_key = Helper::get_query_string( 'order_key' );
 
-            if ( ! $subscription ) {
-                wp_safe_redirect( wc_get_account_endpoint_url( 'subscriptions' ) );
-                exit;
-            }
+        if ( ! in_array( $page, array( 'checkout', 'pay_for_order', 'change_payment_method', 'add_payment_method' ), true )
+            || ! in_array( $state, array( 'success', 'failed' ), true ) ) {
+            wp_die( esc_html__( 'Not found.', \WC_DNA_Payments::$text_domain ), '', array( 'response' => 404 ) );
+        }
 
-            if ( $state === 'failed' ) {
-                wc_add_notice( 'Payment method update failed.', 'error' );
-                wp_safe_redirect( $subscription->get_change_payment_method_url() );
-                exit;
-            }
-
-            wc_add_notice( 'Payment method updated successfully.', 'success' );
-            wp_safe_redirect( $subscription->get_view_order_url() );
-            exit;
+        if ( in_array( $page, array( 'change_payment_method', 'add_payment_method' ), true ) && ! is_user_logged_in() ) {
+            wp_die( esc_html__( 'Authentication required.', \WC_DNA_Payments::$text_domain ), '', array( 'response' => 403 ) );
         }
 
         // Handle add-payment-method flow
@@ -247,14 +241,43 @@ class WebhooksInit {
             exit;
         }
 
-        // Handle pay-for-order flow
-        if ( $page === 'pay_for_order' && $order_id > 0 ) {
-            $order = wc_get_order( $order_id );
-            if ( ! $order ) {
-                wp_safe_redirect( wc_get_account_endpoint_url( 'orders' ) );
+        // Authorize before constructing any URL that can contain an order key.
+        $order = $page === 'change_payment_method'
+            ? ( function_exists( 'wcs_get_subscription' ) ? wcs_get_subscription( $order_id ) : false )
+            : wc_get_order( $order_id );
+
+        if ( ! $order_id || ! $order instanceof \WC_Order ) {
+            wp_die( esc_html__( 'Not found.', \WC_DNA_Payments::$text_domain ), '', array( 'response' => 404 ) );
+            return;
+        }
+
+        if ( ! Helper::current_user_can_access_order( $order, $order_key ) ) {
+            wp_die( esc_html__( 'Access denied.', \WC_DNA_Payments::$text_domain ), '', array( 'response' => 403 ) );
+            return;
+        }
+
+        // Handle subscription change-method flow
+        if ( $page === 'change_payment_method' ) {
+            $subscription = $order;
+
+            if ( ! $subscription instanceof \WC_Subscription ) {
+                wp_die( esc_html__( 'Not found.', \WC_DNA_Payments::$text_domain ), '', array( 'response' => 404 ) );
+                return;
+            }
+
+            if ( $state === 'failed' ) {
+                wc_add_notice( 'Payment method update failed.', 'error' );
+                wp_safe_redirect( $subscription->get_change_payment_method_url() );
                 exit;
             }
 
+            wc_add_notice( 'Payment method updated successfully.', 'success' );
+            wp_safe_redirect( $subscription->get_view_order_url() );
+            exit;
+        }
+
+        // Handle pay-for-order flow
+        if ( $page === 'pay_for_order' && $order_id > 0 ) {
             if ( $state === 'failed' ) {
                 wc_add_notice( 'Payment failed.', 'error' );
                 wp_safe_redirect( $order->get_checkout_payment_url() );
@@ -267,12 +290,6 @@ class WebhooksInit {
 
         // Handle checkout flow
         if ( $page === 'checkout' && $order_id > 0 ) {
-            $order = wc_get_order( $order_id );
-            if ( ! $order ) {
-                wp_safe_redirect( wc_get_endpoint_url( 'order-received', '', wc_get_checkout_url() ) );
-                exit;
-            }
-
             $return_url = $this->gateway->get_option( $state === 'failed' ? 'failureBackLink' : 'backLink' );
             if ( ! empty($return_url ) ) {
                 wp_safe_redirect( Helper::is_url_absolute($return_url) ? $return_url : get_site_url(null, $return_url) );

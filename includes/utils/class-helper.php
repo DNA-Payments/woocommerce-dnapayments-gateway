@@ -14,6 +14,35 @@ class Helper {
     public const META_PAYMENT_METHOD = '_dnapayments_payment_method';
 
     /**
+     * Authorize browser access to an order without reading request globals.
+     * Logged-in users cannot use a key to bypass ownership.
+     */
+    public static function current_user_can_access_order( \WC_Order $order, string $order_key = '' ): bool {
+        $current_user_id = get_current_user_id();
+
+        if ( $current_user_id > 0 ) {
+            return $order->get_customer_id() === $current_user_id || current_user_can( 'manage_woocommerce' );
+        }
+
+        if ( $order_key === '' ) {
+            return false;
+        }
+
+        return $order->key_is_valid( $order_key );
+    }
+
+    /**
+     * Read a sanitized query string value, using the default for missing or non-string input.
+     */
+    public static function get_query_string( string $key, string $default = '' ): string {
+        $value = $_GET[ $key ] ?? null;
+
+        return is_string( $value )
+            ? sanitize_text_field( wp_unslash( $value ) )
+            : $default;
+    }
+
+    /**
      * Safely gets a sanitized string value from $_POST.
      *
      * @since 5.5.0

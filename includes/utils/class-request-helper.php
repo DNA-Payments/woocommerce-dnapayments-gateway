@@ -68,7 +68,7 @@ class RequestHelper {
         ];
         
         if ( $use_token ) {
-            $access_token = $this->gateway->authDataHelper->fetch_temp_token();
+            $access_token = $this->gateway->authDataHelper->get_client_token()['access_token'];
             
             if ( null === $access_token ) {
                 throw new \Exception( 'Access token is not set' );

@@ -17,7 +17,11 @@ export function getNonce(action) {
 }
 
 export function setNonces(nonces) {
-    if (nonces && window.wc_dna_params) {
-        window.wc_dna_params.nonces = nonces    
+    if (nonces && typeof window !== 'undefined') {
+        window.wc_dna_params = window.wc_dna_params || {}
+        window.wc_dna_params.nonces = {
+            ...(window.wc_dna_params.nonces || {}),
+            ...nonces,
+        }
     }
 }

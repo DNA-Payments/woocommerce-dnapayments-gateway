@@ -11,13 +11,15 @@ import { RawHTML } from '@wordpress/element'
  * Internal dependencies
  */
 import errors from '../common/errors'
-import { CONTAINER_IDS, GATEWAY_ID_GOOGLE_PAY, TEXT_DOMAIN } from '../common/constants'
+import { COMPONENT_SCRIPT_URLS, CONTAINER_IDS, GATEWAY_ID_GOOGLE_PAY, TEXT_DOMAIN } from '../common/constants'
 import { PaymentComponent } from './components/payment-component'
 
 const settings = getPaymentMethodData(GATEWAY_ID_GOOGLE_PAY, {})
 const defaultLabel = __('Google Pay', TEXT_DOMAIN)
 const label = decodeEntities(settings?.title || '') || defaultLabel
 const icon = settings?.icon
+const componentScriptUrl = COMPONENT_SCRIPT_URLS.googlePay
+const componentInstance = () => window.DNAPayments?.GooglePayComponent
 
 const Label = (props) => {
     const { PaymentMethodLabel } = props.components
@@ -42,7 +44,8 @@ const Content = (props) => {
 const GooglePayButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={window.DNAPayments.GooglePayComponent}
+            componentInstance={componentInstance}
+            componentScriptUrl={componentScriptUrl}
             gatewayId={GATEWAY_ID_GOOGLE_PAY}
             containerId={CONTAINER_IDS.googlepay}
             errorMessage={__(errors.GOOGLE_PAY_INIT_FAIL.message, TEXT_DOMAIN)}

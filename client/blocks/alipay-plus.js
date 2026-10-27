@@ -11,13 +11,15 @@ import { RawHTML } from '@wordpress/element'
  * Internal dependencies
  */
 import errors from '../common/errors'
-import { CONTAINER_IDS, GATEWAY_ID_ALIPAY_PLUS, TEXT_DOMAIN } from '../common/constants'
+import { COMPONENT_SCRIPT_URLS, CONTAINER_IDS, GATEWAY_ID_ALIPAY_PLUS, TEXT_DOMAIN } from '../common/constants'
 import { PaymentComponent } from './components/payment-component'
 
 const settings = getPaymentMethodData(GATEWAY_ID_ALIPAY_PLUS, {})
 const defaultLabel = __('Alipay+', TEXT_DOMAIN)
 const label = decodeEntities(settings?.title || '') || defaultLabel
 const icon = settings?.icon
+const componentScriptUrl = COMPONENT_SCRIPT_URLS.alipayWechatPay
+const componentInstance = () => window.DNAPayments?.AlipayPlusComponent
 
 const Label = (props) => {
     const { PaymentMethodLabel } = props.components
@@ -40,7 +42,8 @@ const Content = () => <RawHTML>{decodeEntities(settings.description || '')}</Raw
 const AlipayPlusButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={window.DNAPayments.AlipayPlusComponent}
+            componentInstance={componentInstance}
+            componentScriptUrl={componentScriptUrl}
             gatewayId={GATEWAY_ID_ALIPAY_PLUS}
             containerId={CONTAINER_IDS.alipayplus}
             errorMessage={__(errors.ALIPAY_PLUS_INIT_FAIL.message, TEXT_DOMAIN)}

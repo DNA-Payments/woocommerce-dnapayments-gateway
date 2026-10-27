@@ -1,7 +1,9 @@
 import { getPaymentMethodData } from '@woocommerce/settings'
 import { GATEWAY_ID } from '../../common/constants'
+import { setNonces } from '../../common/utils'
 
 const settings = getPaymentMethodData(GATEWAY_ID, {})
+setNonces(settings.nonces || {})
 const parsedAutoRedirectDelay = Number(settings.auto_redirect_delay_in_ms)
 const autoRedirectDelayInMs =
     settings.integration_type !== 'seamless' && Number.isFinite(parsedAutoRedirectDelay) && parsedAutoRedirectDelay >= 1000
@@ -11,7 +13,6 @@ const autoRedirectDelayInMs =
 export const dnaPaymentsSettingsData = {
     isTestMode: settings.is_test_mode,
     integrationType: settings.integration_type,
-    tempToken: settings.temp_token,
     terminalId: settings.terminal_id,
     allowSavingCards: settings.allow_saving_cards,
     sendCallbackEveryFailedAttempt: Number(settings.send_callback_every_failed_attempt),

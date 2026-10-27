@@ -7,7 +7,6 @@ export function getGlobalVariables() {
     const integrationType = wc_dna_params.integration_type
     const isHostedFields = wc_dna_params.integration_type === 'seamless'
     const allowSavingCards = wc_dna_params.allow_saving_cards === '1'
-    const tempToken = wc_dna_params.temp_token
     const cards = Object.values(wc_dna_params.cards || {})
     const availableGateways = wc_dna_params.available_gateways || []
     const sendCallbackEveryFailedAttempt = Number(wc_dna_params.send_callback_every_failed_attempt)
@@ -36,7 +35,6 @@ export function getGlobalVariables() {
         sendCallbackEveryFailedAttempt,
         availableSchemes,
         iconPath,
-        tempToken,
         terminalId,
         terminalConfig,
         transactionType,

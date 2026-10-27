@@ -41,6 +41,13 @@ abstract class WC_Gateway_Base_DNA_Payments_Blocks_Support extends AbstractPayme
 	protected $script_url;
 
 	/**
+	 * External DNA script handles required by this block integration.
+	 *
+	 * @var string[]
+	 */
+	protected $script_dependencies = array();
+
+	/**
 	 * Initializes the payment method type.
 	 */
 	public function initialize() {
@@ -71,7 +78,7 @@ abstract class WC_Gateway_Base_DNA_Payments_Blocks_Support extends AbstractPayme
 		$asset_path   = $this->asset_path;
 		$version      = \WC_DNA_Payments::$version;
 		$script_name  = 'wc-' . $this->name . '-blocks-integration';
-		$dependencies = is_admin() || is_login() ? [] : [ 'dna-payment-api', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-paypal', 'dna-alipay-wechat-pay' ];
+		$dependencies = is_admin() || is_login() ? array() : $this->script_dependencies;
 
 		if ( file_exists( $asset_path ) ) {
 			$asset = require $asset_path;

@@ -209,10 +209,22 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         ];
     }
 
-    public function save_payment_method_requested() {
+	public function save_payment_method_requested() {
 		$payment_method = isset( $_POST['payment_method'] ) ? wc_clean( wp_unslash( $_POST['payment_method'] ) ) : $this->id;
 
 		return isset( $_POST[ 'wc-' . $payment_method . '-new-payment-method' ] ) && ! empty( $_POST[ 'wc-' . $payment_method . '-new-payment-method' ] );
+	}
+
+	/**
+	 * Whether the gateway is safe to talk to DNA Payments: enabled and fully configured.
+	 *
+	 * @return bool
+	 */
+	public function is_ready() {
+		return 'yes' === $this->enabled
+			&& ! empty( $this->client_id )
+			&& ! empty( $this->client_secret )
+			&& ! empty( $this->terminal );
 	}
 
     /**
@@ -223,6 +235,10 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 	public function is_available() {
 		// First check parent availability
 		if (!parent::is_available()) {
+			return false;
+		}
+
+		if ( ! $this->is_ready() ) {
 			return false;
 		}
 
@@ -414,7 +430,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         return array(
             'is_test_mode' => $this->is_test_mode,
             'integration_type' => $this->integration_type,
-            'temp_token' => $this->authDataHelper->get_temp_token(),
             'terminal_id' => $this->terminal,
             'terminal_config' => $this->configHelper->get_terminal_config(),
             'transaction_type' => $this->configHelper->get_transaction_type(),
@@ -443,16 +458,20 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             return;
         }
 
-        if ( 'no' === $this->enabled ) {
-            return;
-        }
-
-        if ( empty( $this->client_id ) || empty( $this->client_secret ) ) {
+        if ( ! $this->is_ready() ) {
             return;
         }
 
         wp_register_style( 'dna_styles', plugins_url( 'assets/css/dna-payment.css', WC_DNA_MAIN_FILE ), [], \WC_DNA_Payments::$version );
         wp_enqueue_style( 'dna_styles' );
+
+        if ( is_checkout() && ! isset( $_GET['pay_for_order'] ) && ! is_add_payment_method_page() && function_exists( 'has_block' ) ) {
+            $post = get_post();
+
+            if ( $post && has_block( 'woocommerce/checkout', $post ) ) {
+                return;
+            }
+        }
 
         wp_register_script( 'woocommerce_dnapayments_preloader', plugins_url( 'assets/js/classic/dnapayments-preloader.js', WC_DNA_MAIN_FILE ), [], \WC_DNA_Payments::$version, false );
         wp_enqueue_script( 'woocommerce_dnapayments_preloader' );

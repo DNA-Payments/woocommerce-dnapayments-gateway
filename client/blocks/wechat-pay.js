@@ -11,13 +11,15 @@ import { RawHTML } from '@wordpress/element'
  * Internal dependencies
  */
 import errors from '../common/errors'
-import { CONTAINER_IDS, GATEWAY_ID_WECHAT_PAY, TEXT_DOMAIN } from '../common/constants'
+import { COMPONENT_SCRIPT_URLS, CONTAINER_IDS, GATEWAY_ID_WECHAT_PAY, TEXT_DOMAIN } from '../common/constants'
 import { PaymentComponent } from './components/payment-component'
 
 const settings = getPaymentMethodData(GATEWAY_ID_WECHAT_PAY, {})
 const defaultLabel = __('WeChat Pay', TEXT_DOMAIN)
 const label = decodeEntities(settings?.title || '') || defaultLabel
 const icon = settings?.icon
+const componentScriptUrl = COMPONENT_SCRIPT_URLS.alipayWechatPay
+const componentInstance = () => window.DNAPayments?.WeChatPayComponent
 
 const Label = (props) => {
     const { PaymentMethodLabel } = props.components
@@ -40,7 +42,8 @@ const Content = () => <RawHTML>{decodeEntities(settings.description || '')}</Raw
 const WeChatPayButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={window.DNAPayments.WeChatPayComponent}
+            componentInstance={componentInstance}
+            componentScriptUrl={componentScriptUrl}
             gatewayId={GATEWAY_ID_WECHAT_PAY}
             containerId={CONTAINER_IDS.wechatpay}
             errorMessage={__(errors.WECHAT_PAY_INIT_FAIL.message, TEXT_DOMAIN)}

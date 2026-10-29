@@ -11,15 +11,14 @@ import { RawHTML } from '@wordpress/element'
  * Internal dependencies
  */
 import errors from '../common/errors'
-import { COMPONENT_SCRIPT_URLS, CONTAINER_IDS, GATEWAY_ID_APPLE_PAY, TEXT_DOMAIN } from '../common/constants'
+import { checkApplePayAvailability } from '../common/validater'
+import { CONTAINER_IDS, GATEWAY_ID_APPLE_PAY, TEXT_DOMAIN } from '../common/constants'
 import { PaymentComponent } from './components/payment-component'
 
 const settings = getPaymentMethodData(GATEWAY_ID_APPLE_PAY, {})
 const defaultLabel = __('Apple Pay', TEXT_DOMAIN)
 const label = decodeEntities(settings?.title || '') || defaultLabel
 const icon = settings?.icon
-const componentScriptUrl = COMPONENT_SCRIPT_URLS.applePay
-const componentInstance = () => window.DNAPayments?.ApplePayComponent
 
 const Label = (props) => {
     const { PaymentMethodLabel } = props.components
@@ -44,8 +43,7 @@ const Content = (props) => {
 const ApplePayButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={componentInstance}
-            componentScriptUrl={componentScriptUrl}
+            componentInstance={window.DNAPayments?.ApplePayComponent}
             gatewayId={GATEWAY_ID_APPLE_PAY}
             containerId={CONTAINER_IDS.applepay}
             errorMessage={__(errors.APPLE_PAY_INIT_FAIL.message, TEXT_DOMAIN)}
@@ -61,7 +59,7 @@ const dnapaymentsApplePayPaymentMethod = {
     label: <Label />,
     content: <ApplePayButton />,
     edit: <Content />,
-    canMakePayment: () => true,
+    canMakePayment: checkApplePayAvailability,
     ariaLabel: label,
     supports: {
         features: settings?.supports ?? [],
@@ -69,4 +67,5 @@ const dnapaymentsApplePayPaymentMethod = {
     placeOrderButtonLabel: label,
 }
 
+checkApplePayAvailability()
 registerPaymentMethod(dnapaymentsApplePayPaymentMethod)

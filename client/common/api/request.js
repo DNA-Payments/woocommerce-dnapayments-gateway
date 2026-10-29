@@ -5,8 +5,12 @@ import errors from '../errors'
 export async function request(...args) {
     try {
         const response = await fetch(...args)
+        // Error responses can contain HTML or an empty body. Catch JSON/body-read
+        // failures here so we can still report the HTTP status below.
         const data = await response.json().catch(() => null)
 
+        // fetch() resolves for HTTP errors (e.g. 403 or 502); it does not throw.
+        // Preserve server error data when available, otherwise report the status.
         if (!response.ok) {
             return {
                 success: false,
@@ -18,6 +22,7 @@ export async function request(...args) {
 
         return data
     } catch (err) {
+        // Handles fetch failures, including network errors
         return { success: false, data: { errors: [errors.CRITICAL_WEBSITE_ERROR.message] } }
     }
 }

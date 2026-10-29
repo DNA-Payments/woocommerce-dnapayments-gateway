@@ -10,7 +10,6 @@ import { addGatewayId, setNonces } from '../../common/utils'
 import { GATEWAY_ID_APPLE_PAY } from '../../common/constants'
 import { getPaymentComponentErrorMessage, isInitFailed, getWalletFundingConfig } from '../../common/payment-component-helper'
 import { getValidationEvents, traceGate } from '../../common/validators'
-import { loadScript } from '../../common/load-script'
 
 import { triggerPlaceOrderButtonClick, useTogglePlaceOrderButtonDisabled } from '../utils/place-order-button'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
@@ -19,9 +18,7 @@ import { useCheckoutValidation } from '../hooks/use-checkout-validation'
 
 import { ErrorMessage } from './error-message'
 
-const PAYMENT_API_SCRIPT_URL = 'https://pay.dnapayments.com/checkout/payment-api.js'
-
-export const PaymentComponent = ({ containerId, componentInstance, componentScriptUrl, gatewayId, errorMessage, props }) => {
+export const PaymentComponent = ({ containerId, componentInstance, gatewayId, errorMessage, props }) => {
     const {
         activePaymentMethod,
         emitResponse: { responseTypes, noticeContexts },
@@ -45,7 +42,6 @@ export const PaymentComponent = ({ containerId, componentInstance, componentScri
     const checkoutPromiseRef = useRef()
 
     const { isTestMode, terminalId, paymentMethodsSettings } = dnaPaymentsSettingsData
-    const getComponentInstance = componentInstance
 
     const paymentDataJSON = useMemo(() => {
         try {
@@ -96,38 +92,19 @@ export const PaymentComponent = ({ containerId, componentInstance, componentScri
             setErrors([])
             setLoadingState('loading')
 
-            containerRef.current.innerHTML = ''
-
-            try {
-                if (!window.DNAPayments) {
-                    await loadScript(PAYMENT_API_SCRIPT_URL, () => Boolean(window.DNAPayments))
-                }
-
-                if (!getComponentInstance()) {
-                    await loadScript(componentScriptUrl, getComponentInstance)
-                }
-            } catch (err) {
-                if (!containerRef.current) {
-                    return
-                }
-                logError(err)
-                setLoadingState('failed')
-                setErrors([errorMessage])
-                return
-            }
-
             if (!containerRef.current) {
                 return
             }
 
-            const resolvedComponentInstance = getComponentInstance()
-            if (!resolvedComponentInstance) {
+            containerRef.current.innerHTML = ''
+
+            if (!componentInstance) {
                 setLoadingState('failed')
                 setErrors([errorMessage])
                 return
             }
 
-            resolvedComponentInstance.isLoaded = false
+            componentInstance.isLoaded = false
             const fundingConfig = getWalletFundingConfig(paymentMethodsSettings, gatewayId)
 
             traceGate(
@@ -137,7 +114,7 @@ export const PaymentComponent = ({ containerId, componentInstance, componentScri
                 fundingConfig || undefined
             )
 
-            resolvedComponentInstance.init({
+            componentInstance.init({
                 containerElement: containerRef.current,
                 paymentData: draftPaymentDataRef.current,
                 // Flat keys: the merchant-side contract the wallet components read. Omitted
@@ -176,7 +153,7 @@ export const PaymentComponent = ({ containerId, componentInstance, componentScri
                     },
                     onError: (err) => {
                         const notShowError =
-                            isInitFailed(err) && resolvedComponentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
+                            isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
                         const message = getPaymentComponentErrorMessage(err, errorMessage)
                         setLoadingState('failed')
                         if (!notShowError) {
@@ -188,14 +165,14 @@ export const PaymentComponent = ({ containerId, componentInstance, componentScri
                     },
                     onLoad: () => {
                         setLoadingState('done')
-                        resolvedComponentInstance.isLoaded = true
+                        componentInstance.isLoaded = true
                     },
                 },
                 environment: isTestMode ? 'sandbox' : 'production',
                 terminalId,
             })
         }),
-        [componentScriptUrl, errorMessage, gatewayId, getComponentInstance, rejectCheckoutPromise, resolveCheckoutPromise],
+        [componentInstance, errorMessage, gatewayId, rejectCheckoutPromise, resolveCheckoutPromise],
     )
 
     useEffect(() => {

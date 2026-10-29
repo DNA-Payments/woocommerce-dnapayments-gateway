@@ -11,15 +11,13 @@ import { RawHTML } from '@wordpress/element'
  * Internal dependencies
  */
 import errors from '../common/errors'
-import { COMPONENT_SCRIPT_URLS, CONTAINER_IDS, GATEWAY_ID_PAYPAL, TEXT_DOMAIN } from '../common/constants'
+import { CONTAINER_IDS, GATEWAY_ID_PAYPAL, TEXT_DOMAIN } from '../common/constants'
 import { PaymentComponent } from './components/payment-component'
 
 const settings = getPaymentMethodData(GATEWAY_ID_PAYPAL, {})
 const defaultLabel = __('PayPal', TEXT_DOMAIN)
 const label = decodeEntities(settings?.title || '') || defaultLabel
 const icon = settings?.icon
-const componentScriptUrl = COMPONENT_SCRIPT_URLS.paypal
-const componentInstance = () => window.DNAPayments?.PayPalComponent
 
 const Label = (props) => {
     const { PaymentMethodLabel } = props.components
@@ -42,8 +40,7 @@ const Content = () => <RawHTML>{decodeEntities(settings.description || '')}</Raw
 const PayPalButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={componentInstance}
-            componentScriptUrl={componentScriptUrl}
+            componentInstance={window.DNAPayments?.PayPalComponent}
             gatewayId={GATEWAY_ID_PAYPAL}
             containerId={CONTAINER_IDS.paypal}
             errorMessage={__(errors.PAYPAL_INIT_FAIL.message, TEXT_DOMAIN)}

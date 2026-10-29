@@ -3,7 +3,7 @@ import { GATEWAY_ID } from '../../common/constants'
 import { setNonces } from '../../common/utils'
 
 const settings = getPaymentMethodData(GATEWAY_ID, {})
-setNonces(settings.nonces || {})
+setNonces(settings.nonces)
 const parsedAutoRedirectDelay = Number(settings.auto_redirect_delay_in_ms)
 const autoRedirectDelayInMs =
     settings.integration_type !== 'seamless' && Number.isFinite(parsedAutoRedirectDelay) && parsedAutoRedirectDelay >= 1000

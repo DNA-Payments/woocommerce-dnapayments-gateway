@@ -209,10 +209,22 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         ];
     }
 
-    public function save_payment_method_requested() {
+	public function save_payment_method_requested() {
 		$payment_method = isset( $_POST['payment_method'] ) ? wc_clean( wp_unslash( $_POST['payment_method'] ) ) : $this->id;
 
 		return isset( $_POST[ 'wc-' . $payment_method . '-new-payment-method' ] ) && ! empty( $_POST[ 'wc-' . $payment_method . '-new-payment-method' ] );
+	}
+
+	/**
+	 * Whether the gateway is safe to talk to DNA Payments: enabled and fully configured.
+	 *
+	 * @return bool
+	 */
+	public function is_ready() {
+		return 'yes' === $this->enabled
+			&& ! empty( $this->client_id )
+			&& ! empty( $this->client_secret )
+			&& ! empty( $this->terminal );
 	}
 
     /**
@@ -223,6 +235,10 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 	public function is_available() {
 		// First check parent availability
 		if (!parent::is_available()) {
+			return false;
+		}
+
+		if ( ! $this->is_ready() ) {
 			return false;
 		}
 
@@ -414,7 +430,6 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         return array(
             'is_test_mode' => $this->is_test_mode,
             'integration_type' => $this->integration_type,
-            'temp_token' => $this->authDataHelper->get_temp_token(),
             'terminal_id' => $this->terminal,
             'terminal_config' => $this->configHelper->get_terminal_config(),
             'transaction_type' => $this->configHelper->get_transaction_type(),
@@ -443,16 +458,25 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             return;
         }
 
-        if ( 'no' === $this->enabled ) {
-            return;
-        }
-
-        if ( empty( $this->client_id ) || empty( $this->client_secret ) ) {
+        if ( ! $this->is_ready() ) {
             return;
         }
 
         wp_register_style( 'dna_styles', plugins_url( 'assets/css/dna-payment.css', WC_DNA_MAIN_FILE ), [], \WC_DNA_Payments::$version );
         wp_enqueue_style( 'dna_styles' );
+
+        // Keep classic scripts for Pay for Order and Add Payment Method pages.
+        // Guard has_block() for WordPress versions where it is unavailable.
+        if ( is_checkout() && ! isset( $_GET['pay_for_order'] ) && ! is_add_payment_method_page() && function_exists( 'has_block' ) ) {
+            $post = get_post();
+
+            if ( $post && has_block( 'woocommerce/checkout', $post ) ) {
+                // Block checkout loads its own integration and SDKs through script dependencies.
+                // Skip the classic preloader, checkout script and its eager wallet dependencies.
+                // Shared payment styles have already been enqueued above.
+                return;
+            }
+        }
 
         wp_register_script( 'woocommerce_dnapayments_preloader', plugins_url( 'assets/js/classic/dnapayments-preloader.js', WC_DNA_MAIN_FILE ), [], \WC_DNA_Payments::$version, false );
         wp_enqueue_script( 'woocommerce_dnapayments_preloader' );
@@ -464,8 +488,15 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         } else {
             wp_register_script('woocommerce_dna_payment', plugins_url('assets/js/classic/dna-payments.js', WC_DNA_MAIN_FILE), array('jquery', 'dna-hosted-fields', 'dna-google-pay', 'dna-apple-pay', 'dna-paypal', 'dna-alipay-wechat-pay', 'dna-payment-api') , \WC_DNA_Payments::$version, true);
 
+            // Forward only the key supplied in the payment link; AJAX validates it.
+            $order_pay_id = absint( get_query_var( 'order-pay' ) );
+            $order_key    = Helper::get_query_string( 'key' );
+
             $dna_params = array_merge(
-                array('order_id' => absint(get_query_var('order-pay'))),
+                array(
+                    'order_id'  => $order_pay_id,
+                    'order_key' => $order_key,
+                ),
                 $this->get_settings_for_frontend()
             );
         }
@@ -543,6 +574,11 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             // Check if this is a block-based checkout (REST API request)
             $is_block_checkout = WC()->is_rest_api_request();
             $page = $this->paymentDataHelper->get_current_payment_page();
+            // Blocks checkout processes payment through the Store API, where
+            // is_checkout() has no storefront page context to identify checkout.
+            if ( $is_block_checkout && $page === '' ) {
+                $page = 'checkout';
+            }
 
             // This block is used generate payment data
             if ( empty ($result_string) ) {
@@ -579,6 +615,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
                 return array(
                     'result'        => 'success',
+                    'orderKey'     => $order->get_order_key(),
                     'paymentData'   => json_encode($payment_data),
                     'auth'          => json_encode($auth_data),
                     'token'         => $auth_data['access_token'],
@@ -600,7 +637,7 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             // Return thankyou redirect
             return array(
                 'result' 	=> 'success',
-                'redirect'	=> $this->paymentDataHelper->get_payment_return_url( $order_id, $page, true )
+                'redirect'	=> $this->paymentDataHelper->get_payment_return_url( $order, $page, true )
             );
         } catch (Exception $e) {
             $this->logger->error('Error in process_payment: ' . $e->getMessage());

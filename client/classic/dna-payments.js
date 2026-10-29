@@ -26,8 +26,13 @@ import { addGatewayId, setNonces } from '../common/utils'
 
 /* global wc_checkout_params */
 /* global wc_dna_params */
-const orderId = Number(wc_dna_params.order_id) || 0
-const isPayForOrderPage = Boolean(orderId)
+// Existing order from the order-pay page and its optional URL key.
+// Normal checkout has no order ID yet; guest payment links must supply a key.
+const payForOrderId = Number(wc_dna_params.order_id) || 0
+const payForOrderKey = wc_dna_params.order_key || ''
+const isPayForOrderPage = Boolean(payForOrderId)
+// Updated from the checkout response when a new order is created.
+let paymentOrderKey = payForOrderKey
 const page = wc_dna_params.page || ''
 
 let isUpdating = false // is event updated_checkout will be triggered
@@ -35,14 +40,15 @@ let hostedFieldsInstance = null
 let paymentData = null
 let authData = null
 let paymentMethodsSettings = null
-let globalError = null
 let isFirstRender = true
 let isRendering = false
 let serializedFormData = null
 let pendingRenderRequest = null
 
 jQuery(function ($) {
-    const { isTestMode, gatewayId, isHostedFields, tempToken, cards, allowSavingCards, placeOrderButtonText } =
+    setNonces(window.wc_dna_params?.nonces)
+
+    const { isTestMode, gatewayId, isHostedFields, cards, allowSavingCards, placeOrderButtonText } =
         getGlobalVariables()
 
     const $form = isPayForOrderPage ? $('form#order_review') : $('form.woocommerce-checkout')
@@ -96,6 +102,7 @@ jQuery(function ($) {
             }
             completePayment({
                 paymentResult: result.data,
+                orderKey: paymentOrderKey,
                 redirect: result.redirect,
                 setLoading: setFormLoading,
                 setErrors: showError,
@@ -241,11 +248,6 @@ jQuery(function ($) {
         }
     })
 
-    if (!tempToken) {
-        globalError = `Authentication failed. Please check that your credentials are correct. If you are using the Hosted Fields integration, make sure it is enabled for your account by your payment provider.`
-        displayError(globalError)
-    }
-
     // On the Pay for Order page, ensure initialization of payment components
     if (isPayForOrderPage || isElementorBased) {
         render({ shouldScrollToError: isFirstRender })
@@ -267,6 +269,7 @@ jQuery(function ($) {
             onPaymentSuccess: (paymentResult) =>
                 completePayment({
                     paymentResult,
+                    orderKey: paymentOrderKey,
                     redirect: paymentData?.paymentSettings?.returnUrl,
                     setLoading: setFormLoading,
                     setErrors: showError,
@@ -289,7 +292,6 @@ jQuery(function ($) {
                     containerElement: $container[0],
                     events,
                     paymentData,
-                    token: authData ? authData.access_token : tempToken,
                     environment: isTestMode ? 'sandbox' : 'production',
                     terminalId: wc_dna_params.terminal_id,
                     paymentMethodsSettings,
@@ -333,12 +335,12 @@ jQuery(function ($) {
     }
 
     async function fetchPaymentData() {
-        if (isPayForOrderPage && getOrderIdFromPaymentData(paymentData) === orderId) {
+        if (isPayForOrderPage && getOrderIdFromPaymentData(paymentData) === payForOrderId) {
             return true
         }
 
         const { success, data } = await (isPayForOrderPage
-            ? fetchPaymentAndAuthData(orderId, page)
+            ? fetchPaymentAndAuthData(payForOrderId, page, payForOrderKey)
             : requestActionWithFormData('get_payment_data_from_cart', getCheckoutFormData()))
 
         if (!success) {
@@ -408,6 +410,7 @@ jQuery(function ($) {
         result.paymentData.merchantCustomData = addGatewayId(result.paymentData.merchantCustomData, selectedGatewayId)
 
         paymentData = result.paymentData
+        paymentOrderKey = result.orderKey || ''
         authData = result.auth
         paymentMethodsSettings = result.paymentMethodsSettings || null
         setNonces(result.nonces)
@@ -430,9 +433,6 @@ jQuery(function ($) {
     function showError(error_message, shouldScrollToNotices = true) {
         hideError()
         displayError(error_message)
-        if (globalError) {
-            displayError(globalError)
-        }
         setTimeout(() => $form.removeClass('processing').unblock())
         $.unblockUI()
 

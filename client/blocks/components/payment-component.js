@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from '@wordpress/el
 import { __ } from '@wordpress/i18n'
 
 import errors from '../../common/errors'
-import { logData, logError } from '../../common/log'
+import { logError } from '../../common/log'
 import { tryParse } from '../../common/try-parse'
 import { completePayment } from '../../common/complete-payment'
 import { debounce } from '../../common/debounce'
@@ -23,7 +23,13 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
         activePaymentMethod,
         emitResponse: { responseTypes, noticeContexts },
         components: { LoadingMask },
-        eventRegistration: { onCheckoutSuccess, onCheckoutFail, onCheckoutValidation },
+        eventRegistration: {
+            onCheckoutSuccess,
+            onCheckoutFail,
+            onCheckoutValidation,
+            onShippingRateSuccess,
+            onShippingRateSelectSuccess,
+        },
     } = props
 
     const [loadingState, setLoadingState] = useState('idle')
@@ -33,6 +39,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     const containerRef = useRef(null)
     // full payment data
     const paymentDataRef = useRef()
+    const orderKeyRef = useRef('')
     // preliminary payment data
     const draftPaymentDataRef = useRef()
     // resolve and reject of onBeforeProcessPayment
@@ -40,7 +47,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     // resolve and reject of onCheckoutSuccess
     const checkoutPromiseRef = useRef()
 
-    const { tempToken, isTestMode, terminalId, paymentMethodsSettings } = dnaPaymentsSettingsData
+    const { isTestMode, terminalId, paymentMethodsSettings } = dnaPaymentsSettingsData
 
     const paymentDataJSON = useMemo(() => {
         try {
@@ -91,7 +98,17 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
             setErrors([])
             setLoadingState('loading')
 
+            if (!containerRef.current) {
+                return
+            }
+
             containerRef.current.innerHTML = ''
+
+            if (!componentInstance) {
+                setLoadingState('failed')
+                setErrors([errorMessage])
+                return
+            }
 
             componentInstance.isLoaded = false
             const fundingConfig = getWalletFundingConfig(paymentMethodsSettings, gatewayId)
@@ -123,10 +140,10 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         })
                     },
                     onPaymentSuccess: async (paymentResult) => {
-                        logData('onPaymentSuccess', paymentResult)
                         const redirect = paymentDataRef.current?.paymentSettings?.returnUrl
                         await completePayment({
                             paymentResult,
+                            orderKey: orderKeyRef.current,
                             redirect,
                             setLoading: (isLoading) => setLoadingState(isLoading ? 'loading' : 'done'),
                             setErrors,
@@ -141,7 +158,6 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         }
                     },
                     onError: (err) => {
-                        logData('onError', err)
                         const notShowError =
                             isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
                         const message = getPaymentComponentErrorMessage(err, errorMessage)
@@ -158,12 +174,11 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                         componentInstance.isLoaded = true
                     },
                 },
-                token: tempToken,
                 environment: isTestMode ? 'sandbox' : 'production',
                 terminalId,
             })
         }),
-        [componentInstance, rejectCheckoutPromise, resolveCheckoutPromise],
+        [componentInstance, errorMessage, gatewayId, rejectCheckoutPromise, resolveCheckoutPromise],
     )
 
     useEffect(() => {
@@ -174,10 +189,26 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 const paymentData = tryParse(paymentDetails.paymentData)
                 const auth = tryParse(paymentDetails.auth)
                 const nonces = tryParse(paymentDetails.nonces)
+                orderKeyRef.current = paymentDetails.orderKey || ''
 
                 setNonces(nonces)
 
                 if (paymentData && auth) {
+                    // Blocks compares postcodes without a space and ignoring case, so
+                    // formatting-only edits may not trigger shipping updates. Normalize
+                    // server postcodes like getAddress() to keep SDK initialization and
+                    // payment processing consistent (e.g. "E1 5AN" and "E15AN").
+                    const addresses = [
+                        paymentData.customerDetails?.billingAddress,
+                        paymentData.customerDetails?.deliveryDetails?.deliveryAddress,
+                    ]
+
+                    addresses.forEach((address) => {
+                        if (address) {
+                            address.postalCode = address.postalCode?.replace(' ', '').toUpperCase()
+                        }
+                    })
+
                     paymentData.merchantCustomData = addGatewayId(paymentData.merchantCustomData, gatewayId)
                     paymentDataRef.current = paymentData
                     processPromiseRef.current?.resolve({ paymentData, auth, token: auth.access_token })
@@ -192,8 +223,6 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
 
     useEffect(() => {
         const handler = async (params) => {
-            logData('onCheckoutFail', params)
-
             const {
                 processingResponse: {
                     message,
@@ -221,7 +250,22 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     }, [paymentDataJSON])
 
     useEffect(() => {
-        if (containerRef.current && componentInstance) {
+        // Refresh when available rates update (e.g. after an address change)
+        // or a shipping selection finishes being saved.
+        // Both events share setupIntegration's debounce timer, so calls within
+        // the debounce window result in one initialization.
+        const unsubscribeRates = onShippingRateSuccess(setupIntegration)
+        const unsubscribeSelection = onShippingRateSelectSuccess(setupIntegration)
+
+        return () => {
+            // Remove listeners on unmount or before subscribing with new dependencies.
+            unsubscribeRates()
+            unsubscribeSelection()
+        }
+    }, [onShippingRateSuccess, onShippingRateSelectSuccess, setupIntegration])
+
+    useEffect(() => {
+        if (containerRef.current) {
             setupIntegration()
         }
     }, [setupIntegration, props.billing?.cartTotal?.value])

@@ -62,7 +62,9 @@ export function getAddress(address) {
         addressLine1: address.address_1,
         addressLine2: address.address_2,
         city: address.city,
-        postalCode: address.postcode,
+        // Match Blocks' postcode comparison: spacing/case edits may not trigger
+        // shipping updates. Apply the same normalization to server payment data.
+        postalCode: address.postcode?.replace(' ', '').toUpperCase(),
         phone: address.phone,
         country: address.country,
     }

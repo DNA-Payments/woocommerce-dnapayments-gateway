@@ -16,5 +16,6 @@ final class WC_Gateway_DNA_Payments_Alipay_Blocks_Support extends WC_Gateway_Bas
 		$this->name       = 'dnapayments_alipay';
 		$this->asset_path = WC_DNA_Payments::plugin_abspath() . '/assets/js/blocks/dnapayments_alipay.asset.php';
 		$this->script_url = WC_DNA_Payments::plugin_url() . '/assets/js/blocks/dnapayments_alipay.js';
+		$this->script_dependencies = array( 'dna-alipay-wechat-pay' );
 	}
 }

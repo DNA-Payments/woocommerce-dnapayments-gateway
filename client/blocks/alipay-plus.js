@@ -40,7 +40,7 @@ const Content = () => <RawHTML>{decodeEntities(settings.description || '')}</Raw
 const AlipayPlusButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={window.DNAPayments.AlipayPlusComponent}
+            componentInstance={window.DNAPayments?.AlipayPlusComponent}
             gatewayId={GATEWAY_ID_ALIPAY_PLUS}
             containerId={CONTAINER_IDS.alipayplus}
             errorMessage={__(errors.ALIPAY_PLUS_INIT_FAIL.message, TEXT_DOMAIN)}

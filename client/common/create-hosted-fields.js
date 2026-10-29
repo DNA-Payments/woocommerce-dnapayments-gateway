@@ -4,8 +4,7 @@ import { logError } from './log'
 import { getValidationEvents, setFieldDecline, traceGate } from './validators'
 
 export async function createHostedFields({
-    isTestMode,
-    accessToken,
+    env,
     terminalId,
     threeDSModal,
     domElements: { number, name, expDate, cvv, cvvToken },
@@ -64,14 +63,8 @@ export async function createHostedFields({
     }
 
     const options = {
-        // Both spellings on purpose: the CDN build reads `isTestMode`, the newer
-        // pay.dnapayments.com build wants `env` and warns that `isTestMode` is deprecated.
-        // Sending both keeps either build in the right environment - and getting this wrong
-        // would mean running a sandbox checkout against production.
-        isTestMode,
-        env: isTestMode ? 'sandbox' : 'production',
+        env,
         terminalId,
-        accessToken,
         styles,
         styleConfig: {
             containerClasses: {

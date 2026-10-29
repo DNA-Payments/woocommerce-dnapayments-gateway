@@ -40,7 +40,7 @@ const Content = () => <RawHTML>{decodeEntities(settings.description || '')}</Raw
 const PayPalButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={window.DNAPayments.PayPalComponent}
+            componentInstance={window.DNAPayments?.PayPalComponent}
             gatewayId={GATEWAY_ID_PAYPAL}
             containerId={CONTAINER_IDS.paypal}
             errorMessage={__(errors.PAYPAL_INIT_FAIL.message, TEXT_DOMAIN)}

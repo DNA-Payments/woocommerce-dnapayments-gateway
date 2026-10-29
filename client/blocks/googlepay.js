@@ -42,7 +42,7 @@ const Content = (props) => {
 const GooglePayButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={window.DNAPayments.GooglePayComponent}
+            componentInstance={window.DNAPayments?.GooglePayComponent}
             gatewayId={GATEWAY_ID_GOOGLE_PAY}
             containerId={CONTAINER_IDS.googlepay}
             errorMessage={__(errors.GOOGLE_PAY_INIT_FAIL.message, TEXT_DOMAIN)}

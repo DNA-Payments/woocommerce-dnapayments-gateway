@@ -43,7 +43,7 @@ const Content = (props) => {
 const ApplePayButton = (props) => {
     return (
         <PaymentComponent
-            componentInstance={window.DNAPayments.ApplePayComponent}
+            componentInstance={window.DNAPayments?.ApplePayComponent}
             gatewayId={GATEWAY_ID_APPLE_PAY}
             containerId={CONTAINER_IDS.applepay}
             errorMessage={__(errors.APPLE_PAY_INIT_FAIL.message, TEXT_DOMAIN)}
@@ -67,4 +67,5 @@ const dnapaymentsApplePayPaymentMethod = {
     placeOrderButtonLabel: label,
 }
 
+checkApplePayAvailability()
 registerPaymentMethod(dnapaymentsApplePayPaymentMethod)

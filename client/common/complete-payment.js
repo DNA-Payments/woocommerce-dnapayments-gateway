@@ -11,6 +11,7 @@ export async function completePayment({
     setLoading = () => {},
     setErrors = () => {},
     page = 'checkout',
+    orderKey = '',
 }) {
     // Helper function to handle redirects while keeping loading state active
     const handleRedirect = (url) => {
@@ -29,18 +30,21 @@ export async function completePayment({
         setLoading(true)
         try {
             const orderId = getOrderIdFromPaymentData(paymentResult)
-            const { success, data } = await updateOrderStatus(orderId, paymentResult, page)
+            const { success, data } = await updateOrderStatus(orderId, paymentResult, page, orderKey)
 
             if (success) {
                 handleRedirect(data.redirect)
                 return
             } else {
-                setErrors(data.errors)
+                const responseErrors = data?.errors || ['DNA Payments could not update the order status.']
+                setErrors(responseErrors)
                 setLoading(false)
+                return
             }
         } catch (err) {
             setErrors([err.message])
             setLoading(false)
+            return
         }
     }
 

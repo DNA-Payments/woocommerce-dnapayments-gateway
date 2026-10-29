@@ -23,7 +23,13 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
         activePaymentMethod,
         emitResponse: { responseTypes, noticeContexts },
         components: { LoadingMask },
-        eventRegistration: { onCheckoutSuccess, onCheckoutFail, onCheckoutValidation },
+        eventRegistration: {
+            onCheckoutSuccess,
+            onCheckoutFail,
+            onCheckoutValidation,
+            onShippingRateSuccess,
+            onShippingRateSelectSuccess,
+        },
     } = props
 
     const [loadingState, setLoadingState] = useState('idle')
@@ -188,6 +194,21 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                 setNonces(nonces)
 
                 if (paymentData && auth) {
+                    // Blocks compares postcodes without a space and ignoring case, so
+                    // formatting-only edits may not trigger shipping updates. Normalize
+                    // server postcodes like getAddress() to keep SDK initialization and
+                    // payment processing consistent (e.g. "E1 5AN" and "E15AN").
+                    const addresses = [
+                        paymentData.customerDetails?.billingAddress,
+                        paymentData.customerDetails?.deliveryDetails?.deliveryAddress,
+                    ]
+
+                    addresses.forEach((address) => {
+                        if (address) {
+                            address.postalCode = address.postalCode?.replace(' ', '').toUpperCase()
+                        }
+                    })
+
                     paymentData.merchantCustomData = addGatewayId(paymentData.merchantCustomData, gatewayId)
                     paymentDataRef.current = paymentData
                     processPromiseRef.current?.resolve({ paymentData, auth, token: auth.access_token })
@@ -227,6 +248,21 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
     useEffect(() => {
         draftPaymentDataRef.current = JSON.parse(paymentDataJSON)
     }, [paymentDataJSON])
+
+    useEffect(() => {
+        // Refresh when available rates update (e.g. after an address change)
+        // or a shipping selection finishes being saved.
+        // Both events share setupIntegration's debounce timer, so calls within
+        // the debounce window result in one initialization.
+        const unsubscribeRates = onShippingRateSuccess(setupIntegration)
+        const unsubscribeSelection = onShippingRateSelectSuccess(setupIntegration)
+
+        return () => {
+            // Remove listeners on unmount or before subscribing with new dependencies.
+            unsubscribeRates()
+            unsubscribeSelection()
+        }
+    }, [onShippingRateSuccess, onShippingRateSelectSuccess, setupIntegration])
 
     useEffect(() => {
         if (containerRef.current) {

@@ -5,7 +5,6 @@ import { getValidationEvents, setFieldDecline, traceGate } from './validators'
 
 export async function createHostedFields({
     env,
-    isTestMode,
     terminalId,
     threeDSModal,
     domElements: { number, name, expDate, cvv, cvvToken },
@@ -64,7 +63,7 @@ export async function createHostedFields({
     }
 
     const options = {
-        env: env || (isTestMode ? 'sandbox' : 'production'),
+        env,
         terminalId,
         styles,
         styleConfig: {

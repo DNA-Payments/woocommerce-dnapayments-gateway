@@ -46,6 +46,8 @@ let serializedFormData = null
 let pendingRenderRequest = null
 
 jQuery(function ($) {
+    setNonces(window.wc_dna_params?.nonces)
+
     const { isTestMode, gatewayId, isHostedFields, cards, allowSavingCards, placeOrderButtonText } =
         getGlobalVariables()
 
@@ -431,9 +433,6 @@ jQuery(function ($) {
     function showError(error_message, shouldScrollToNotices = true) {
         hideError()
         displayError(error_message)
-        if (globalError) {
-            displayError(globalError)
-        }
         setTimeout(() => $form.removeClass('processing').unblock())
         $.unblockUI()
 

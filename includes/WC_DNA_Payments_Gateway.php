@@ -465,10 +465,15 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
         wp_register_style( 'dna_styles', plugins_url( 'assets/css/dna-payment.css', WC_DNA_MAIN_FILE ), [], \WC_DNA_Payments::$version );
         wp_enqueue_style( 'dna_styles' );
 
+        // Keep classic scripts for Pay for Order and Add Payment Method pages.
+        // Guard has_block() for WordPress versions where it is unavailable.
         if ( is_checkout() && ! isset( $_GET['pay_for_order'] ) && ! is_add_payment_method_page() && function_exists( 'has_block' ) ) {
             $post = get_post();
 
             if ( $post && has_block( 'woocommerce/checkout', $post ) ) {
+                // Block checkout loads its own integration and SDKs through script dependencies.
+                // Skip the classic preloader, checkout script and its eager wallet dependencies.
+                // Shared payment styles have already been enqueued above.
                 return;
             }
         }

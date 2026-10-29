@@ -6,10 +6,13 @@ import { renderHostedFields } from './utils/render-hosted-fields'
 import { createCardError, getSelectedPaymentGateway, createSetLoading, getPlaceOrderButton } from './utils/ui'
 import { createPlaceOrder } from './utils/place-order'
 import { getGlobalVariables } from './utils/data'
+import { setNonces } from '../common/utils'
 
 let hostedFieldsInstance = null
 
 jQuery(function ($) {
+    setNonces(window.wc_dna_params?.nonces)
+
     const $form = $('form#add_payment_method')
     const cardError = createCardError()
     const setFormLoading = createSetLoading($form)

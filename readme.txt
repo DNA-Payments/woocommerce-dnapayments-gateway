@@ -77,11 +77,17 @@ For support, please contact DNA Payments directly through their website at https
 
 = 4.4.0 - 2026-10-21 =
 
+= Important Security Update =
+	- Enhanced access controls to strengthen the protection of customer order and payment information.
+
+= Fixes =
+	- Resolved an issue that could prevent wallet payments from completing after a customer entered or changed their delivery address or postcode at checkout.
+	- Improved handling of postcode formatting to avoid payment errors. Applies to Apple Pay, Google Pay, PayPal, Alipay, WeChat Pay, and Alipay+.
+
 = Improvements =
-	- Remove the temporary token requirement from Hosted Fields and wallet components.
-	- Load wallet SDKs on demand and avoid duplicate wallet initialization in Blocks checkout.
-	- Prevent DNA Payments API requests when the gateway is disabled or missing credentials.
-	- Guard asynchronous SDK initialization when the payment component is unmounted.
+	- Improved the loading and display of card payment fields and wallet payment buttons for a more reliable checkout experience.
+	- Prevented unnecessary connections to DNA Payments when the payment service is disabled or its setup is incomplete.
+
 
 = 4.3.1 - 2026-09-15 =
 

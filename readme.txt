@@ -77,11 +77,19 @@ For support, please contact DNA Payments directly through their website at https
 
 = 4.4.0 - 2026-10-21 =
 
+= Security =
+	- Fix a high-severity insecure direct object reference (IDOR) vulnerability that could expose another customer's order and payment data.
+	- Validate order existence and access before returning payment data or generating payment tokens, with ownership checks for registered customers and order-key/session validation for guest payment flows.
+	- Enforce order access checks across payment and order-status flows, and require authentication when adding a saved card.
+
+= Fixes =
+	- Fix wallet payments failing with "Mismatched fields: deliveryAddress" in WooCommerce Blocks checkout after shipping address or postcode changes.
+	- Refresh wallet components after shipping updates and normalize postcode formatting so initial wallet data matches the order at payment time. Applies to Apple Pay, Google Pay, PayPal, Alipay, WeChat Pay, and Alipay+.
+
 = Improvements =
 	- Remove the temporary token requirement from Hosted Fields and wallet components.
-	- Load wallet SDKs on demand and avoid duplicate wallet initialization in Blocks checkout.
+	- Load wallet SDKs through WordPress script dependencies in Blocks checkout for reliable initialization.
 	- Prevent DNA Payments API requests when the gateway is disabled or missing credentials.
-	- Guard asynchronous SDK initialization when the payment component is unmounted.
 
 = 4.3.1 - 2026-09-15 =
 

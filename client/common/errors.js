@@ -101,6 +101,11 @@ const TERMS_NOT_ACCEPTED = {
     message: 'Please accept the terms and conditions to continue.',
 }
 
+const REQUIRED_CHECKBOX_NOT_ACCEPTED = {
+    code: 'REQUIRED_CHECKBOX_NOT_ACCEPTED',
+    message: 'Please tick all required checkboxes to continue.',
+}
+
 const BILLING_COUNTRY_REQUIRED = {
     code: 'BILLING_COUNTRY_REQUIRED',
     message: 'Please enter your billing country.',
@@ -197,6 +202,7 @@ export default {
     CARD_DETAILS_INVALID,
     CRITICAL_WEBSITE_ERROR,
     TERMS_NOT_ACCEPTED,
+    REQUIRED_CHECKBOX_NOT_ACCEPTED,
     BILLING_COUNTRY_REQUIRED,
     BILLING_CITY_REQUIRED,
     BILLING_ADDRESS_REQUIRED,

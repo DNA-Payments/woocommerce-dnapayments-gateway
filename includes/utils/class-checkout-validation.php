@@ -11,8 +11,29 @@ class CheckoutValidation {
         $this->validate_required_fields( $checkout, $posted_data, $errors );
         $this->validate_billing_field_lengths( $posted_data, $errors );
         $this->validate_cart_items( $cart, $errors );
+        $this->run_merchant_validation( $posted_data, $errors );
     
         return $errors->has_errors() ? $errors : null;
+    }
+
+    /**
+     * Run the validation merchants attach to WooCommerce's checkout
+     *
+     * @param array    $data
+     * @param WP_Error $errors
+     */
+    private function run_merchant_validation( $data, &$errors ) {
+        $queued_notices = wc_get_notices();
+        
+        wc_clear_notices();
+
+        do_action( 'woocommerce_after_checkout_validation', $data, $errors );
+
+        foreach ( wc_get_notices( 'error' ) as $notice ) {
+            $errors->add( 'merchant_validation', wp_strip_all_tags( $notice['notice'] ) );
+        }
+
+        wc_set_notices( $queued_notices );
     }
 
     private function validate_required_fields( \WC_Checkout $checkout, $data, &$errors ) {
@@ -23,7 +44,7 @@ class CheckoutValidation {
                 continue;
             }
 
-            if ( $section === 'account' && empty( $data['createaccount'] ) ) {
+            if ( $section === 'account' && ( is_user_logged_in() || ( ! $checkout->is_registration_required() && empty( $data['createaccount'] ) ) ) ) {
                 continue;
             }
 

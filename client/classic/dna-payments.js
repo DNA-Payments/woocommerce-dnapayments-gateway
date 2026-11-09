@@ -244,7 +244,7 @@ jQuery(function ($) {
 
         if (!isUpdating) {
             const selectedGateway = name === 'payment_method' ? $(this).val() : undefined
-            render({ shouldFetchPaymentData: isRequired && name !== 'terms', shouldScrollToError: Boolean(selectedGateway), selectedGateway })
+            render({ shouldFetchPaymentData: (isRequired || elem.type === 'checkbox') && name !== 'terms', shouldScrollToError: Boolean(selectedGateway), selectedGateway })
         }
     })
 

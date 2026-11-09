@@ -71,3 +71,6 @@ export const getRequiredFields = (isShippingIncluded) => {
     }
     return fields
 }
+
+// How WooCommerce marks a field as required, plus the HTML equivalents.
+export const REQUIRED_FIELD_MARKERS = '.validate-required input, label:has(.required) input, [required], [aria-required="true"]'

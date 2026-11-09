@@ -1,6 +1,6 @@
 import errors from '../../common/errors'
 import { isEmpty, isValidEmail } from '../../common/validater'
-import { getRequiredFields } from './data'
+import { getRequiredFields, REQUIRED_FIELD_MARKERS } from './data'
 
 export function validate($form) {
     const messages = []
@@ -44,5 +44,17 @@ export function validate($form) {
         }
     })
 
+    if (hasUntickedRequiredCheckbox($form)) {
+        messages.push(errors.REQUIRED_CHECKBOX_NOT_ACCEPTED.message)
+    }
+
     return messages
+}
+
+function hasUntickedRequiredCheckbox($form) {
+    return $form
+        .find('input:checkbox:not(:checked)')
+        .filter(REQUIRED_FIELD_MARKERS)
+        .not('[name="terms"], [name$="[]"], .payment_box input')
+        .parent(':visible').length > 0
 }

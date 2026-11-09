@@ -11,7 +11,7 @@ class CheckoutValidation {
         $this->validate_required_fields( $checkout, $posted_data, $errors );
         $this->validate_billing_field_lengths( $posted_data, $errors );
         $this->validate_cart_items( $cart, $errors );
-    
+
         return $errors->has_errors() ? $errors : null;
     }
 
@@ -23,7 +23,7 @@ class CheckoutValidation {
                 continue;
             }
 
-            if ( $section === 'account' && empty( $data['createaccount'] ) ) {
+            if ( $section === 'account' && ( is_user_logged_in() || ( ! $checkout->is_registration_required() && empty( $data['createaccount'] ) ) ) ) {
                 continue;
             }
 

@@ -471,10 +471,8 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             $post = get_post();
 
             if ( $post && has_block( 'woocommerce/checkout', $post ) ) {
-                // Block checkout loads its own integration and SDKs through script dependencies.
-                // Skip the classic preloader, checkout script and its eager wallet dependencies.
-                // Shared payment styles have already been enqueued above.
-                return;
+                // Some themes render the classic form over block content: keep the classic scripts and log what rendered.
+                add_action( 'wp_footer', array( $this, 'log_checkout_render_type' ), 1000 );
             }
         }
 
@@ -503,6 +501,66 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 
         wp_localize_script( 'woocommerce_dna_payment', 'wc_dna_params', apply_filters( 'wc_dna_params', $dna_params ) );
         wp_enqueue_script('woocommerce_dna_payment');
+    }
+
+    public function log_checkout_render_type() {
+        // Order-received / order-pay pages and empty baskets never render a payment form.
+        if ( is_wc_endpoint_url() || ! WC()->cart || WC()->cart->is_empty() ) {
+            return;
+        }
+
+        // The queried page, not the global post, which a secondary loop may have changed by the footer.
+        $post               = get_post( get_queried_object_id() );
+        $has_checkout_block = $post && function_exists( 'has_block' ) && has_block( 'woocommerce/checkout', $post );
+        $block_rendered     = (bool) did_action( 'woocommerce_blocks_enqueue_checkout_block_scripts_before' );
+        $classic_rendered   = did_action( 'woocommerce_before_checkout_form' ) || did_action( 'woocommerce_review_order_before_payment' );
+
+        // Expected: exactly one checkout rendered, and it matches the saved content.
+        if ( ( $block_rendered xor $classic_rendered ) && $has_checkout_block === $block_rendered ) {
+            return;
+        }
+
+        $page_id      = $post ? (int) $post->ID : 0;
+        $throttle_key = 'dnapayments_checkout_render_mismatch_' . $page_id;
+        if ( get_transient( $throttle_key ) ) {
+            return;
+        }
+        set_transient( $throttle_key, 1, HOUR_IN_SECONDS );
+
+        $template = isset( $GLOBALS['template'] ) && is_string( $GLOBALS['template'] ) ? str_replace( wp_normalize_path( ABSPATH ), '', wp_normalize_path( $GLOBALS['template'] ) ) : 'unknown';
+        if ( ! empty( $GLOBALS['_wp_current_template_id'] ) ) {
+            $template .= ' (' . $GLOBALS['_wp_current_template_id'] . ')';
+        }
+
+        $builder = 'none';
+        if ( $post && 'builder' === get_post_meta( $post->ID, '_elementor_edit_mode', true ) ) {
+            $builder = 'elementor';
+        } elseif ( $post && 'on' === get_post_meta( $post->ID, '_et_pb_use_builder', true ) ) {
+            $builder = 'divi';
+        }
+
+        $theme = get_stylesheet() . ' ' . wp_get_theme()->get( 'Version' );
+        if ( get_stylesheet() !== get_template() ) {
+            $theme .= ' (parent ' . get_template() . ')';
+        }
+
+        $this->logger->warning(
+            'Checkout render mismatch: page content does not match rendered checkout',
+            array(
+                'page_id'            => $page_id,
+                'checkout_page_id'   => wc_get_page_id( 'checkout' ),
+                'path'               => wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH ),
+                'has_checkout_block' => $has_checkout_block,
+                'has_shortcode'      => $post && has_shortcode( $post->post_content, 'woocommerce_checkout' ),
+                'block_rendered'     => $block_rendered,
+                'classic_rendered'   => $classic_rendered,
+                'content_rendered'   => function_exists( 'did_filter' ) ? did_filter( 'the_content' ) : 'unknown',
+                'template'           => $template,
+                'builder'            => $builder,
+                'theme'              => $theme,
+                'versions'           => array( 'wc' => defined( 'WC_VERSION' ) ? WC_VERSION : 'unknown', 'plugin' => \WC_DNA_Payments::$version ),
+            )
+        );
     }
 
     public function validate_fields() {

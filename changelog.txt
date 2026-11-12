@@ -2,6 +2,15 @@
 
 Changelog
 
+2026-11-12 - version 4.4.1
+
+= Fixes =
+	- Resolved an issue where card payment fields and wallet payment buttons could fail to load, followed by a generic checkout error, on themes that display the classic checkout on a page built with the Checkout block.
+
+= Improvements =
+	- Added a diagnostic log entry (WooCommerce > Status > Logs) when the checkout shown to customers does not match the checkout page content, to help identify theme compatibility issues.
+
+
 2026-10-21 - version 4.4.0
 
 = Important Security Update =

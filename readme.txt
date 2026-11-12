@@ -4,7 +4,7 @@ Tags: payment gateway, credit card, woocommerce, dna payments, apple pay, google
 Requires at least: 4.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 4.4.0
+Stable tag: 4.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 4.8
@@ -74,6 +74,15 @@ For support, please contact DNA Payments directly through their website at https
 3. Apple Pay and Google Pay buttons
 
 == Changelog ==
+
+= 4.4.1 - 2026-11-12 =
+
+= Fixes =
+	- Resolved an issue where card payment fields and wallet payment buttons could fail to load, followed by a generic checkout error, on themes that display the classic checkout on a page built with the Checkout block.
+
+= Improvements =
+	- Added a diagnostic log entry (WooCommerce > Status > Logs) when the checkout shown to customers does not match the checkout page content, to help identify theme compatibility issues.
+
 
 = 4.4.0 - 2026-10-21 =
 

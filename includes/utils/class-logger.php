@@ -8,69 +8,79 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Logger {
 
-	/**
-     * @var WC_DNA_Payments_Gateway
+    const MAX_VALUE_LENGTH   = 500;
+    const MAX_MESSAGE_LENGTH = 500;
+    const MAX_TRACE_FRAMES   = 4;
+
+
+    /**
+     * @var \WC_DNA_Payments_Gateway
      */
     public $gateway;
 
     /**
-     * @var WC_Logger
+     * WooCommerce logger, resolved on first use so page loads that never log pay nothing.
+     *
+     * @var \WC_Logger_Interface|null
      */
     public $logger;
 
     /**
-     * @var String
+     * @var string
      */
     public $source;
 
-    /**
-     * @var String
-     */
-    public $error_source;
-
     public function __construct( $gateway ) {
-        $this->gateway  = $gateway;
-        $this->logger   = wc_get_logger();
-        $this->source   = $this->gateway->id;
-        $this->error_source = $this->source . '_errors';
+        $this->gateway = $gateway;
+        $this->source  = $this->gateway->id;
     }
 
     public function error( $message, $context = null ) {
-        $this->logger->error(
-            $this->format_message_with_context( $message, $context ),
-            ['source' => $this->error_source]
-        );
+        $this->write( 'error', $message, $context );
     }
 
     public function warning( $message, $context = null ) {
-        $this->logger->warning(
-            $this->format_message_with_context( $message, $context ),
-            ['source' => $this->source]
-        );
+        $this->write( 'warning', $message, $context );
     }
 
     public function info( $message, $context = null ) {
-        $this->logger->info(
-            $this->format_message_with_context( $message, $context ),
-            ['source' => $this->source]
-        );
+        $this->write( 'info', $message, $context );
     }
 
     /**
-     * Append formatted context to a message when provided.
-     *
-     * @param string     $message Log message.
-     * @param array|null $context Context key/value pairs.
-     * @return string
+     * @param \Throwable $e       Caught exception.
+     * @param string     $message What failed, e.g. "Success webhook failed".
+     * @param array      $context Extra key/value pairs.
      */
-    private function format_message_with_context( $message, $context = null ): string {
-        if ( empty( $context ) || ! is_array( $context ) ) {
-            return $message;
+    public function exception( $e, $message, $context = array() ) {
+        $context = is_array( $context ) ? $context : array();
+
+        // Declines, bad requests and DNA errors need only their message. Engine errors
+        // (TypeError, ...) are bugs, so they also get where they happened.
+        if ( $e instanceof \Error ) {
+            $context['errorType']  = get_class( $e );
+            $context['thrownAt']   = $this->get_throw_site( $e );
+            $context['stackTrace'] = $this->get_short_trace( $e );
         }
 
-        $formatted_context = $this->format_log_context( $context );
+        $this->error( $message . ': ' . $e->getMessage(), $context );
+    }
 
-        return $formatted_context ? $message . ' ' . $formatted_context : $message;
+    private function write( $level, $message, $context ) {
+        if ( null === $this->logger ) {
+            $this->logger = wc_get_logger();
+        }
+
+        $entry = $this->clean_text( (string) $message, self::MAX_MESSAGE_LENGTH );
+
+        if ( is_array( $context ) && $context ) {
+            $formatted = $this->format_log_context( $context );
+            if ( '' !== $formatted ) {
+                $entry .= ' ' . $formatted;
+            }
+        }
+
+        $this->logger->log( $level, $entry, array( 'source' => $this->source ) );
     }
 
     /**
@@ -80,29 +90,103 @@ class Logger {
      * @return string A formatted context suffix (or empty string).
      */
     private function format_log_context( array $context ): string {
-        $parts = [];
-        foreach ( $context as $key => $raw_value ) {
-            $value = $raw_value;
-            if ( Helper::is_empty( $value ) ) {
+        $parts = array();
+
+        foreach ( $context as $key => $value ) {
+            if ( null === $value || '' === $value || array() === $value ) {
                 continue;
             }
+
             if ( is_array( $value ) ) {
                 $value = $this->format_log_context( $value );
-            }
-            if ( is_bool( $value ) ) {
+                if ( '' === $value ) {
+                    continue;
+                }
+            } elseif ( is_bool( $value ) ) {
                 $value = $value ? 'true' : 'false';
-            }
-            if ( is_int( $key ) ) {
-                $parts[] = (string) $value;
+            } elseif ( ! is_scalar( $value ) ) {
+                continue;
             } else {
-                $parts[] = $key . '=' . (string) $value;
+                $value = $this->quote( $this->clean_text( (string) $value, self::MAX_VALUE_LENGTH ) );
+            }
+
+            $parts[] = $key . '=' . $value;
+        }
+
+        return $parts ? '(' . implode( ', ', $parts ) . ')' : '';
+    }
+
+    /**
+     * Collapse whitespace and cut long text, so one entry is always one line.
+     */
+    private function clean_text( string $text, int $max_length ): string {
+        $text = trim( preg_replace( '/\s+/', ' ', $text ) );
+
+        return strlen( $text ) > $max_length ? substr( $text, 0, $max_length ) . '…' : $text;
+    }
+
+    /**
+     * Quote values that would otherwise break the key=value list.
+     */
+    private function quote( string $value ): string {
+        return preg_match( '/[\s,()=]/', $value ) ? '"' . str_replace( '"', "'", $value ) . '"' : $value;
+    }
+
+    /**
+     * First frame in this plugin's own code, falling back to where the exception was raised.
+     *
+     * @param \Throwable $e
+     * @return string
+     */
+    private function get_throw_site( $e ): string {
+        $frames = array_merge( array( array( 'file' => $e->getFile(), 'line' => $e->getLine() ) ), $e->getTrace() );
+
+        foreach ( $frames as $frame ) {
+            if ( ! empty( $frame['file'] ) ) {
+                $path = $this->relative_path( $frame['file'] );
+                if ( 0 === strpos( $path, 'includes/' ) ) {
+                    return $path . ':' . ( $frame['line'] ?? 0 );
+                }
             }
         }
 
-        if ( Helper::is_empty( $parts ) ) {
-            return '';
+        return $this->relative_path( $e->getFile() ) . ':' . $e->getLine();
+    }
+
+    /**
+     * Up to MAX_TRACE_FRAMES "file:line" entries, newest first.
+     *
+     * @param \Throwable $e
+     * @return string
+     */
+    private function get_short_trace( $e ): string {
+        $frames = array();
+
+        foreach ( $e->getTrace() as $frame ) {
+            if ( ! empty( $frame['file'] ) ) {
+                $frames[] = $this->relative_path( $frame['file'] ) . ':' . ( $frame['line'] ?? 0 );
+                if ( count( $frames ) >= self::MAX_TRACE_FRAMES ) {
+                    break;
+                }
+            }
         }
 
-        return '(' . implode( ', ', $parts ) . ')';
+        return implode( ' < ', $frames );
+    }
+
+    /**
+     * Path relative to this plugin (e.g. includes/utils/x.php), or to wp-content for other code.
+     */
+    private function relative_path( string $file ): string {
+        $file = wp_normalize_path( $file );
+
+        foreach ( array( WC_DNA_PLUGIN_PATH, WP_CONTENT_DIR, ABSPATH ) as $base ) {
+            $base = trailingslashit( wp_normalize_path( $base ) );
+            if ( 0 === strpos( $file, $base ) ) {
+                return substr( $file, strlen( $base ) );
+            }
+        }
+
+        return basename( $file );
     }
 }

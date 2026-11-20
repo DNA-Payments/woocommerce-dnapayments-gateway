@@ -222,9 +222,19 @@ class Helper {
             'error' => ''
         ];
 
-        if ( isset($input['merchantCustomData']) ) {
+        if ( isset($input['merchantCustomData']) && '' !== $input['merchantCustomData'] ) {
+            // Untrusted input: a non-string here used to be a TypeError inside error logging.
+            if ( ! is_string( $input['merchantCustomData'] ) ) {
+                $default_value['error'] = 'merchantCustomData is not a string';
+                return $default_value;
+            }
+
             try {
                 $customData = json_decode($input['merchantCustomData']);
+                if ( ! is_object( $customData ) ) {
+                    $default_value['error'] = 'merchantCustomData is not a JSON object';
+                    return $default_value;
+                }
                 return [ 
                     'order_id' => $customData->orderId ?? null, 
                     'store_card_on_file' => $customData->storeCardOnFile ?? false,

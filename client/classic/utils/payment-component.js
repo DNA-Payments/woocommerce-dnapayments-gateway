@@ -24,7 +24,7 @@ export function initPaymentComponent(paymentMethodId, options, ctx) {
             ...getValidationEvents('wallet'),
             ...options.events,
             onError: (err) => {
-                const message = getPaymentComponentErrorMessage(err, initErrorMessage)
+                const message = getPaymentComponentErrorMessage(err, initErrorMessage, paymentMethodId)
                 if (!paymentMethodObject.isLoaded) {
                     reject(initErrorMessage)
                 } else {

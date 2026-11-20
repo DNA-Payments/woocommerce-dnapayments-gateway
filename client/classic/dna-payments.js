@@ -23,6 +23,7 @@ import { tryParse } from '../common/try-parse'
 import { checkApplePayAvailability } from '../common/validater'
 import { GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_APPLE_PAY, GATEWAY_ID_PAYPAL, GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS } from '../common/constants'
 import { addGatewayId, setNonces } from '../common/utils'
+import { logError } from '../common/log'
 
 /* global wc_checkout_params */
 /* global wc_dna_params */
@@ -196,7 +197,7 @@ jQuery(function ($) {
                 })
             }
         } catch (err) {
-            console.error('render error', err)
+            logError(err, 'render error')
         }
 
         isRendering = false
@@ -404,7 +405,7 @@ jQuery(function ($) {
                 result.paymentMethodsSettings = JSON.parse(result.paymentMethodsSettings)
             }
         } catch (err) {
-            console.error(err)
+            logError(err)
         }
 
         result.paymentData.merchantCustomData = addGatewayId(result.paymentData.merchantCustomData, selectedGatewayId)

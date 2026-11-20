@@ -1,8 +1,14 @@
 import errors from './errors'
 import { logError } from './log'
+import { setLogContext } from './report-error'
+import { getOrderIdFromPaymentData } from './complete-payment'
 
 export async function payHostedFields(hostedFieldsInstance, paymentData, auth) {
     const { returnUrl, failureReturnUrl } = paymentData.paymentSettings
+
+    // A card decline sends no failure webhook, so the browser report is its only
+    // trace in the log: tie it to the order's "Payment initiated" line.
+    setLogContext({ orderId: getOrderIdFromPaymentData(paymentData) })
 
     try {
         const { data } = await hostedFieldsInstance.submit({

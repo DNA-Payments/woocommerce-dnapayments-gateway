@@ -1,6 +1,7 @@
 import { GATEWAY_ID, NONCE_FIELD } from '../constants'
 import { getNonce } from '../utils'
 import errors from '../errors'
+import { getAjaxUrl, reportError } from '../report-error'
 
 export async function request(...args) {
     try {
@@ -14,6 +15,7 @@ export async function request(...args) {
         if (!response.ok) {
             return {
                 success: false,
+                httpStatus: response.status,
                 data: data?.data || {
                     errors: [`DNA Payments AJAX request failed (${response.status})`],
                 },
@@ -23,7 +25,7 @@ export async function request(...args) {
         return data
     } catch (err) {
         // Handles fetch failures, including network errors
-        return { success: false, data: { errors: [errors.CRITICAL_WEBSITE_ERROR.message] } }
+        return { success: false, httpStatus: 0, data: { errors: [errors.CRITICAL_WEBSITE_ERROR.message] } }
     }
 }
 
@@ -42,14 +44,15 @@ export async function requestActionWithFormData(action, formData) {
 
     formData.append(NONCE_FIELD, getNonce(_action))
 
-    /* global wc_checkout_params */
-    let url = '/?wc-ajax=' + _action
-    if (typeof wc_checkout_params !== 'undefined' && wc_checkout_params.wc_ajax_url) {
-         url = wc_checkout_params.wc_ajax_url.replace('%%endpoint%%', _action)
-    }
-
-    return await request(url, {
+    const result = await request(getAjaxUrl(_action), {
         method: 'POST',
         body: formData,
     })
+
+    // Blocked, failed, or unreachable request (WAF 403, proxy 502, lost connection)
+    if (result?.httpStatus !== undefined && result.httpStatus !== 400) {
+        reportError({ code: 'AJAX_' + (result.httpStatus || 'NETWORK'), message: action })
+    }
+
+    return result
 }

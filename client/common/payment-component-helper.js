@@ -2,8 +2,8 @@ import { logError } from './log'
 import errors from './errors'
 import { GATEWAY_ID_APPLE_PAY, GATEWAY_ID_GOOGLE_PAY, GATEWAY_ID_PAYPAL, GATEWAY_ID_ALIPAY, GATEWAY_ID_WECHAT_PAY, GATEWAY_ID_ALIPAY_PLUS } from './constants'
 
-export function getPaymentComponentErrorMessage(err, initErrorMessage) {
-    logError(err)
+export function getPaymentComponentErrorMessage(err, initErrorMessage, paymentMethodId = '') {
+    logError(err, 'wallet', { gatewayId: paymentMethodId })
     let message = ''
 
     // A funding-type decline carries the normalised decision object in additionalInfo,

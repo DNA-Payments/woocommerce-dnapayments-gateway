@@ -3,7 +3,6 @@ import { useSelect, select, dispatch } from '@wordpress/data'
 import { __ } from '@wordpress/i18n'
 import { VALIDATION_STORE_KEY, CART_STORE_KEY } from '@woocommerce/block-data'
 import { TEXT_DOMAIN } from '../../common/constants'
-import { logData } from '../../common/log'
 
 export function useCheckoutValidation({ onCheckoutValidation, onMessages }) {
     const validationStore = useSelect((select) => {
@@ -43,7 +42,6 @@ export function useCheckoutValidation({ onCheckoutValidation, onMessages }) {
                 errorMessages = [__('A validation error occurred. Please check all fields and try again.', TEXT_DOMAIN)]
             }
 
-            logData('onCheckoutValidation', payload, errorMessages)
             if (errorMessages.length) {
                 onMessages && onMessages(errorMessages, payload)
             }

@@ -66,16 +66,23 @@ class WebhooksInit {
      * @return bool Whether the request is authorized
      */
     public function validate_webhook_permission( $request ) {
+        // WordPress can run this callback more than once per request: log a rejection once.
+        static $logged = false;
+
         // Allow requests only if they have the required headers or parameters
         if ( empty( $request->get_params() ) ) {
-            $this->gateway->logger->error('Webhook permission denied: Empty parameters');
+            if ( ! $logged ) {
+                // DNA always sends a body, so this can be a proxy or firewall stripping it.
+                $this->gateway->logger->warning( 'Webhook rejected: empty request', array( 'contentType' => $request->get_content_type()['value'] ?? null ) );
+                $logged = true;
+            }
             return false;
         }
 
         // Check for signature parameter
         $params = $request->get_params();
         if ( ! isset( $params['signature'] ) || empty( $params['signature'] ) ) {
-            $this->gateway->logger->error('Webhook permission denied: Missing signature parameter');
+            // DNA always signs its webhooks: this is a scanner, not worth a log line.
             return false;
         }
 
@@ -87,91 +94,97 @@ class WebhooksInit {
     }
 
     public function success_webhook( \WP_REST_Request $input ) {
-        $name = 'Success webhook';
-        $data = $input->get_params();
+        $name    = 'Success webhook';
+        $started = microtime( true );
+        $data    = $input->get_params();
 
         try {
             $this->validate_webhook_input( $data, true );
 
             $order = $this->parse_webhook_order( $data );
-    
+
             $order_id = $order->get_id();
             $status = $order->get_status();
-            $log_context = $this->get_webhook_log_context( $data );
+            $log_context = $this->get_webhook_log_context( $data, (string) $order->get_order_number() );
 
+            // A "started" line without a "finished" one means PHP died while processing it.
             $this->gateway->logger->info( $name . ' started: order ' . $order_id . ', status ' . $status, $log_context );
 
             $result = $this->gateway->orderHelper->process_payment( $order, $data, $name );
 
             $new_status = $result['status'] ?? '';
-            $result_context = $this->get_webhook_result_log_context( $result );
             $this->gateway->logger->info(
                 $name . ' finished: order ' . $order_id . ', status ' . $new_status,
-                array_merge( $log_context, $result_context )
+                array_merge( $log_context, $this->get_webhook_result_log_context( $result ), array( 'durationMs' => $this->elapsed_ms( $started ) ) )
             );
 
             return rest_ensure_response([
                 'success' => true,
                 'message' => isset($result['message']) ? $result['message'] : $name . ' processed successfully.',
             ]);
-        } catch (\Exception $e) {
-            return $this->get_wp_error( $e, $name, $data );
+        } catch ( \Throwable $e ) {
+            return $this->get_wp_error( $e, $name, $data, $started );
         }
     }
 
     public function fail_webhook( \WP_REST_Request $input ) {
-        $name = 'Failure webhook';
-        $data = $input->get_params();
+        $name    = 'Failure webhook';
+        $started = microtime( true );
+        $data    = $input->get_params();
 
         try {
             $this->validate_webhook_input( $data, false );
 
             $order = $this->parse_webhook_order( $data );
-            
+
             $order_id = $order->get_id();
             $status = $order->get_status();
-            $log_context = $this->get_webhook_log_context( $data );
+            $log_context = $this->get_webhook_log_context( $data, (string) $order->get_order_number() );
 
+            // A "started" line without a "finished" one means PHP died while processing it.
             $this->gateway->logger->info( $name . ' started: order ' . $order_id . ', status ' . $status, $log_context );
-            
+
             $result = $this->gateway->orderHelper->process_payment( $order, $data, $name );
-            
+
             $new_status = $result['status'] ?? '';
-            $result_context = $this->get_webhook_result_log_context( $result );
             $this->gateway->logger->info(
                 $name . ' finished: order ' . $order_id . ', status ' . $new_status,
-                array_merge( $log_context, $result_context )
+                array_merge( $log_context, $this->get_webhook_result_log_context( $result ), array( 'durationMs' => $this->elapsed_ms( $started ) ) )
             );
-        
+
             return rest_ensure_response([
                 'success' => true,
                 'message' => isset($result['message']) ? $result['message'] : $name . ' processed successfully.',
             ]);
-        } catch (\Exception $e) {
-            return $this->get_wp_error( $e, $name, $data );
+        } catch ( \Throwable $e ) {
+            return $this->get_wp_error( $e, $name, $data, $started );
         }
     }
 
     public function success_webhook_add_card( \WP_REST_Request $input ) {
-        $name = 'Add-card webhook';
-        $data = $input->get_params();
+        $name    = 'Add-card webhook';
+        $started = microtime( true );
+        $data    = $input->get_params();
 
         try {
             $this->validate_webhook_input( $data, true );
 
-            $log_context = $this->get_webhook_log_context( $data );
-            $this->gateway->logger->info( $name . ' started', $log_context );
+            $token_result = $this->gateway->paymentTokenHelper->add_token( $data, $this->gateway->id );
 
-            $this->gateway->paymentTokenHelper->add_token( $data, $this->gateway->id );
-
-            $this->gateway->logger->info( $name . ' finished', $log_context );
+            // A saved card shows in the customer's account; only a failure needs a line.
+            if ( ! empty( $token_result['error'] ) ) {
+                $this->gateway->logger->warning(
+                    $name . ': card token not saved: ' . $token_result['error'],
+                    array( 'transactionId' => $this->scalar( $data, 'id' ), 'accountId' => $this->scalar( $data, 'accountId' ) )
+                );
+            }
 
             return rest_ensure_response([
                 'success' => true,
                 'message' => $name . ' processed successfully.',
             ]);
-        } catch (\Exception $e) {
-            return $this->get_wp_error( $e, $name, $data );
+        } catch ( \Throwable $e ) {
+            return $this->get_wp_error( $e, $name, $data, $started );
         }
     }
 
@@ -195,8 +208,8 @@ class WebhooksInit {
                 'success' => true,
                 'message' => 'Subscription payment method change processed successfully.',
             ]);
-        } catch (\Exception $e) {
-            return $this->get_wp_error( $e, 'subscription_change_payment_method', $data );
+        } catch ( \Throwable $e ) {
+            return $this->get_wp_error( $e, 'Change-payment-method webhook', $data );
         }
     }
 
@@ -314,32 +327,53 @@ class WebhooksInit {
      * @param array $data Webhook request params.
      * @return array Key/value pairs.
      */
-    private function get_webhook_log_context( array $data ): array {
+    /**
+     * The webhook fields support needs; the order's own data is in its notes.
+     *
+     * @param array  $data         Webhook request params.
+     * @param string $order_number Matched order number: the invoice is logged only when it differs.
+     * @return array Key/value pairs.
+     */
+    private function get_webhook_log_context( array $data, string $order_number = '' ): array {
         $custom_data = Helper::parse_merchant_custom_data( $data );
-        if ( ! empty( $custom_data['error'] ) ) {
-            $this->gateway->logger->error( $custom_data['error'] );
-        }
+        $invoice     = $this->scalar( $data, 'invoiceId' );
+        $amount      = $this->scalar( $data, 'amount' );
+        $failed      = empty( $data['success'] );
 
         return [
-            'invoiceId'        => $data['invoiceId'] ?? null,
-            'transactionId'    => $data['id'] ?? null,
-            'paymentMethod'    => $data['paymentMethod'] ?? null,
-            'gatewayId'        => $custom_data['gateway_id'] ?? null,
-            'orderId'          => $custom_data['order_id'] ?? null,
+            'invoiceId'          => (string) $invoice === $order_number ? null : $invoice,
+            'transactionId'      => $this->scalar( $data, 'id' ),
+            'paymentMethod'      => $this->scalar( $data, 'paymentMethod' ),
+            'amount'             => null === $amount ? null : $amount . ' ' . $this->scalar( $data, 'currency' ),
+            // Why DNA declined it: the failure webhook carries the reason (a success has errorCode 0).
+            'errorCode'          => $failed ? $this->scalar( $data, 'errorCode' ) : null,
+            'message'            => $failed ? $this->scalar( $data, 'message' ) : null,
+            'merchantCustomData' => empty( $custom_data['error'] ) ? null : 'invalid',
         ];
     }
 
     /**
-     * Extract a small subset of process result fields for logging.
+     * Process result fields for the "finished" line: the race code and a failed card token save.
      *
      * @param array $result Processing result from OrderHelper::process_payment().
      * @return array Key/value pairs.
      */
     private function get_webhook_result_log_context( array $result ): array {
         return [
-            'code'    => $result['code'] ?? null,
-            'message' => $result['message'] ?? null,
+            'result'     => $result['code'] ?? null,
+            'tokenError' => $result['token_error'] ?? null,
         ];
+    }
+
+    /**
+     * A scalar request value, or null (webhook params are untrusted and may be arrays).
+     */
+    private function scalar( array $data, string $key ) {
+        return isset( $data[ $key ] ) && is_scalar( $data[ $key ] ) ? $data[ $key ] : null;
+    }
+
+    private function elapsed_ms( $started ): int {
+        return (int) round( ( microtime( true ) - $started ) * 1000 );
     }
 
     /**
@@ -356,9 +390,6 @@ class WebhooksInit {
         }
 
         $custom_data = Helper::parse_merchant_custom_data( $input );
-        if ( ! empty( $custom_data['error'] ) ) {
-            $this->gateway->logger->error( $custom_data['error'] );
-        }
 
         $order_id = $custom_data['order_id'] ?? null;
         $input_order_number = Helper::extract_prefix_from_invoice_id( $input['invoiceId'] );
@@ -367,7 +398,7 @@ class WebhooksInit {
         if ( empty( $order_id ) ) {
             $order_id = \WC_DNA_Payments_Order_Admin_Helpers::findOrderByOrderNumber( $input_order_number );
             if ( empty( $order_id ) ) {
-                throw new \Exception( $return_subscription ? 'Subscription' : 'Order' . ' ID could not be determined for invoiceId: ' . $input['invoiceId'], 400 );
+                throw new \Exception( ( $return_subscription ? 'Subscription' : 'Order' ) . ' ID could not be determined for invoiceId: ' . $input['invoiceId'], 400 );
             }
         }
 
@@ -417,11 +448,11 @@ class WebhooksInit {
             throw new \Exception('Input data is empty.', 400);
         }
 
-        if ( $should_be_successfull && ! $input['success']) {
+        if ( $should_be_successfull && empty( $input['success'] ) ) {
             throw new \Exception('Transaction was not successful.', 400);
         }
 
-        if ( ! $should_be_successfull && $input['success']) {
+        if ( ! $should_be_successfull && ! empty( $input['success'] ) ) {
             throw new \Exception('Transaction was successful.', 400);
         }
 
@@ -432,21 +463,26 @@ class WebhooksInit {
         return true;
     }
 
-    private function get_wp_error(\Exception $e, $hook_name, $data) {
-        $log_context = is_array( $data )
-            ? $this->get_webhook_log_context( $data )
-            : null;
-        $this->gateway->logger->error( $hook_name . ' failed: ' . $e->getMessage(), $log_context );
-        $this->gateway->logger->error( 'Stack trace: ' . $e->getTraceAsString(), $log_context );
-            
-        // Respond with the error message and code
+    private function get_wp_error( \Throwable $e, $hook_name, $data, $started = null ) {
+        $log_context = is_array( $data ) ? $this->get_webhook_log_context( $data ) : array();
+        if ( null !== $started ) {
+            $log_context['durationMs'] = $this->elapsed_ms( $started );
+        }
+
+        // One line: what failed and why. Engine errors (bugs) also get where they happened.
+        $this->gateway->logger->exception( $e, $hook_name . ' failed', $log_context );
+
+        $code   = (int) $e->getCode();
+        $status = $code >= 400 && $code < 600 ? $code : 500;
+
+        // The response goes back to whoever called the endpoint: never include a stack trace,
+        // and keep internal error text out of it.
         return new \WP_Error(
             $this->gateway->id . '_error',
-            $e->getMessage(),
+            $e instanceof \Error ? 'Internal error.' : $e->getMessage(),
             array(
-                'status' => $e->getCode() ? $e->getCode() : 500,
+                'status'         => $status,
                 'plugin_version' => \WC_DNA_Payments::$version,
-                'stack_trace' => $e->getTraceAsString(),
             )
         );
     }

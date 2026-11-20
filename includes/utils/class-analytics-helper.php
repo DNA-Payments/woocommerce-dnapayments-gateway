@@ -6,7 +6,8 @@ class AnalyticsHelper {
 
 	const TELEMETRY_API_URL_PROD = 'https://telemetry-api.dnapayments.com/v1/cms-plugins-versions';
 	const TELEMETRY_API_URL_TEST = 'https://test-telemetry-api.dnapayments.com/v1/cms-plugins-versions';
-	const REQUEST_TIMEOUT = 10;
+	const REQUEST_TIMEOUT = 3;
+	const RETRY_AFTER_HOURS = 12;
 
 	/**
 	 * @var WC_DNA_Payments_Gateway
@@ -75,7 +76,13 @@ class AnalyticsHelper {
 	}
 
 	public function send_analytics() {
+		$retry_key = $this->gateway->id . '_analytics_retry_after';
+
 		try {
+			if ( get_transient( $retry_key ) ) {
+				return;
+			}
+
 			if ( $this->has_hash_changed() ) {
 				$access_token   = $this->gateway->authDataHelper->get_client_token()['access_token'];
 				$analytics_data = $this->get_analytics_data();
@@ -87,9 +94,7 @@ class AnalyticsHelper {
 				$this->update_hash();
 			}
 		} catch ( \Exception $e ) {
-			if ( isset( $this->gateway->logger ) ) {
-				$this->gateway->logger->error( 'DNA Analytics error: ' . $e->getMessage() );
-			}
+			set_transient( $retry_key, 1, self::RETRY_AFTER_HOURS * HOUR_IN_SECONDS );
 		}
 	}
 

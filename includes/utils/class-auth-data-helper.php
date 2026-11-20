@@ -28,35 +28,21 @@ class AuthDataHelper {
      * @throws \Exception If the authentication request fails
      */
     public function get_auth_data( $invoice_id, $amount, $currency, $source = '' ) {
-        $log_context = array( 'invoice_id' => $invoice_id, 'amount' => $amount, 'currency' => $currency, 'source' => $source );
-
         if ( ! $this->gateway->is_ready() ) {
             throw new \Exception( 'DNA Payments gateway is disabled or missing credentials; skipping auth token request.' );
         }
 
-        try {
-            \DNAPayments\DNAPayments::configure($this->gateway->get_config());
+        \DNAPayments\DNAPayments::configure($this->gateway->get_config());
 
-            $result = \DNAPayments\DNAPayments::auth(array(
-                'client_id' => $this->gateway->client_id,
-                'client_secret' => $this->gateway->client_secret,
-                'terminal' => $this->gateway->terminal,
-                'invoiceId' => $invoice_id,
-                'amount' => $amount,
-                'currency' => $currency
-            ));
-
-            return $result;
-        } catch (\Exception $e) {
-            // Log the exception before re-throwing it
-            if ( isset( $this->gateway->logger ) ) {
-                $this->gateway->logger->error( 'Auth request failed: ' . $e->getMessage(), $log_context );
-                $this->gateway->logger->error( 'Stack trace: ' . $e->getTraceAsString() );
-            }
-            
-            // Re-throw the exception to be handled by the caller
-            throw $e;
-        }
+        // Failures are logged once, by the caller, with the order they belong to.
+        return \DNAPayments\DNAPayments::auth(array(
+            'client_id' => $this->gateway->client_id,
+            'client_secret' => $this->gateway->client_secret,
+            'terminal' => $this->gateway->terminal,
+            'invoiceId' => $invoice_id,
+            'amount' => $amount,
+            'currency' => $currency
+        ));
     }
 
     public function get_auth_data_from_order( \WC_Order $order ) {

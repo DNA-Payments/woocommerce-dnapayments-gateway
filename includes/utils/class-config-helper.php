@@ -46,9 +46,11 @@ class ConfigHelper {
         if (false !== $cached_config) {
             return $cached_config;
         }
-        
-        // Log the request to fetch terminal config
-        $this->gateway->logger->info('Fetching terminal config for terminal: ' . $terminal . ' (test mode: ' . ($is_test_mode ? 'yes' : 'no') . ')');
+
+        // DNA failed a moment ago: don't make every page wait for the timeout again.
+        if ( get_transient( $cache_key . '_failed' ) ) {
+            return null;
+        }
         
         try {
             $config = $this->gateway->requestHelper->get('/payments/settings/terminals/' . $terminal, false);
@@ -60,7 +62,8 @@ class ConfigHelper {
             
             return $config;
         } catch (\Exception $e) {
-            $this->gateway->logger->error('Error in get_terminal_config; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+            set_transient( $cache_key . '_failed', 1, 5 * MINUTE_IN_SECONDS );
+            $this->gateway->logger->warning( 'DNA terminal config unavailable, retrying in 5 min', array( 'error' => $e->getMessage() ) );
             return null;
         }
     }

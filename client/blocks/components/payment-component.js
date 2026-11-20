@@ -160,7 +160,7 @@ export const PaymentComponent = ({ containerId, componentInstance, gatewayId, er
                     onError: (err) => {
                         const notShowError =
                             isInitFailed(err) && componentInstance.isLoaded && gatewayId === GATEWAY_ID_APPLE_PAY
-                        const message = getPaymentComponentErrorMessage(err, errorMessage)
+                        const message = getPaymentComponentErrorMessage(err, errorMessage, gatewayId)
                         setLoadingState('failed')
                         if (!notShowError) {
                             setErrors(Array.isArray(message) ? message : [message])

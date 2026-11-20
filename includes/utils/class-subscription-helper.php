@@ -209,14 +209,11 @@ class SubscriptionHelper {
         $name = 'Scheduled subscription payment #' . $renewal_order_id;
         $gateway_id = $renewal_order->get_payment_method();
         $base_context = [
-            'renewalOrderId' => $renewal_order_id,
-            'amount'         => $amount_to_charge,
-            'gateway_id'  => $gateway_id,
+            'amount'    => $amount_to_charge . ' ' . $renewal_order->get_currency(),
+            'gatewayId' => $gateway_id,
         ];
 
         try {
-            $this->gateway->logger->info( $name . ' started:', $base_context );
-
             if ( ! function_exists( 'wcs_get_subscriptions_for_renewal_order' ) ) {
                 throw new \Exception( 'WooCommerce Subscriptions function not available' );
             }
@@ -269,27 +266,19 @@ class SubscriptionHelper {
                 $request_data['transactionType'] = $this->gateway->configHelper->get_transaction_type();
             }
 
-            $this->gateway->logger->info(
-                $name . ' processing:',
-                array_merge(
-                    $context,
-                    [
-                        'invoiceId'       => $request_data['invoiceId'] ?? null,
-                        'transactionType' => $request_data['transactionType'] ?? null,
-                    ]
-                )
-            );
-
             $result = $this->gateway->dnaPayment->recurring($request_data);
 
             if ( $result && isset( $result['success'] ) && $result['success'] === true ) {
                 $new_status = $this->gateway->orderHelper->payment_complete( $renewal_order, $result, $result['settled'] ?? false, $name );
+                // Proof that WooCommerce Subscriptions asked us to charge, and what DNA did.
                 $this->gateway->logger->info(
-                    $name . ' finished:' ,
+                    $name . ' charged: renewal order -> ' . $new_status,
                     array_merge(
                         $context,
-                        $this->get_recurring_result_log_context( $result ),
-                        [ 'orderNewStatus' => $new_status ]
+                        [
+                            'transactionId'       => $result['id'] ?? null,
+                            'parentTransactionId' => $transaction_id,
+                        ]
                     )
                 );
             } else {
@@ -306,12 +295,12 @@ class SubscriptionHelper {
                 throw new \Exception($error_message);
             }
         } catch ( \Exception $e ) {
-            $this->gateway->logger->error(
-                $name . ' failed:',
+            $this->gateway->logger->exception(
+                $e,
+                $name . ' failed',
                 array_merge(
                     $base_context,
-                    isset( $subscription ) ? $this->get_subscription_context( $subscription ) : [],
-                    [ 'errorMessage' => $e->getMessage() ]
+                    isset( $subscription ) ? $this->get_subscription_context( $subscription ) : []
                 )
             );
             $renewal_order->update_status( 'failed', sprintf( __( 'DNA Payments: %s failed: %s', \WC_DNA_Payments::$text_domain ), $name, $e->getMessage() ) );
@@ -342,7 +331,6 @@ class SubscriptionHelper {
         $subscription->update_meta_data( Helper::META_CARD_LAST4, $card_info['last4'] ?? '' );
         $subscription->update_meta_data( Helper::META_PAYMENT_METHOD, empty( $input['paymentMethod'] ) ? '' : $input['paymentMethod'] );
         $subscription->save();
-        $this->gateway->logger->info('Saved subscription payment metadata', $this->get_subscription_context( $subscription ));
     }
 
     /**
@@ -354,35 +342,17 @@ class SubscriptionHelper {
      */
     public function handle_change_subscription_payment_method( \WC_Subscription $subscription, array $input ) {
         $custom_data = Helper::parse_merchant_custom_data( $input );
-        if ( ! empty( $custom_data['error'] ) ) {
-            $this->gateway->logger->error( $custom_data['error'] );
-        }
         $gateway_id = $custom_data['gateway_id'] ?? '';
         $name    = 'Change subscription payment method #' . $subscription->get_id();
-        $context = array_merge(
-            [
-                'gatewayId'     => $gateway_id,
-                'paymentMethod' => $input['paymentMethod'] ?? null,
-                'cardTokenId'   => $input['cardTokenId'] ?? null,
-                'transactionId' => $input['id'] ?? null,
-            ],
-            $this->get_subscription_context( $subscription ),
-        );
-
-        $this->gateway->logger->info( $name . ' started', $context );
-
         $this->change_subscription_payment_method( $subscription, $gateway_id );
 
         $token_result = $this->gateway->paymentTokenHelper->add_token($input, $gateway_id, (bool) ($custom_data['allowed_recurring'] ?? false));
-        if ( empty( $token_result['error'] ) ) {
-            $this->gateway->logger->info($name . ': Card token saved ');
-        } else {
-            $this->gateway->logger->error($name . ': Card token not saved. Error: ' . $token_result['error']);
-        }
 
         $this->save_payment_meta_to_subscription( $subscription, $input );
 
-        $this->gateway->logger->info( $name . ' finished:', $context );
+        if ( ! empty( $token_result['error'] ) && false === strpos( $token_result['error'], 'already exists' ) ) {
+            $this->gateway->logger->error( $name . ': card token not saved: ' . $token_result['error'], array( 'transactionId' => $input['id'] ?? null ) );
+        }
     }
 
     /**
@@ -407,49 +377,19 @@ class SubscriptionHelper {
     }
 
     /**
-     * Build a standard subscription log context.
+     * Subscription id and the card renewals will charge.
      *
      * @param \WC_Subscription|null $subscription Subscription.
-     * @param array                 $extra        Additional key/value pairs.
      * @return array
      */
-    private function get_subscription_context( $subscription = null, array $extra = [] ): array {
+    private function get_subscription_context( $subscription = null ): array {
         if ( ! $subscription instanceof \WC_Subscription ) {
             return [];
         }
 
-        $context = [
-            'id'            => $subscription->get_id(),
-            'paymentMethod' => $subscription->get_payment_method(),
-            'meta' => [
-                'paymentMethod' => $subscription->get_meta( Helper::META_PAYMENT_METHOD ),
-                'paymentToken'  => $subscription->get_meta( Helper::META_TOKEN ),
-                'cardType'      => $subscription->get_meta( Helper::META_CARD_TYPE ),
-                'cardLast4'     => $subscription->get_meta( Helper::META_CARD_LAST4 ),
-            ]
-        ];
-
         return [
-            'subscription' => array_merge( $context, $extra ),
-        ];
-    }
-
-    /**
-     * Reduce recurring response data to safe log context.
-     *
-     * @param array $result Recurring payment result.
-     * @return array
-     */
-    private function get_recurring_result_log_context( array $result ): array {
-        return [
-            'recurring_result' => [
-                'transactionId' => $result['id'] ?? null,
-                'success'       => $result['success'] ?? null,
-                'settled'       => $result['settled'] ?? null,
-                'status'        => $result['status'] ?? null,
-                'errorCode'     => $result['errorCode'] ?? null,
-                'message'       => $result['message'] ?? null,
-            ]
+            'subscriptionId' => $subscription->get_id(),
+            'card'           => trim( $subscription->get_meta( Helper::META_CARD_TYPE ) . ' ' . $subscription->get_meta( Helper::META_CARD_LAST4 ) ),
         ];
     }
 }

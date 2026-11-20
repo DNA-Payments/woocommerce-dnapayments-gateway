@@ -13,7 +13,6 @@ import { ErrorMessage } from './error-message'
 import { normalizeCardSchemeName } from '../../common/card-scheme'
 import { createHostedFields } from '../../common/create-hosted-fields'
 import { createModal } from '../../common/create-modal'
-import { logData } from '../../common/log'
 
 import { HOSTED_FIELD_IDS, TEXT_DOMAIN } from '../../common/constants'
 import { dnaPaymentsSettingsData } from '../utils/get-settings'
@@ -109,7 +108,6 @@ export const DnapaymentsCreditCardFields = ({
             const state = hostedFieldsInstance.getState()
             const scheme = normalizeCardSchemeName(state.cardInfo?.type)
             setCardScheme(availableSchemes.includes(scheme) ? scheme : '')
-            logData('card scheme:', scheme)
         })
 
         if (selectedCard) {

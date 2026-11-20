@@ -15,8 +15,85 @@ class OrderHelper {
      */
     public $gateway;
 
+    /**
+     * What DNA had for the invoice at the last lookup, for failure lines.
+     *
+     * @var array
+     */
+    private $last_lookup = array();
+
     public function __construct( $gateway ) {
         $this->gateway  = $gateway;
+    }
+
+    /**
+     * One line per payment attempt, e.g.
+     * "Payment initiated for order #729 with amount 2.40 GBP, 32s after order #728".
+     */
+    public function log_payment_initiated( \WC_Order $order, string $prior_state ) {
+        $message = 'Payment initiated for order #' . $order->get_id() . ' with amount ' . $order->get_total() . ' ' . $order->get_currency()
+            . $this->get_previous_attempt( $order->get_id() );
+
+        if ( in_array( $prior_state, array( 'charged', 'authorized' ), true ) ) {
+            $this->gateway->logger->warning( $message . ', but it is already ' . $prior_state );
+        } else {
+            $this->gateway->logger->info( $message );
+        }
+    }
+
+    /**
+     * ", 32s after order #728" when this session started another order in the last 10 minutes.
+     */
+    private function get_previous_attempt( int $order_id ): string {
+        if ( ! WC()->session ) {
+            return '';
+        }
+
+        $last = WC()->session->get( 'dnapayments_last_attempt' );
+        WC()->session->set( 'dnapayments_last_attempt', array( $order_id, time() ) );
+
+        if ( ! isset( $last[0], $last[1] ) || (int) $last[0] === $order_id || time() - (int) $last[1] > 600 ) {
+            return '';
+        }
+
+        return ', ' . ( time() - (int) $last[1] ) . 's after order #' . (int) $last[0];
+    }
+
+    /**
+     * Wait up to $max_seconds for the webhook to move the order out of pending.
+     */
+    public function wait_for_payment_status( int $order_id, float $max_seconds = 2.0 ): string {
+        $deadline = microtime( true ) + $max_seconds;
+
+        do {
+            $status = $this->get_fresh_order_status( $order_id );
+            if ( ! in_array( $status, array( 'pending', 'checkout-draft', 'draft' ), true ) ) {
+                return $status;
+            }
+            usleep( 250000 );
+        } while ( microtime( true ) < $deadline );
+
+        return $this->get_fresh_order_status( $order_id );
+    }
+
+    /**
+     * Order status read from the database: this request's cached order cannot see the webhook.
+     */
+    public function get_fresh_order_status( int $order_id ): string {
+        global $wpdb;
+
+        $hpos = class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
+            && \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+
+        $status = $hpos
+            ? $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}wc_orders WHERE id = %d", $order_id ) )
+            : $wpdb->get_var( $wpdb->prepare( "SELECT post_status FROM {$wpdb->posts} WHERE ID = %d", $order_id ) );
+
+        return $status ? (string) preg_replace( '/^wc-/', '', $status ) : '';
+    }
+
+    public function get_last_lookup(): array {
+        return $this->last_lookup;
     }
 
     public function process_payment_using_payment_result( $order, $result_string, $user_id = '', $source = '' ) {
@@ -42,7 +119,6 @@ class OrderHelper {
 
         // Check if there's a code indicating the transaction is already being processed
         if (isset($result['code']) && $result['code'] === 'transaction_in_process') {
-            $this->gateway->logger->info('AJAX update skipped for order ' . $order_id . ' as it is being processed by another request');
             // Fetch the order again to get the updated status after waiting 2 second
             sleep(2);
             $order = wc_get_order( $order_id );
@@ -70,8 +146,7 @@ class OrderHelper {
         $is_processing = get_transient($lock_key);
         
         if ($is_processing) {
-            $this->gateway->logger->info('Transaction ' . $transaction_id . ' for order ' . $order_id . ' is already being processed by another request');
-
+            // The caller's outcome line reports this as result=transaction_in_process.
             return [ 
                 'status'  => $status,
                 'code'    => 'transaction_in_process',
@@ -118,7 +193,7 @@ class OrderHelper {
             }
 
             if ( !Helper::is_dna_payments_order($order) ) {
-                $this->gateway->logger->error( 'Order with ID ' . $order_id . ' processed by a different payment method: ' . $order->get_payment_method() . '. But the payment process will continue.' );
+                $this->gateway->logger->warning( 'DNA payment recorded on order #' . $order_id . ' of another gateway', array( 'gatewayId' => $order->get_payment_method() ) );
             }
 
             if( ! empty($input['paypalCaptureStatus']) ) {
@@ -126,11 +201,9 @@ class OrderHelper {
             }
 
             $custom_data = Helper::parse_merchant_custom_data( $input );
-            if ( ! empty( $custom_data['error'] ) ) {
-                $this->gateway->logger->error( $custom_data['error'] );
-            }
             $this->update_payment_method_from_custom_data( $order, $custom_data );
             $new_status = $this->payment_complete( $order, $input, $settled, $source );
+            $result     = [ 'status' => $new_status ];
 
             // Handle saving card tokens. Status "on-hold" means that add_token already processed
             $is_processed = $new_status !== $status && $status === 'on-hold';
@@ -138,24 +211,21 @@ class OrderHelper {
             if ( ! $is_processed && ($should_add_token || $custom_data['allowed_recurring']) ) {
                 $token_result = $this->gateway->paymentTokenHelper->add_token($input, $order->get_payment_method(), (bool) ($custom_data['allowed_recurring'] ?? false));
 
-                if ( empty( $token_result['error'] ) ) {
-                    $this->gateway->logger->info('Card token saved for order ID ' . $order_id);
-                } else {
-                    $this->gateway->logger->info('Card token not saved for order ID ' . $order_id . '. Error: ' . $token_result['error']);
+                // Reported on the caller's line.
+                if ( ! empty( $token_result['error'] ) ) {
+                    $result['token_error'] = $token_result['error'];
                 }
             }
 
             $this->gateway->subscriptionHelper->save_payment_meta_to_subscriptions( $order, $input );
-            
+
             // Release the transaction lock
             delete_transient($lock_key);
-            $this->gateway->logger->info('Released processing lock for transaction ' . $transaction_id);
 
-            return [ 'status' => $new_status ];
+            return $result;
         } catch (\Exception $e) {
-            // Make sure to release the lock even if an error occurs
+            // Make sure to release the lock even if an error occurs. The caller logs the error.
             delete_transient($lock_key);
-            $this->gateway->logger->error('Error updating order status for order ID ' . $order_id . ': ' . $e->getMessage());
             throw $e; // Re-throw the exception to be handled by the caller
         }
     }
@@ -178,7 +248,7 @@ class OrderHelper {
         if ($settled) {
             $new_status = $order->needs_processing() ? 'processing' : 'completed';
             if ( ! $order->payment_complete( $transaction_id ) ) {
-                $this->gateway->logger->error( 'Could not complete payment for order #' . $order_id .' with status ' . $status );
+                // The caller logs the exception below.
                 $order->add_order_note(sprintf(__('DNA Payments: Could not complete payment order with status %s. Source: %s.'), \WC_DNA_Payments::$text_domain), $status, $source);
                 $order->save();
                 throw new \Exception( 'Could not complete payment for order #' . $order_id .' with status ' . $status );
@@ -334,12 +404,6 @@ class OrderHelper {
         $order->set_payment_method( $target_gateway );
         $log = sprintf( 'DNA Payments: Payment method changed from %s to %s via webhook.', $old_payment_method, $target_gateway->id );
 
-        $this->gateway->logger->info(
-            sprintf(
-                'Order ID %s. ',
-                $order->get_id()
-            ) . $log
-        );
         $order->add_order_note( $log );
 
         return $target_gateway;
@@ -390,6 +454,7 @@ class OrderHelper {
         }
 
         $default_info = [ 'id' => '', 'paymentMethod' => '', 'rrn' => '' ];
+        $this->last_lookup = [];
 
         try {
             $client_token = $this->gateway->authDataHelper->get_client_token();
@@ -399,8 +464,20 @@ class OrderHelper {
                 (string) $order->get_order_number()
             );
         } catch ( \Throwable $exception ) {
+            $this->last_lookup = [ 'dnaTransactions' => 'lookup failed: ' . $exception->getMessage() ];
             return [ 'state' => '' ] + $default_info;
         }
+
+        // e.g. "CHARGE 3 GBP transactionId ffff6666-... accountId 4401": added to the caller's line
+        // if the payment is not confirmed.
+        $transactions = is_array( $transactions ) ? $transactions : [];
+        $seen = [];
+        foreach ( array_slice( $transactions, 0, 5 ) as $item ) {
+            $seen[] = trim( ( $item['transactionState'] ?? '' ) . ' ' . ( $item['amount'] ?? '' ) . ' ' . ( $item['currency'] ?? '' )
+                . ( empty( $item['id'] ) ? '' : ' transactionId ' . $item['id'] )
+                . ( empty( $item['accountId'] ) ? '' : ' accountId ' . $item['accountId'] ) );
+        }
+        $this->last_lookup = [ 'dnaTransactions' => $seen ? implode( '; ', $seen ) : 'none' ];
 
         $matched_states = [];
         $refunded_amount = 0;

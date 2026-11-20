@@ -1,5 +1,6 @@
 import { updateOrderStatus } from './api/update-order-status'
 import { tryParse } from './try-parse'
+import { setLogContext } from './report-error'
 
 /**
  * Completes the payment process and handles redirection
@@ -30,6 +31,7 @@ export async function completePayment({
         setLoading(true)
         try {
             const orderId = getOrderIdFromPaymentData(paymentResult)
+            setLogContext({ orderId })
             const { success, data } = await updateOrderStatus(orderId, paymentResult, page, orderKey)
 
             if (success) {

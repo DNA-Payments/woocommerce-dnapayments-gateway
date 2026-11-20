@@ -287,13 +287,38 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                 'transaction_id' => $order->get_transaction_id()
             ]);
 
-            return !empty($result) && $result['success'];
+            $success = !empty($result) && $result['success'];
+            if ( ! $success ) {
+                $this->log_dna_decline( 'Cancel', $order, $order->get_total(), $result );
+            }
+
+            return $success;
         } catch (Exception $e) {
-            $this->logger->error('Error in process_cancel; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+            $this->logger->exception( $e, 'Cancel failed for order #' . $order->get_id(), array( 'transactionId' => $order->get_transaction_id() ) );
             return false;
         }
 
         return false;
+    }
+
+    /**
+     * Log a cancel / refund that DNA declined. The admin only sees a generic WooCommerce error,
+     * so DNA's reason is kept here. Accepted ones are already in the order notes.
+     *
+     * @param string     $operation 'Cancel' or 'Refund'.
+     * @param \WC_Order  $order     Order.
+     * @param mixed      $amount    Requested amount.
+     * @param array|null $result    DNA response.
+     */
+    private function log_dna_decline( $operation, $order, $amount, $result ) {
+        $result = is_array( $result ) ? $result : array();
+
+        $this->logger->error( $operation . ' declined by DNA for order #' . $order->get_id(), array(
+            'amount'        => $amount . ' ' . $order->get_currency(),
+            'transactionId' => $order->get_transaction_id(),
+            'errorCode'     => $result['errorCode'] ?? ( $result['code'] ?? null ),
+            'message'       => $result['message'] ?? ( empty( $result ) ? 'empty response' : null ),
+        ) );
     }
 
     /**
@@ -341,20 +366,27 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
 			throw new Exception( $message );
         }
 
+        $refund_amount = is_null($amount) ? $order->get_total() : $amount;
+
         try {
             $result = $this->dnaPayment->refund([
                 'client_id' => $this->client_id,
                 'client_secret' => $this->client_secret,
                 'terminal' => $this->terminal,
                 'invoiceId' => strval($order->get_order_number()),
-                'amount' => is_null($amount) ? $order->get_total() : $amount,
+                'amount' => $refund_amount,
                 'currency' => $order->get_currency(),
                 'transaction_id' => $order->get_transaction_id()
             ]);
 
-            return !empty($result) && $result['success'];
+            $success = !empty($result) && $result['success'];
+            if ( ! $success ) {
+                $this->log_dna_decline( 'Refund', $order, $refund_amount, $result );
+            }
+
+            return $success;
         } catch (Exception $e) {
-            $this->logger->error('Error in process_refund; Code: ' . $e->getCode() . '; Message: ' . $e->getMessage());
+            $this->logger->exception( $e, 'Refund failed for order #' . $order_id, array( 'amount' => $refund_amount . ' ' . $order->get_currency(), 'transactionId' => $order->get_transaction_id() ) );
             return false;
         }
 
@@ -626,7 +658,10 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
             );
 
             if ( is_wp_error( $can_process ) ) {
-                throw new \Exception( $can_process->get_error_message() );
+                return array(
+                    'result'   => 'failure',
+                    'messages' => $can_process->get_error_message(),
+                );
             }
 
             // Check if this is a block-based checkout (REST API request)
@@ -663,13 +698,14 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                 }
 
                 $order->read_meta_data(true);
+                $prior_state = $this->orderHelper->get_order_state( $order );
                 if ( $order->get_status() === 'checkout-draft' ) {
                     $order->update_status( 'pending', __( 'DNA Payments: Order status changed to pending during payment initiation.', \WC_DNA_Payments::$text_domain ) );
                 }
                 $order->update_meta_data('_dnapayments_state', 'initiated');
                 $order->add_order_note(__( 'DNA Payments: Payment initiated. Awaiting customer action.', \WC_DNA_Payments::$text_domain ));
                 $order->save();
-                $this->logger->info( 'Payment initiated for order #' . $order->get_id() . ' with amount ' . $order->get_total() . ' ' . $order->get_currency() );
+                $this->orderHelper->log_payment_initiated( $order, $prior_state );
 
                 return array(
                     'result'        => 'success',
@@ -698,12 +734,18 @@ class WC_DNA_Payments_Gateway extends WC_Gateway_Abstract_Dnapayments {
                 'redirect'	=> $this->paymentDataHelper->get_payment_return_url( $order, $page, true )
             );
         } catch (Exception $e) {
-            $this->logger->error('Error in process_payment: ' . $e->getMessage());
-            $this->logger->error('Stack trace: ' . $e->getTraceAsString());
+            $this->logger->exception( $e, 'Payment failed for order #' . $order_id, $this->orderHelper->get_last_lookup() );
 
             return array(
                 'result' => 'failure',
                 'messages' => $e->getMessage(),
+            );
+        } catch (\Error $e) {
+            $this->logger->exception( $e, 'Payment failed for order #' . $order_id );
+
+            return array(
+                'result' => 'failure',
+                'messages' => __( 'Something went wrong while starting the payment. Please try again.', \WC_DNA_Payments::$text_domain ),
             );
         }
     }

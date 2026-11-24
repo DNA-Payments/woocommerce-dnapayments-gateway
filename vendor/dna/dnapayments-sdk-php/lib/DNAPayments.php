@@ -281,7 +281,15 @@ class DNAPayments {
 
     public static function isValidSignature($result, $secret)
     {
-        $string = $result['id'] . $result['amount'] . $result['currency'] . $result['invoiceId'] . $result['errorCode'] . json_encode($result['success']);
-        return base64_encode(hash_hmac('sha256', $string, $secret, true)) == $result['signature'];
+        if (!is_array($result) || !is_string($secret) || $secret === ''
+            || !isset($result['signature']) || !is_string($result['signature']) || $result['signature'] === '') {
+            return false;
+        }
+
+        $string = ($result['id'] ?? '') . ($result['amount'] ?? '') . ($result['currency'] ?? '')
+            . ($result['invoiceId'] ?? '') . ($result['errorCode'] ?? '') . json_encode($result['success'] ?? null);
+        $expected = base64_encode(hash_hmac('sha256', $string, $secret, true));
+
+        return hash_equals($expected, $result['signature']);
     }
 }

@@ -3,7 +3,7 @@
     "description": "DNA payments library for php",
     "license": "MIT",
     "type": "library",
-    "version": "2.2.1",
+    "version": "2.2.2",
     "authors": [
         {
             "name": "Nurbol Sarsenbayev",

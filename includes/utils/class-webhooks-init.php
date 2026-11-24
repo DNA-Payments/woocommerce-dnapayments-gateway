@@ -74,7 +74,7 @@ class WebhooksInit {
 
         // Check for signature parameter
         $params = $request->get_params();
-        if ( ! isset( $params['signature'] ) || empty( $params['signature'] ) ) {
+        if ( ! isset( $params['signature'] ) || ! is_string( $params['signature'] ) || '' === $params['signature'] ) {
             $this->gateway->logger->error('Webhook permission denied: Missing signature parameter');
             return false;
         }
@@ -425,7 +425,13 @@ class WebhooksInit {
             throw new \Exception('Transaction was successful.', 400);
         }
 
-        if ( ! $this->gateway->dnaPayment::isValidSignature($input, $this->gateway->client_secret) ) {
+        if ( $should_be_successfull && ( empty( $input['id'] ) || ! is_string( $input['id'] ) ) ) {
+            throw new \Exception('Missing transaction id.', 400);
+        }
+
+        if ( empty( $this->gateway->client_secret )
+            || ! is_string( $input['signature'] ?? null )
+            || ! $this->gateway->dnaPayment::isValidSignature($input, $this->gateway->client_secret) ) {
             throw new \Exception('Invalid signature.', 403);
         }
 

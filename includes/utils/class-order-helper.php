@@ -152,8 +152,8 @@ class OrderHelper {
             $this->gateway->logger->info('Released processing lock for transaction ' . $transaction_id);
 
             return [ 'status' => $new_status ];
-        } catch (\Exception $e) {
-            // Make sure to release the lock even if an error occurs
+        } catch (\Throwable $e) {
+            // Make sure to release the lock even if an error occurs (including PHP errors, not only exceptions)
             delete_transient($lock_key);
             $this->gateway->logger->error('Error updating order status for order ID ' . $order_id . ': ' . $e->getMessage());
             throw $e; // Re-throw the exception to be handled by the caller
@@ -179,7 +179,7 @@ class OrderHelper {
             $new_status = $order->needs_processing() ? 'processing' : 'completed';
             if ( ! $order->payment_complete( $transaction_id ) ) {
                 $this->gateway->logger->error( 'Could not complete payment for order #' . $order_id .' with status ' . $status );
-                $order->add_order_note(sprintf(__('DNA Payments: Could not complete payment order with status %s. Source: %s.'), \WC_DNA_Payments::$text_domain), $status, $source);
+                $order->add_order_note(sprintf(__('DNA Payments: Could not complete payment order with status %s. Source: %s.', \WC_DNA_Payments::$text_domain), $status, $source));
                 $order->save();
                 throw new \Exception( 'Could not complete payment for order #' . $order_id .' with status ' . $status );
             }

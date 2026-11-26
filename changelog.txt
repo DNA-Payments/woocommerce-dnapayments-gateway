@@ -2,6 +2,12 @@
 
 Changelog
 
+2026-11-26 - version 4.4.3
+
+= Fixes =
+	- Fixed an issue where an error could occur, instead of a clear message being recorded on the order, when WooCommerce was unable to complete an order after a successful payment.
+
+
 2026-11-24 - version 4.4.2
 
 = Fixes =
